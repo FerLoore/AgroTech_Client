@@ -14,7 +14,6 @@ export const getRolById = async (id: number) => {
 
 // POST /api/agro-roles
 export const createRol = async (data: {
-    rol_rol: number;
     rol_nombre: string;
     rol_descripcion?: string;
     rol_permiso: number;

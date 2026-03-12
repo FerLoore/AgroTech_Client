@@ -11,7 +11,7 @@ const AgroRolPage = () => {
     } = useAgroRol();
 
     if (loading) return <Cargando mensaje="Cargando roles..." />;
-    if (error)   return <ErrorMensaje mensaje={error} />;
+    if (error) return <ErrorMensaje mensaje={error} />;
 
     return (
         <div style={{ minHeight: "100vh", background: "#f5f0e8", padding: "40px 32px" }}>
@@ -179,13 +179,6 @@ const Modal = ({ editando, form, setForm, guardando, formError, onGuardar, onCer
             </h2>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {!editando && (
-                    <Campo label="ID del Rol">
-                        <input type="number" value={form.rol_rol}
-                            onChange={e => setForm({ ...form, rol_rol: e.target.value })}
-                            placeholder="Ej: 7" style={inputStyle} />
-                    </Campo>
-                )}
                 <Campo label="Nombre">
                     <input type="text" value={form.rol_nombre}
                         onChange={e => setForm({ ...form, rol_nombre: e.target.value })}

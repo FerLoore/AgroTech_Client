@@ -45,7 +45,6 @@ export const useAgroRol = () => {
     const abrirEditar = (rol: Rol) => {
         setEditando(rol);
         setForm({
-            rol_rol:         String(rol.rol_rol),
             rol_nombre:      rol.rol_nombre,
             rol_descripcion: rol.rol_descripcion || "",
             rol_permiso:     String(rol.rol_permiso),
@@ -65,10 +64,6 @@ export const useAgroRol = () => {
             setFormError("El nivel de permiso es requerido");
             return;
         }
-        if (!editando && !form.rol_rol) {
-            setFormError("El ID es requerido para crear un rol");
-            return;
-        }
 
         try {
             setGuardando(true);
@@ -82,7 +77,6 @@ export const useAgroRol = () => {
                 });
             } else {
                 await createRol({
-                    rol_rol:         Number(form.rol_rol),
                     rol_nombre:      form.rol_nombre,
                     rol_descripcion: form.rol_descripcion,
                     rol_permiso:     Number(form.rol_permiso),

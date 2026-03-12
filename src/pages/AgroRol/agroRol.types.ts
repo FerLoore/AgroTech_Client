@@ -7,7 +7,6 @@ export interface Rol {
 }
 
 export interface RolFormData {
-    rol_rol:         string;
     rol_nombre:      string;
     rol_descripcion: string;
     rol_permiso:     string;
@@ -24,7 +23,6 @@ export interface ModalProps {
 }
 
 export const ROL_FORM_INICIAL: RolFormData = {
-    rol_rol:         "",
     rol_nombre:      "",
     rol_descripcion: "",
     rol_permiso:     "",
