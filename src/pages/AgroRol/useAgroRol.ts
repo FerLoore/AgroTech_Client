@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getRoles, createRol, updateRol, deleteRol } from "../../api/Agrorol.api";
 import type { Rol, RolFormData } from "./agroRol.types";
 import { ROL_FORM_INICIAL } from "./agroRol.types";
+import { toast } from "sonner";
 
 export const useAgroRol = () => {
 
@@ -55,6 +56,7 @@ export const useAgroRol = () => {
 
     const cerrarModal = () => setModal(false);
 
+    // ── Guardar — crear o editar ──────────────────────────────
     const handleGuardar = async () => {
         if (!form.rol_nombre.trim()) {
             setFormError("El nombre es requerido");
@@ -75,12 +77,14 @@ export const useAgroRol = () => {
                     rol_descripcion: form.rol_descripcion,
                     rol_permiso:     Number(form.rol_permiso),
                 });
+                toast.success("Rol actualizado correctamente");
             } else {
                 await createRol({
                     rol_nombre:      form.rol_nombre,
                     rol_descripcion: form.rol_descripcion,
                     rol_permiso:     Number(form.rol_permiso),
                 });
+                toast.success("Rol creado exitosamente");
             }
 
             setModal(false);
@@ -89,20 +93,34 @@ export const useAgroRol = () => {
         } catch (err: unknown) {
             const mensaje = err instanceof Error ? err.message : "Error al guardar el rol";
             setFormError(mensaje);
+            toast.error(mensaje);
         } finally {
             setGuardando(false);
         }
     };
 
-    const handleEliminar = async (rol: Rol) => {
-        if (!confirm(`¿Desactivar el rol "${rol.rol_nombre}"?`)) return;
-        try {
-            await deleteRol(rol.rol_rol);
-            cargarRoles();
-        } catch (err: unknown) {
-            const mensaje = err instanceof Error ? err.message : "Error al desactivar el rol";
-            alert(mensaje);
-        }
+    // ── Eliminar — confirmación con toast.warning ─────────────
+    const handleEliminar = (rol: Rol) => {
+        toast.warning(`¿Desactivar el rol "${rol.rol_nombre}"?`, {
+            description: "Esta acción desactivará el rol del sistema.",
+            action: {
+                label: "Desactivar",
+                onClick: async () => {
+                    try {
+                        await deleteRol(rol.rol_rol);
+                        cargarRoles();
+                        toast.success("Rol desactivado correctamente");
+                    } catch (err: unknown) {
+                        const mensaje = err instanceof Error ? err.message : "Error al desactivar el rol";
+                        toast.error(mensaje);
+                    }
+                }
+            },
+            cancel: {
+                label: "Cancelar",
+                onClick: () => {}
+            },
+        });
     };
 
     return {
