@@ -1,6 +1,7 @@
 import { useAgroRol } from "./useAgroRol";
 import type { Rol, ModalProps } from "./agroRol.types";
 import { NIVEL_PERMISO } from "./agroRol.types";
+import { Pencil, Trash2, ShieldCheck, Plus, Search } from "lucide-react";
 
 const AgroRolPage = () => {
     const {
@@ -10,110 +11,108 @@ const AgroRolPage = () => {
         abrirCrear, abrirEditar, cerrarModal, handleGuardar, handleEliminar,
     } = useAgroRol();
 
-    if (loading) return <Cargando mensaje="Cargando roles..." />;
-    if (error) return <ErrorMensaje mensaje={error} />;
+    if (loading) return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300 }}>
+            <p style={{ color: "#5a7a5a", fontSize: 18 }}>Cargando roles...</p>
+        </div>
+    );
+
+    if (error) return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300 }}>
+            <p style={{ color: "#c0392b", fontSize: 18 }}>{error}</p>
+        </div>
+    );
 
     return (
         <div style={{ minHeight: "100vh", background: "#f5f0e8", padding: "40px 32px" }}>
             <div style={{ maxWidth: 900, margin: "0 auto" }}>
-                <Encabezado total={roles.length} onNuevo={abrirCrear} />
-                <Buscador valor={busqueda} onChange={setBusqueda} />
-                <Tabla roles={rolesFiltrados} onEditar={abrirEditar} onEliminar={handleEliminar} />
-                {modal && (
-                    <Modal
-                        editando={editando}
-                        form={form}
-                        setForm={setForm}
-                        guardando={guardando}
-                        formError={formError}
-                        onGuardar={handleGuardar}
-                        onCerrar={cerrarModal}
+
+                {/* Encabezado */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                        <div style={{
+                            background: "#4a7c59", borderRadius: 14, width: 48, height: 48,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            boxShadow: "0 2px 8px rgba(74,124,89,0.25)"
+                        }}>
+                            <ShieldCheck size={26} color="#fff" />
+                        </div>
+                        <div>
+                            <h1 style={{ fontSize: 26, fontWeight: 700, color: "#2d4a2d", margin: 0 }}>Gestión de Roles</h1>
+                            <p style={{ fontSize: 13, color: "#7a9a7a", marginTop: 2 }}>AGRO_ROL — {roles.length} roles activos</p>
+                        </div>
+                    </div>
+                    <button onClick={abrirCrear} style={{
+                        background: "#4a7c59", color: "#fff", border: "none",
+                        padding: "10px 20px", borderRadius: 10, fontSize: 14,
+                        fontWeight: 600, cursor: "pointer", display: "flex",
+                        alignItems: "center", gap: 7
+                    }}>
+                        <Plus size={16} /> Nuevo Rol
+                    </button>
+                </div>
+
+                {/* Buscador */}
+                <div style={{ marginBottom: 16, position: "relative" }}>
+                    <Search size={16} color="#7a9a7a" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }} />
+                    <input
+                        type="text"
+                        placeholder="Buscar por nombre o descripción..."
+                        value={busqueda}
+                        onChange={e => setBusqueda(e.target.value)}
+                        style={{
+                            width: "100%", padding: "10px 16px 10px 40px", fontSize: 14,
+                            border: "1.5px solid #c8d8c0", borderRadius: 10,
+                            background: "#fff", color: "#2d4a2d", outline: "none",
+                            boxSizing: "border-box"
+                        }}
                     />
-                )}
+                </div>
+
+                {/* Tabla */}
+                <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 16px rgba(74,124,89,0.10)" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                        <thead>
+                            <tr style={{ background: "#e8f0e0" }}>
+                                {["ID", "Nombre", "Descripción", "Nivel", "Acciones"].map(col => (
+                                    <th key={col} style={{
+                                        padding: "14px 20px", color: "#4a7c59", fontWeight: 700,
+                                        fontSize: 12, textTransform: "uppercase", letterSpacing: 1,
+                                        textAlign: "center"
+                                    }}>{col}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rolesFiltrados.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} style={{ textAlign: "center", padding: 40, color: "#aaa" }}>
+                                        No se encontraron roles
+                                    </td>
+                                </tr>
+                            ) : rolesFiltrados.map((rol, i) => (
+                                <FilaRol key={rol.rol_rol} rol={rol} onEditar={abrirEditar} onEliminar={handleEliminar} par={i % 2 === 0} />
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
             </div>
+
+            {modal && (
+                <Modal
+                    editando={editando}
+                    form={form}
+                    setForm={setForm}
+                    guardando={guardando}
+                    formError={formError}
+                    onGuardar={handleGuardar}
+                    onCerrar={cerrarModal}
+                />
+            )}
         </div>
     );
 };
-
-// ── Subcomponentes ────────────────────────────────────────────
-
-const Cargando = ({ mensaje }: { mensaje: string }) => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300 }}>
-        <p style={{ color: "#5a7a5a", fontSize: 18 }}>{mensaje}</p>
-    </div>
-);
-
-const ErrorMensaje = ({ mensaje }: { mensaje: string }) => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300 }}>
-        <p style={{ color: "#c0392b", fontSize: 18 }}>{mensaje}</p>
-    </div>
-);
-
-const Encabezado = ({ total, onNuevo }: { total: number; onNuevo: () => void }) => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <div>
-            <h1 style={{ fontSize: 28, fontWeight: 700, color: "#2d4a2d", margin: 0 }}>Gestión de Roles</h1>
-            <p style={{ fontSize: 13, color: "#7a9a7a", marginTop: 4 }}>AGRO_ROL — {total} roles activos</p>
-        </div>
-        <button onClick={onNuevo} style={{
-            background: "#4a7c59", color: "#fff", border: "none",
-            padding: "10px 20px", borderRadius: 10, fontSize: 14,
-            fontWeight: 600, cursor: "pointer"
-        }}>
-            + Nuevo Rol
-        </button>
-    </div>
-);
-
-const Buscador = ({ valor, onChange }: { valor: string; onChange: (v: string) => void }) => (
-    <div style={{ marginBottom: 16 }}>
-        <input
-            type="text"
-            placeholder="Buscar por nombre o descripción..."
-            value={valor}
-            onChange={e => onChange(e.target.value)}
-            style={{
-                width: "100%", padding: "10px 16px", fontSize: 14,
-                border: "1.5px solid #c8d8c0", borderRadius: 10,
-                background: "#fff", color: "#2d4a2d", outline: "none",
-                boxSizing: "border-box"
-            }}
-        />
-    </div>
-);
-
-const Tabla = ({ roles, onEditar, onEliminar }: {
-    roles: Rol[];
-    onEditar: (r: Rol) => void;
-    onEliminar: (r: Rol) => void;
-}) => (
-    <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 16px rgba(74,124,89,0.10)" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-            <thead>
-                <tr style={{ background: "#e8f0e0" }}>
-                    {["ID", "Nombre", "Descripción", "Nivel", "Acciones"].map(col => (
-                        <th key={col} style={{
-                            padding: "14px 20px", color: "#4a7c59", fontWeight: 700,
-                            fontSize: 12, textTransform: "uppercase", letterSpacing: 1,
-                            textAlign: "center"
-                        }}>{col}</th>
-                    ))}
-                </tr>
-            </thead>
-            <tbody>
-                {roles.length === 0 ? (
-                    <tr>
-                        <td colSpan={5} style={{ textAlign: "center", padding: 40, color: "#aaa" }}>
-                            No se encontraron roles
-                        </td>
-                    </tr>
-                ) : roles.map((rol, i) => (
-                    <FilaRol key={rol.rol_rol} rol={rol} onEditar={onEditar} onEliminar={onEliminar} par={i % 2 === 0} />
-                ))}
-            </tbody>
-        </table>
-    </div>
-);
 
 const FilaRol = ({ rol, onEditar, onEliminar, par }: {
     rol: Rol; par: boolean;
@@ -131,20 +130,28 @@ const FilaRol = ({ rol, onEditar, onEliminar, par }: {
                     padding: "4px 12px", borderRadius: 20, fontSize: 12,
                     fontWeight: 600, background: nivel?.bg, color: nivel?.text
                 }}>
-                    {nivel?.label} ({rol.rol_permiso})
+                    {nivel?.label} 
                 </span>
             </td>
             <td style={{ padding: "14px 20px", textAlign: "center" }}>
-                <button onClick={() => onEditar(rol)} style={{
-                    background: "#ddeedd", color: "#2d6a4f", border: "none",
-                    padding: "6px 14px", borderRadius: 8, fontSize: 12,
-                    fontWeight: 600, cursor: "pointer", marginRight: 8
-                }}>Editar</button>
-                <button onClick={() => onEliminar(rol)} style={{
-                    background: "#fde8e0", color: "#a03020", border: "none",
-                    padding: "6px 14px", borderRadius: 8, fontSize: 12,
-                    fontWeight: 600, cursor: "pointer"
-                }}>Desactivar</button>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                    <button onClick={() => onEditar(rol)} title="Editar" style={{
+                        background: "#ddeedd", color: "#2d6a4f", border: "none",
+                        padding: "7px 14px", borderRadius: 8, fontSize: 12,
+                        fontWeight: 600, cursor: "pointer",
+                        display: "flex", alignItems: "center", gap: 5
+                    }}>
+                        <Pencil size={13} /> Editar
+                    </button>
+                    <button onClick={() => onEliminar(rol)} title="Desactivar" style={{
+                        background: "#fde8e0", color: "#a03020", border: "none",
+                        padding: "7px 14px", borderRadius: 8, fontSize: 12,
+                        fontWeight: 600, cursor: "pointer",
+                        display: "flex", alignItems: "center", gap: 5
+                    }}>
+                        <Trash2 size={13} /> Desactivar
+                    </button>
+                </div>
             </td>
         </tr>
     );
@@ -174,9 +181,12 @@ const Modal = ({ editando, form, setForm, guardando, formError, onGuardar, onCer
             background: "#fff", borderRadius: 20, padding: 32,
             width: "100%", maxWidth: 440, boxShadow: "0 8px 40px rgba(0,0,0,0.18)"
         }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#2d4a2d", marginBottom: 24 }}>
-                {editando ? `Editar Rol #${editando.rol_rol}` : "Nuevo Rol"}
-            </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+                <ShieldCheck size={22} color="#4a7c59" />
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: "#2d4a2d", margin: 0 }}>
+                    {editando ? `Editar Rol #${editando.rol_rol}` : "Nuevo Rol"}
+                </h2>
+            </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <Campo label="Nombre">
