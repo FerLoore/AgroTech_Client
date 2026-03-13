@@ -7,7 +7,7 @@ import {
     AlertTriangle, FlaskConical, Syringe,
     ChevronLeft, ChevronRight, Menu
 } from "lucide-react";
-import logo from "../assets/AGROTECH LOGOsinfondo.png";
+import logo from "../assets/AGROTECHLOGOsinfondo.png";
 
 const MENU = [
     {
@@ -53,9 +53,13 @@ const NAVBAR_H    = 56;
 interface LayoutProps { children: React.ReactNode }
 
 const Layout = ({ children }: LayoutProps) => {
+
+    // ── Hooks — siempre dentro del componente ─────────────────
     const [collapsed, setCollapsed] = useState(false);
+    const [tooltip, setTooltip]     = useState<{ label: string; y: number } | null>(null);
     const navigate  = useNavigate();
     const location  = useLocation();
+
     const sw = collapsed ? COLLAPSED_W : SIDEBAR_W;
     const paginaActual = MENU.flatMap(g => g.items).find(i => i.ruta === location.pathname)?.label ?? "Inicio";
 
@@ -70,17 +74,18 @@ const Layout = ({ children }: LayoutProps) => {
                 position: "fixed", top: 0, left: 0, zIndex: 100,
                 boxShadow: "2px 0 12px rgba(0,0,0,0.12)"
             }}>
+
                 {/* Logo */}
                 <div style={{
                     height: NAVBAR_H, display: "flex", alignItems: "center",
-                    padding: collapsed ? "0 16px" : "0 18px", gap: 10,
+                    padding: collapsed ? "0 14px" : "0 18px", gap: 10,
                     borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0,
-                    background: "#FFFF"
+                    background: "#f5f0e8"
                 }}>
-                    <img src="/src/assets/AGROTECH LOGOsinfondo.png" alt="AgroTech"
-                        style={{ width: 32, height: 32, objectFit: "contain", flexShrink: 0 }} />
+                    <img src={logo} alt="AgroTech"
+                        style={{ width: 34, height: 34, objectFit: "contain", flexShrink: 0 }} />
                     {!collapsed && (
-                        <span style={{ color: "#f5f0e8", fontWeight: 600, fontSize: 16, whiteSpace: "nowrap" }}>
+                        <span style={{ color: "#2d4a2d", fontWeight: 700, fontSize: 16, whiteSpace: "nowrap" }}>
                             AgroTech
                         </span>
                     )}
@@ -103,7 +108,11 @@ const Layout = ({ children }: LayoutProps) => {
                                 return (
                                     <button key={item.ruta}
                                         onClick={() => navigate(item.ruta)}
-                                        title={collapsed ? item.label : undefined}
+                                        onMouseEnter={e => collapsed && setTooltip({
+                                            label: item.label,
+                                            y: (e.currentTarget as HTMLElement).getBoundingClientRect().top + 14
+                                        })}
+                                        onMouseLeave={() => setTooltip(null)}
                                         style={{
                                             width: "100%", display: "flex", alignItems: "center",
                                             gap: 10, padding: collapsed ? "10px 0" : "9px 18px",
@@ -138,6 +147,27 @@ const Layout = ({ children }: LayoutProps) => {
                     {collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
                 </button>
             </aside>
+
+            {/* Tooltip custom — fuera del aside para no ser cortado por overflow:hidden */}
+            {collapsed && tooltip && (
+                <div style={{
+                    position: "fixed",
+                    left: COLLAPSED_W + 8,
+                    top: tooltip.y,
+                    background: "#2d4a2d",
+                    color: "#f5f0e8",
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    zIndex: 200,
+                    pointerEvents: "none",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                    whiteSpace: "nowrap"
+                }}>
+                    {tooltip.label}
+                </div>
+            )}
 
             {/* ── Main content ── */}
             <div style={{
