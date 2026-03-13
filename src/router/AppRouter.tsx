@@ -3,6 +3,7 @@ import Layout from "../components/Layout";
 import AgroRolPage from "../pages/AgroRol/AgroRolPage";
 import AgroTipoArbolPage from "../pages/AgroTipoArbol/AgroTipoArbolPage";
 import AgroCatalogoPatogenoPage from "../pages/AgrocatalogoPatogeno/AgroCatalogoPatogenoPage";
+import AgroProductoPage from "../pages/AgroProducto/AgroProductoPage";
 
 
 // Cada dev importa su página y agrega su <Route> aquí
@@ -16,7 +17,7 @@ const AppRouter = () => {
                     <Route path="/agro-roles" element={<AgroRolPage />} />
                     <Route path="/agro-tipo-arbol"        element={<AgroTipoArbolPage />} /> 
                     <Route path="/agro-catalogo-patogeno" element={<AgroCatalogoPatogenoPage />} /> 
-                    {/* <Route path="/agro-producto"          element={<AgroProductoPage />} /> */}
+                    <Route path="/agro-producto"          element={<AgroProductoPage />} /> 
                 </Routes>
             </Layout>
         </BrowserRouter>
