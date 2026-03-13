@@ -93,11 +93,12 @@ interface CrudTablaProps<T extends Record<string, unknown>> {
     formError:   string;            // error de validación o API dentro del modal
 
     // ── Callbacks — acciones del usuario ──
-    onNuevo:     () => void;         // click en botón "Nuevo"
-    onEditar:    (item: T) => void;  // click en botón "Editar" de una fila
-    onEliminar:  (item: T) => void;  // click en botón "Desactivar" de una fila
-    onGuardar:   () => void;         // click en botón "Guardar/Actualizar" del modal
-    onCerrar:    () => void;         // click en "Cancelar" o fuera del modal
+    onNuevo:        () => void;         // click en botón "Nuevo"
+    onEditar:       (item: T) => void;  // click en botón "Editar" de una fila
+    onEliminar:     (item: T) => void;  // click en botón "Desactivar" de una fila
+    onGuardar:      () => void;         // click en botón "Guardar/Actualizar" del modal
+    onCerrar:       () => void;         // click en "Cancelar" o fuera del modal
+    labelEliminar?: string;             // "Desactivar" por defecto, "Eliminar" para borrado físico
 }
 
 // ============================================================
@@ -119,7 +120,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
     loading, error,
     busqueda, setBusqueda,
     modal, editando, form, setForm, guardando, formError,
-    onNuevo, onEditar, onEliminar, onGuardar, onCerrar,
+    onNuevo, onEditar, onEliminar, onGuardar, onCerrar, labelEliminar = "Desactivar",
 }: CrudTablaProps<T>) => {
 
     // Estado local — solo afecta el hover visual de las filas
@@ -296,7 +297,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
                                                 fontWeight: 600, cursor: "pointer",
                                                 display: "flex", alignItems: "center", gap: 5
                                             }}>
-                                                <Trash2 size={12} /> Desactivar
+                                                <Trash2 size={12} /> {labelEliminar}
                                             </button>
                                         </div>
                                     </td>
