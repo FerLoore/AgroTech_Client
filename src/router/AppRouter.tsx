@@ -11,7 +11,6 @@ const AppRouter = () => {
                 <Routes>
                     <Route path="/" element={<h1 style={{ padding: 40, color: "#2d4a2d" }}>Bienvenido a AgroTech 🌱</h1>} />
                     <Route path="/agro-roles" element={<AgroRolPage />} />
-                    {/* Dev 1 */}
                     {/* <Route path="/agro-tipo-arbol"        element={<AgroTipoArbolPage />} /> */}
                     {/* <Route path="/agro-catalogo-patogeno" element={<AgroCatalogoPatogenoPage />} /> */}
                     {/* <Route path="/agro-producto"          element={<AgroProductoPage />} /> */}

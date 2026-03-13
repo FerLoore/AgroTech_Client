@@ -1,4 +1,5 @@
 export interface Rol {
+    [key: string]: unknown; 
     rol_rol:         number;
     rol_nombre:      string;
     rol_descripcion: string;
@@ -7,6 +8,7 @@ export interface Rol {
 }
 
 export interface RolFormData {
+    [key: string]: unknown; 
     rol_nombre:      string;
     rol_descripcion: string;
     rol_permiso:     string;
