@@ -6,6 +6,7 @@ import {
     GitBranch, Leaf, ClipboardList,
     AlertTriangle, FlaskConical, Syringe,
     ChevronLeft, ChevronRight, Menu
+    // Map as MapIcon
 } from "lucide-react";
 import logo from "../assets/AGROTECHLOGOsinfondo.png";
 
@@ -13,52 +14,52 @@ const MENU = [
     {
         grupo: "Catálogos",
         items: [
-            { label: "Roles",             ruta: "/agro-roles",             icono: ShieldCheck   },
-            { label: "Tipos de Árbol",    ruta: "/agro-tipo-arbol",        icono: TreeDeciduous },
-            { label: "Catálogo Patógeno", ruta: "/agro-catalogo-patogeno", icono: Bug           },
-            { label: "Productos",         ruta: "/agro-producto",          icono: Package       },
+            { label: "Roles", ruta: "/agro-roles", icono: ShieldCheck },
+            { label: "Tipos de Árbol", ruta: "/agro-tipo-arbol", icono: TreeDeciduous },
+            { label: "Catálogo Patógeno", ruta: "/agro-catalogo-patogeno", icono: Bug },
+            { label: "Productos", ruta: "/agro-producto", icono: Package },
         ]
     },
     {
         grupo: "Finca",
         items: [
-            { label: "Usuarios",  ruta: "/agro-usuarios",  icono: Users     },
-            { label: "Fincas",    ruta: "/agro-fincas",    icono: MapPin    },
-            { label: "Secciones", ruta: "/agro-secciones", icono: Layers    },
-            { label: "Clima",     ruta: "/agro-clima",     icono: CloudRain },
+            { label: "Usuarios", ruta: "/agro-usuario", icono: Users },
+            { label: "Fincas", ruta: "/agro-finca", icono: MapPin },
+            { label: "Secciones", ruta: "/agro-seccion", icono: Layers },
+            { label: "Clima", ruta: "/agro-clima", icono: CloudRain },
         ]
     },
     {
         grupo: "Árboles",
         items: [
-            { label: "Surcos",    ruta: "/agro-surcos",    icono: GitBranch     },
-            { label: "Árboles",   ruta: "/agro-arboles",   icono: Leaf          },
-            { label: "Historial", ruta: "/agro-historial", icono: ClipboardList },
+            { label: "Surcos", ruta: "/agro-surcos", icono: GitBranch },
+            { label: "Árboles", ruta: "/agro-arboles", icono: Leaf },
+            { label: "Historial", ruta: "/agro-historial", icono: ClipboardList }
+            // { label: "Mapa de Finca", ruta: "/agro-mapa", icono: MapIcon },
         ]
     },
     {
         grupo: "Salud",
         items: [
-            { label: "Alertas",      ruta: "/agro-alertas",      icono: AlertTriangle },
-            { label: "Análisis",     ruta: "/agro-analisis",      icono: FlaskConical  },
-            { label: "Tratamientos", ruta: "/agro-tratamientos",  icono: Syringe       },
+            { label: "Alertas de Salud", ruta: "/agro-alerta-salud", icono: AlertTriangle },
+            { label: "Análisis Lab", ruta: "/agro-analisis-laboratorio", icono: FlaskConical },
+            { label: "Tratamientos", ruta: "/agro-tratamientos", icono: Syringe },
         ]
     },
 ];
 
-const SIDEBAR_W   = 240;
+const SIDEBAR_W = 240;
 const COLLAPSED_W = 64;
-const NAVBAR_H    = 56;
+const NAVBAR_H = 56;
 
 interface LayoutProps { children: React.ReactNode }
 
 const Layout = ({ children }: LayoutProps) => {
 
-    // ── Hooks — siempre dentro del componente ─────────────────
     const [collapsed, setCollapsed] = useState(false);
-    const [tooltip, setTooltip]     = useState<{ label: string; y: number } | null>(null);
-    const navigate  = useNavigate();
-    const location  = useLocation();
+    const [tooltip, setTooltip] = useState<{ label: string; y: number } | null>(null);
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const sw = collapsed ? COLLAPSED_W : SIDEBAR_W;
     const paginaActual = MENU.flatMap(g => g.items).find(i => i.ruta === location.pathname)?.label ?? "Inicio";
@@ -66,7 +67,6 @@ const Layout = ({ children }: LayoutProps) => {
     return (
         <div style={{ display: "flex", minHeight: "100vh", background: "#f5f0e8" }}>
 
-            {/* ── Sidebar ── */}
             <aside style={{
                 width: sw, minHeight: "100vh", background: "#2d4a2d",
                 display: "flex", flexDirection: "column",
@@ -104,7 +104,7 @@ const Layout = ({ children }: LayoutProps) => {
                             )}
                             {grupo.items.map(item => {
                                 const activo = location.pathname === item.ruta;
-                                const Icono  = item.icono;
+                                const Icono = item.icono;
                                 return (
                                     <button key={item.ruta}
                                         onClick={() => navigate(item.ruta)}
@@ -148,7 +148,7 @@ const Layout = ({ children }: LayoutProps) => {
                 </button>
             </aside>
 
-            {/* Tooltip custom — fuera del aside para no ser cortado por overflow:hidden */}
+            {/* Tooltip */}
             {collapsed && tooltip && (
                 <div style={{
                     position: "fixed",
@@ -169,13 +169,12 @@ const Layout = ({ children }: LayoutProps) => {
                 </div>
             )}
 
-            {/* ── Main content ── */}
+            {/* Main content */}
             <div style={{
                 marginLeft: sw, flex: 1,
                 display: "flex", flexDirection: "column",
                 transition: "margin-left 0.22s ease"
             }}>
-                {/* Navbar top */}
                 <header style={{
                     height: NAVBAR_H, background: "#fff",
                     display: "flex", alignItems: "center",
@@ -188,7 +187,6 @@ const Layout = ({ children }: LayoutProps) => {
                     <span style={{ fontSize: 14, color: "#7a9a7a" }}>{paginaActual}</span>
                 </header>
 
-                {/* Página */}
                 <main style={{ flex: 1 }}>
                     {children}
                 </main>

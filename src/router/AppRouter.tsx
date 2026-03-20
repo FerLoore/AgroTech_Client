@@ -4,7 +4,9 @@ import AgroRolPage from "../pages/AgroRol/AgroRolPage";
 import AgroTipoArbolPage from "../pages/AgroTipoArbol/AgroTipoArbolPage";
 import AgroCatalogoPatogenoPage from "../pages/AgrocatalogoPatogeno/AgroCatalogoPatogenoPage";
 import AgroProductoPage from "../pages/AgroProducto/AgroProductoPage";
-
+import AgroArbolPage from "../pages/AgroArbol/AgroArbolPage";
+import AgroSurcoPage from "../pages/AgroSurco/AgroSurcoPage";
+import AgroHistorialPage from "../pages/AgroHistorial/AgroHistorialPage";
 
 // Cada dev importa su página y agrega su <Route> aquí
 
@@ -18,6 +20,9 @@ const AppRouter = () => {
                     <Route path="/agro-tipo-arbol"        element={<AgroTipoArbolPage />} /> 
                     <Route path="/agro-catalogo-patogeno" element={<AgroCatalogoPatogenoPage />} /> 
                     <Route path="/agro-producto"          element={<AgroProductoPage />} /> 
+                    <Route path="/agro-arboles" element={<AgroArbolPage/>} />
+                    <Route path="/agro-surcos" element={<AgroSurcoPage />} />
+                    <Route path="/agro-historial" element={<AgroHistorialPage />} />
                 </Routes>
             </Layout>
         </BrowserRouter>

@@ -27,12 +27,12 @@ import type { LucideIcon } from "lucide-react";
 // CampoFormulario — define un input del modal
 // ------------------------------------------------------------
 export interface CampoFormulario {
-    key:          string;                                      // nombre del campo en el form (ej: "rol_nombre")
-    label:        string;                                      // texto encima del input
-    tipo:         "text" | "number" | "select" | "textarea";  // tipo de input a renderizar
+    key: string;                                      // nombre del campo en el form (ej: "rol_nombre")
+    label: string;                                      // texto encima del input
+    tipo: "text" | "number" | "select" | "textarea" | "date";  // tipo de input a renderizar
     placeholder?: string;                                      // texto de ayuda dentro del input
-    opciones?:    { valor: string; label: string }[];          // solo para tipo "select"
-    requerido?:   boolean;                                     // marca visual (la validación real va en el hook)
+    opciones?: { valor: string; label: string }[];          // solo para tipo "select"
+    requerido?: boolean;                                     // marca visual (la validación real va en el hook)
 }
 
 // ------------------------------------------------------------
@@ -40,8 +40,8 @@ export interface CampoFormulario {
 // ------------------------------------------------------------
 export interface CeldaBadge {
     label: string;  // texto del badge
-    bg:    string;  // color de fondo (ej: "#e8f0e0")
-    text:  string;  // color del texto (ej: "#4a7c59")
+    bg: string;  // color de fondo (ej: "#e8f0e0")
+    text: string;  // color del texto (ej: "#4a7c59")
 }
 
 // ------------------------------------------------------------
@@ -49,9 +49,9 @@ export interface CeldaBadge {
 // ------------------------------------------------------------
 export interface ColumnaConfig {
     header: string;                                      // texto del encabezado
-    key:    string;                                      // nombre del campo en el objeto de datos
+    key: string;                                      // nombre del campo en el objeto de datos
     badge?: Record<string | number, CeldaBadge>;         // opcional: si existe, la celda muestra badge
-                                                         // la clave es el valor del campo (ej: 1, 2, 3, 4)
+    // la clave es el valor del campo (ej: 1, 2, 3, 4)
 }
 
 // ------------------------------------------------------------
@@ -64,40 +64,40 @@ export interface ColumnaConfig {
 // ------------------------------------------------------------
 interface CrudTablaProps<T extends Record<string, unknown>> {
     // ── Encabezado ──
-    titulo:      string;       // ej: "Gestión de Roles"
-    subtitulo:   string;       // ej: "AGRO_ROL"
-    icono:       LucideIcon;   // ícono de lucide-react para el encabezado y el modal
+    titulo: string;       // ej: "Gestión de Roles"
+    subtitulo: string;       // ej: "AGRO_ROL"
+    icono: LucideIcon;   // ícono de lucide-react para el encabezado y el modal
 
     // ── Tabla ──
-    columnas:    ColumnaConfig[];   // qué columnas mostrar y cómo
-    datos:       T[];               // lista de registros (ya filtrada por el hook)
-    idKey:       keyof T;           // qué campo es el PK, usado como key de React en las filas
+    columnas: ColumnaConfig[];   // qué columnas mostrar y cómo
+    datos: T[];               // lista de registros (ya filtrada por el hook)
+    idKey: keyof T;           // qué campo es el PK, usado como key de React en las filas
 
     // ── Formulario del modal ──
-    campos:      CampoFormulario[]; // qué inputs tiene el modal
+    campos: CampoFormulario[]; // qué inputs tiene el modal
 
     // ── Estado de carga ──
-    loading:     boolean;           // muestra spinner mientras carga
-    error:       string;            // muestra error si falló la carga
+    loading: boolean;           // muestra spinner mientras carga
+    error: string;            // muestra error si falló la carga
 
     // ── Buscador ──
-    busqueda:    string;
+    busqueda: string;
     setBusqueda: (v: string) => void;
 
     // ── Estado del modal ──
-    modal:       boolean;           // si el modal está abierto
-    editando:    T | null;          // null = modo crear, T = modo editar
-    form:        Record<string, unknown>;              // valores actuales de los inputs
-    setForm:     (f: Record<string, unknown>) => void; // actualiza el form al escribir
-    guardando:   boolean;           // deshabilita el botón guardar mientras espera
-    formError:   string;            // error de validación o API dentro del modal
+    modal: boolean;           // si el modal está abierto
+    editando: T | null;          // null = modo crear, T = modo editar
+    form: Record<string, unknown>;              // valores actuales de los inputs
+    setForm: (f: Record<string, unknown>) => void; // actualiza el form al escribir
+    guardando: boolean;           // deshabilita el botón guardar mientras espera
+    formError: string;            // error de validación o API dentro del modal
 
     // ── Callbacks — acciones del usuario ──
-    onNuevo:        () => void;         // click en botón "Nuevo"
-    onEditar:       (item: T) => void;  // click en botón "Editar" de una fila
-    onEliminar:     (item: T) => void;  // click en botón "Desactivar" de una fila
-    onGuardar:      () => void;         // click en botón "Guardar/Actualizar" del modal
-    onCerrar:       () => void;         // click en "Cancelar" o fuera del modal
+    onNuevo?: () => void;         // click en botón "Nuevo"
+    onEditar?: (item: T) => void;  // click en botón "Editar" de una fila
+    onEliminar?: (item: T) => void;  // click en botón "Desactivar" de una fila
+    onGuardar?: () => void;         // click en botón "Guardar/Actualizar" del modal
+    onCerrar?: () => void;         // click en "Cancelar" o fuera del modal
     labelEliminar?: string;             // "Desactivar" por defecto, "Eliminar" para borrado físico
 }
 
@@ -167,14 +167,16 @@ const CrudTabla = <T extends Record<string, unknown>>({
                             </p>
                         </div>
                     </div>
-                    <button onClick={onNuevo} style={{
-                        background: "#4a7c59", color: "#fff", border: "none",
-                        padding: "10px 20px", borderRadius: 10, fontSize: 14,
-                        fontWeight: 600, cursor: "pointer",
-                        display: "flex", alignItems: "center", gap: 7
-                    }}>
-                        <Plus size={16} /> Nuevo
-                    </button>
+                    {onNuevo && (
+                        <button onClick={onNuevo} style={{
+                            background: "#4a7c59", color: "#fff", border: "none",
+                            padding: "10px 20px", borderRadius: 10, fontSize: 14,
+                            fontWeight: 600, cursor: "pointer",
+                            display: "flex", alignItems: "center", gap: 7
+                        }}>
+                            <Plus size={16} /> Nuevo
+                        </button>
+                    )}
                 </div>
 
                 {/* ── Buscador ─────────────────────────────────────────
@@ -221,18 +223,22 @@ const CrudTabla = <T extends Record<string, unknown>>({
                                     }}>{col.header}</th>
                                 ))}
                                 {/* Columna de acciones siempre al final */}
-                                <th style={{
-                                    padding: "14px 20px", color: "#4a7c59", fontWeight: 700,
-                                    fontSize: 12, textTransform: "uppercase", letterSpacing: 1,
-                                    textAlign: "center"
-                                }}>Acciones</th>
+                                {(onEditar || onEliminar) && (
+                                    <th style={{
+                                        padding: "14px 20px", color: "#4a7c59", fontWeight: 700,
+                                        fontSize: 12, textTransform: "uppercase", letterSpacing: 1,
+                                        textAlign: "center"
+                                    }}>
+                                        Acciones
+                                    </th>
+                                )}
                             </tr>
                         </thead>
                         <tbody>
                             {/* Sin resultados */}
                             {datos.length === 0 ? (
                                 <tr>
-                                    <td colSpan={columnas.length + 1}
+                                    <td colSpan={columnas.length + ((onEditar || onEliminar) ? 1 : 0)}
                                         style={{ textAlign: "center", padding: 40, color: "#aaa" }}>
                                         No se encontraron registros
                                     </td>
@@ -281,26 +287,35 @@ const CrudTabla = <T extends Record<string, unknown>>({
                                     })}
 
                                     {/* Columna de acciones — siempre igual en todas las tablas */}
-                                    <td style={{ padding: "13px 20px", textAlign: "center" }}>
-                                        <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
-                                            <button onClick={() => onEditar(item)} style={{
-                                                background: "#ddeedd", color: "#2d6a4f", border: "none",
-                                                padding: "6px 14px", borderRadius: 8, fontSize: 12,
-                                                fontWeight: 600, cursor: "pointer",
-                                                display: "flex", alignItems: "center", gap: 5
-                                            }}>
-                                                <Pencil size={12} /> Editar
-                                            </button>
-                                            <button onClick={() => onEliminar(item)} style={{
-                                                background: "#fde8e0", color: "#a03020", border: "none",
-                                                padding: "6px 14px", borderRadius: 8, fontSize: 12,
-                                                fontWeight: 600, cursor: "pointer",
-                                                display: "flex", alignItems: "center", gap: 5
-                                            }}>
-                                                <Trash2 size={12} /> {labelEliminar}
-                                            </button>
-                                        </div>
-                                    </td>
+                                    {(onEditar || onEliminar) && (
+                                        <td style={{ padding: "13px 20px", textAlign: "center" }}>
+                                            <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+
+                                                {onEditar && (
+                                                    <button onClick={() => onEditar(item)} style={{
+                                                        background: "#ddeedd", color: "#2d6a4f", border: "none",
+                                                        padding: "6px 14px", borderRadius: 8, fontSize: 12,
+                                                        fontWeight: 600, cursor: "pointer",
+                                                        display: "flex", alignItems: "center", gap: 5
+                                                    }}>
+                                                        <Pencil size={12} /> Editar
+                                                    </button>
+                                                )}
+
+                                                {onEliminar && (
+                                                    <button onClick={() => onEliminar(item)} style={{
+                                                        background: "#fde8e0", color: "#a03020", border: "none",
+                                                        padding: "6px 14px", borderRadius: 8, fontSize: 12,
+                                                        fontWeight: 600, cursor: "pointer",
+                                                        display: "flex", alignItems: "center", gap: 5
+                                                    }}>
+                                                        <Trash2 size={12} /> {labelEliminar}
+                                                    </button>
+                                                )}
+
+                                            </div>
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>
@@ -320,7 +335,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
                     → actualiza solo el campo que cambió,
                       manteniendo los demás con spread operator
             ─────────────────────────────────────────────────── */}
-            {modal && (
+            {modal && onGuardar && onCerrar &&(
                 <div style={{
                     position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
                     display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50
