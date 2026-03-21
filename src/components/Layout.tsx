@@ -32,8 +32,8 @@ const MENU = [
     {
         grupo: "Árboles",
         items: [
-            { label: "Surcos", ruta: "/agro-surco", icono: GitBranch },
-            { label: "Árboles", ruta: "/agro-arbol", icono: Leaf },
+            { label: "Surcos", ruta: "/agro-surcos", icono: GitBranch },
+            { label: "Árboles", ruta: "/agro-arboles", icono: Leaf },
             { label: "Historial", ruta: "/agro-historial", icono: ClipboardList }
             // { label: "Mapa de Finca", ruta: "/agro-mapa", icono: MapIcon },
         ]

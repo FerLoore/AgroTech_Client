@@ -12,6 +12,10 @@ import AgroUsuarioPage from "../pages/AgroUsuario/AgroUsuarioPage";
 import AgroFincaPage from "../pages/AgroFinca/AgroFincaPage";
 import AgroSeccionPage from "../pages/AgroSeccion/AgroSeccionPage";
 import AgroClimaPage from "../pages/AgroClima/AgroClimaPage";
+import AgroArbolPage from "../pages/AgroArbol/AgroArbolPage";
+import AgroSurcoPage from "../pages/AgroSurco/AgroSurcoPage";
+import AgroHistorialPage from "../pages/AgroHistorial/AgroHistorialPage";
+
 
 const AppRouter = () => {
     return (
@@ -30,10 +34,13 @@ const AppRouter = () => {
                     <Route path="/agro-finca" element={<AgroFincaPage />} />
                     <Route path="/agro-seccion" element={<AgroSeccionPage />} />
                     <Route path="/agro-clima" element={<AgroClimaPage />} />
+                    <Route path="/agro-arboles" element={<AgroArbolPage />} />
+                    <Route path="/agro-surcos" element={<AgroSurcoPage />} />
+                    <Route path="/agro-historial" element={<AgroHistorialPage />} />
                 </Routes>
             </Layout>
         </BrowserRouter>
     );
 };
-
+//Exportamos
 export default AppRouter;
