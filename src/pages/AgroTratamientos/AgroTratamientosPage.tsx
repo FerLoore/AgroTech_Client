@@ -4,14 +4,14 @@ import CrudTabla from "../../components/CrudTabla";
 import type { ColumnaConfig, CampoFormulario } from "../../components/CrudTabla";
 
 const COLUMNAS: ColumnaConfig[] = [
-    { header: "ID",               key: "trata_tratamientos" },
-    { header: "Fecha inicio",     key: "trata_fecha_inicio" },
-    { header: "Fecha fin",        key: "trata_fecha_fin" },
-    { header: "Estado",           key: "trata_estado" },
-    { header: "Dosis",            key: "trata_dosis" },
-    { header: "Observaciones",    key: "trata_observaciones" },
-    { header: "Alerta Salud",     key: "alertsalu_alerta_salud" },
-    { header: "Producto",         key: "produ_producto" },
+    { header: "ID", key: "trata_tratamientos" },
+    { header: "Fecha inicio", key: "trata_fecha_inicio" },
+    { header: "Fecha fin", key: "trata_fecha_fin" },
+    { header: "Estado", key: "trata_estado" },
+    { header: "Dosis", key: "trata_dosis" },
+    { header: "Observaciones", key: "trata_observaciones" },
+    { header: "Alerta Salud", key: "alertsalu_alerta_salud" },
+    { header: "Producto", key: "produ_producto" },
 ];
 
 const CAMPOS: CampoFormulario[] = [
@@ -32,7 +32,7 @@ const CAMPOS: CampoFormulario[] = [
         key: "trata_estado",
         label: "Estado",
         tipo: "text",
-        placeholder: "Ej: Activo",
+        placeholder: "Ej: En curso",
         requerido: true,
     },
     {
@@ -65,10 +65,22 @@ const CAMPOS: CampoFormulario[] = [
 
 const AgroTratamientosPage = () => {
     const {
-        tratamientosFiltrados, loading, error,
-        busqueda, setBusqueda,
-        modal, editando, form, setForm, guardando, formError,
-        abrirCrear, abrirEditar, cerrarModal, handleGuardar, handleEliminar,
+        tratamientosFiltrados,
+        loading,
+        error,
+        busqueda,
+        setBusqueda,
+        modal,
+        editando,
+        form,
+        setForm,
+        guardando,
+        formError,
+        abrirCrear,
+        abrirEditar,
+        cerrarModal,
+        handleGuardar,
+        handleEliminar,
     } = useAgroTratamientos();
 
     return (
@@ -95,6 +107,7 @@ const AgroTratamientosPage = () => {
             onEliminar={handleEliminar}
             onGuardar={handleGuardar}
             onCerrar={cerrarModal}
+            labelEliminar="Eliminar"
         />
     );
 };

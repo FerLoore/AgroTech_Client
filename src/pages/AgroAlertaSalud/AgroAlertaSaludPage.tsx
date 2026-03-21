@@ -5,9 +5,9 @@ import type { ColumnaConfig, CampoFormulario } from "../../components/CrudTabla"
 
 const COLUMNAS: ColumnaConfig[] = [
     { header: "ID", key: "alertsalud_id" },
-    { header: "Fecha detección", key: "alertsalud_fecha_deteccion" },
-    { header: "Descripción síntoma", key: "alertsalud_descripcion_sintoma" },
-    { header: "Foto", key: "alertsalud_foto" },
+    { header: "Fecha detección", key: "fecha_deteccion" },
+    { header: "Descripción síntoma", key: "descripcion_sintoma" },
+    { header: "Foto", key: "foto" },
     { header: "Árbol", key: "arb_arbol" },
     { header: "Usuario", key: "usu_usuario" },
 ];
@@ -17,14 +17,14 @@ const CAMPOS: CampoFormulario[] = [
         key: "alertsalud_fecha_deteccion",
         label: "Fecha de detección",
         tipo: "text",
-        placeholder: "Ej: 2026-03-19",
+        placeholder: "YYYY-MM-DD",
         requerido: true,
     },
     {
         key: "alertsalud_descripcion_sintoma",
         label: "Descripción del síntoma",
         tipo: "text",
-        placeholder: "Ej: Prueba desde frontend",
+        placeholder: "Ej: Hojas con manchas",
     },
     {
         key: "alertsalud_foto",

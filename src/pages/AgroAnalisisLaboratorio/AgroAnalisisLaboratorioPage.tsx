@@ -9,7 +9,7 @@ const COLUMNAS: ColumnaConfig[] = [
     { header: "Fecha envío", key: "analab_fecha_envio" },
     { header: "Fecha resultado", key: "analab_fecha_resultado" },
     { header: "Resultado", key: "analab_resultado_tipo" },
-    { header: "Alerta Salud", key: "alerta_alerta_salud" },
+    { header: "Alerta Salud", key: "alert_alerta_salud" },
     { header: "Catálogo Patógeno", key: "catpato_catalogo_patogeno" },
     { header: "Usuario", key: "usu_usuario" },
 ];
@@ -58,16 +58,28 @@ const CAMPOS: CampoFormulario[] = [
         key: "usu_usuario",
         label: "Usuario",
         tipo: "text",
-        placeholder: "Ej: 1",
+        placeholder: "Ej: 13",
     },
 ];
 
 const AgroAnalisisLaboratorioPage = () => {
     const {
-        analisisFiltrados, loading, error,
-        busqueda, setBusqueda,
-        modal, editando, form, setForm, guardando, formError,
-        abrirCrear, abrirEditar, cerrarModal, handleGuardar, handleEliminar,
+        analisisFiltrados,
+        loading,
+        error,
+        busqueda,
+        setBusqueda,
+        modal,
+        editando,
+        form,
+        setForm,
+        guardando,
+        formError,
+        abrirCrear,
+        abrirEditar,
+        cerrarModal,
+        handleGuardar,
+        handleEliminar,
     } = useAgroAnalisisLaboratorio();
 
     return (
@@ -94,6 +106,7 @@ const AgroAnalisisLaboratorioPage = () => {
             onEliminar={handleEliminar}
             onGuardar={handleGuardar}
             onCerrar={cerrarModal}
+            labelEliminar="Eliminar"
         />
     );
 };
