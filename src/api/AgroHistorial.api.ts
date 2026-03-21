@@ -37,5 +37,5 @@ export const getHistorialById = async (id: number) => {
 
 export const getHistorialByArbol = async (arbId: number) => {
     const res = await api.get(`/agro-historial/arbol/${arbId}`);
-    return res.data.historial;
+    return res.data.historiales;
 };

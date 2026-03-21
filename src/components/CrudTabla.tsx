@@ -98,7 +98,9 @@ interface CrudTablaProps<T extends Record<string, unknown>> {
     onEliminar?: (item: T) => void;  // click en botón "Desactivar" de una fila
     onGuardar?: () => void;         // click en botón "Guardar/Actualizar" del modal
     onCerrar?: () => void;         // click en "Cancelar" o fuera del modal
-    labelEliminar?: string;             // "Desactivar" por defecto, "Eliminar" para borrado físico
+    onHistorial?: (item: T) => void;          // click en botón "Historial" de una fila
+    labelEliminar?: string;
+    // "Desactivar" por defecto, "Eliminar" para borrado físico
 }
 
 // ============================================================
@@ -120,7 +122,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
     loading, error,
     busqueda, setBusqueda,
     modal, editando, form, setForm, guardando, formError,
-    onNuevo, onEditar, onEliminar, onGuardar, onCerrar, labelEliminar = "Desactivar",
+    onNuevo, onEditar, onEliminar, onGuardar, onCerrar, onHistorial, labelEliminar = "Desactivar",
 }: CrudTablaProps<T>) => {
 
     // Estado local — solo afecta el hover visual de las filas
@@ -165,6 +167,11 @@ const CrudTabla = <T extends Record<string, unknown>>({
                                 {subtitulo} — {datos.length} registros
                                 {/* datos.length muestra cuántos registros hay DESPUÉS del filtro */}
                             </p>
+                            {onHistorial && (
+                                <p style={{ fontSize: 12, color: "#aaa", margin: "4px 0 0" }}>
+                                    Haz click en una fila para ver su historial
+                                </p>
+                            )}
                         </div>
                     </div>
                     {onNuevo && (
@@ -246,6 +253,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
                             ) : datos.map((item, i) => (
                                 <tr key={String(item[idKey])}
                                     // hover visual — solo estado local, no afecta el hook
+                                    onClick={() => onHistorial?.(item)}
                                     onMouseEnter={() => setHoveredRow(item[idKey])}
                                     onMouseLeave={() => setHoveredRow(null)}
                                     style={{
@@ -253,7 +261,8 @@ const CrudTabla = <T extends Record<string, unknown>>({
                                             ? "#f0f7f0"                              // hover: verde muy suave
                                             : i % 2 === 0 ? "#fff" : "#f9f6f0",     // alterno: blanco / beige
                                         borderBottom: "1px solid #eee",
-                                        transition: "background 0.12s"
+                                        transition: "background 0.12s",
+                                        cursor: onHistorial ? "pointer" : "default"
                                     }}>
 
                                     {/* Celdas dinámicas según COLUMNAS */}
@@ -292,7 +301,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
                                             <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
 
                                                 {onEditar && (
-                                                    <button onClick={() => onEditar(item)} style={{
+                                                    <button onClick={(e) => { e.stopPropagation(); onEditar(item); }} style={{
                                                         background: "#ddeedd", color: "#2d6a4f", border: "none",
                                                         padding: "6px 14px", borderRadius: 8, fontSize: 12,
                                                         fontWeight: 600, cursor: "pointer",
@@ -303,7 +312,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
                                                 )}
 
                                                 {onEliminar && (
-                                                    <button onClick={() => onEliminar(item)} style={{
+                                                    <button onClick={(e) => { e.stopPropagation(); onEliminar(item); }} style={{
                                                         background: "#fde8e0", color: "#a03020", border: "none",
                                                         padding: "6px 14px", borderRadius: 8, fontSize: 12,
                                                         fontWeight: 600, cursor: "pointer",
@@ -335,7 +344,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
                     → actualiza solo el campo que cambió,
                       manteniendo los demás con spread operator
             ─────────────────────────────────────────────────── */}
-            {modal && onGuardar && onCerrar &&(
+            {modal && onGuardar && onCerrar && (
                 <div style={{
                     position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
                     display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50

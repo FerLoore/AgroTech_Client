@@ -27,10 +27,13 @@ export const createArbol = async (data: {
 // PUT
 export const updateArbol = async (id: number, data: {
     arb_posicion_surco?: number;
+    arb_fecha_siembra?: string;
+    tipar_tipo_arbol?: number;
     arb_estado?: string;
+    sur_surcos?: number;
 }) => {
     const res = await api.put(`/agro-arboles/${id}`, data);
-    return res.data.arbol;
+    return res.data;  // ← también estaba retornando res.data.arbol que puede ser undefined en PUT
 };
 
 // DELETE (lógico)

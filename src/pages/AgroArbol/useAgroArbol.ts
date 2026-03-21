@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { getArboles, createArbol, updateArbol, deleteArbol } from "../../api/AgroArbol.api";
 import { ARBOL_FORM_INICIAL } from "./agroArbol.types";
 import type { Arbol, ArbolFormData } from "./agroArbol.types";
+import { getTipoArboles } from "../../api/AgroTipoArbol.api";
+import { getHistorialByArbol } from "../../api/AgroHistorial.api";
+import type { Historial } from "../AgroHistorial/agroHistorial.types";
 import { toast } from "sonner";
 
 export const useAgroArbol = () => {
@@ -16,7 +19,11 @@ export const useAgroArbol = () => {
     const [form, setForm] = useState<ArbolFormData>(ARBOL_FORM_INICIAL);
     const [guardando, setGuardando] = useState(false);
     const [formError, setFormError] = useState("");
-
+    const [modalHistorial, setModalHistorial] = useState(false);
+    const [historialArbol, setHistorialArbol] = useState<Historial[]>([]);
+    const [loadingHistorial, setLoadingHistorial] = useState(false);
+    const [arbolSeleccionado, setArbolSeleccionado] = useState<Arbol | null>(null);
+    const [tiposArbol, setTiposArbol] = useState<any[]>([]);
     // FORMATEADOR DE FECHA (CLAVE)
     const formatFecha = (fecha: string) => {
         try {
@@ -26,24 +33,41 @@ export const useAgroArbol = () => {
         }
     };
 
-   const cargar = async () => {
-    try {
-        setLoading(true);
-        const data = await getArboles();
-        // normalizamos arb_estado a mayúsculas para que coincida con TipoArbol
-        const normalizados = data.map((a: Arbol) => ({
-            ...a,
-            arb_estado: String(a.arb_estado).toUpperCase()
-        }));
-        setArboles(normalizados);
-    } catch {
-        setError("Error al cargar árboles");
-    } finally {
-        setLoading(false);
-    }
-};
+    const cargar = async () => {
+        try {
+            setLoading(true);
+            const data = await getArboles();
+            // normalizamos arb_estado a mayúsculas para que coincida con TipoArbol
+            const normalizados = data.map((a: Arbol) => ({
+                ...a,
+                arb_estado: String(a.arb_estado)
+            }));
+            setArboles(normalizados);
+            setError("");
+        } catch {
+            setError("Error al cargar árboles");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    useEffect(() => { cargar(); }, []);
+    useEffect(() => {
+        const init = async () => {
+            await cargar();        // 👈 ESTO FALTABA
+            try {
+                const data = await getTipoArboles();
+                setTiposArbol(data);
+            } catch {
+                console.error("Error cargando tipos de árbol");
+            }
+        };
+
+        init();
+    }, []);
+    const opcionesTipoArbol = tiposArbol.map(t => ({
+        valor: String(t.tipar_tipo_arbol),
+        label: t.tipar_nombre_comun
+    }));
 
     const arbolesFiltrados = arboles.filter(a =>
         a.arb_estado.toLowerCase().includes(busqueda.toLowerCase())
@@ -60,16 +84,15 @@ export const useAgroArbol = () => {
         setEditando(a);
         setForm({
             arb_posicion_surco: String(a.arb_posicion_surco),
-           
             arb_fecha_siembra: formatFecha(a.arb_fecha_siembra),
             tipar_tipo_arbol: String(a.tipar_tipo_arbol),
-            arb_estado: a.arb_estado,
+            arb_estado: String(a.arb_estado),
             sur_surcos: String(a.sur_surcos)
         });
         setFormError("");
         setModal(true);
     };
-
+    console.log("ESTADO:", form.arb_estado);
     const handleGuardar = async () => {
         if (!form.arb_posicion_surco || !form.arb_fecha_siembra) {
             setFormError("Campos requeridos");
@@ -82,13 +105,16 @@ export const useAgroArbol = () => {
             if (editando) {
                 await updateArbol(editando.arb_arbol, {
                     arb_posicion_surco: Number(form.arb_posicion_surco),
-                    arb_estado: form.arb_estado
+                    arb_fecha_siembra: form.arb_fecha_siembra,
+                    tipar_tipo_arbol: Number(form.tipar_tipo_arbol),
+                    arb_estado: form.arb_estado,
+                    sur_surcos: Number(form.sur_surcos)
                 });
                 toast.success("Actualizado");
             } else {
                 await createArbol({
                     arb_posicion_surco: Number(form.arb_posicion_surco),
-                    arb_fecha_siembra: form.arb_fecha_siembra, 
+                    arb_fecha_siembra: form.arb_fecha_siembra,
                     tipar_tipo_arbol: Number(form.tipar_tipo_arbol),
                     arb_estado: form.arb_estado,
                     sur_surcos: Number(form.sur_surcos)
@@ -112,6 +138,21 @@ export const useAgroArbol = () => {
         toast.success("Eliminado");
     };
 
+    const abrirHistorial = async (a: Arbol) => {
+         console.log("abrirHistorial llamado", a);
+        setArbolSeleccionado(a); 
+        setModalHistorial(true);
+        setLoadingHistorial(true);
+        try {
+            const data = await getHistorialByArbol(a.arb_arbol);
+            setHistorialArbol(data);
+        } catch {
+            toast.error("Error al cargar historial");
+        } finally {
+            setLoadingHistorial(false);
+        }
+    };
+
     return {
         arbolesFiltrados,
         loading,
@@ -128,6 +169,13 @@ export const useAgroArbol = () => {
         abrirEditar,
         cerrarModal: () => setModal(false),
         handleGuardar,
-        handleEliminar
+        handleEliminar,
+        opcionesTipoArbol,
+        modalHistorial,
+        historialArbol,
+        loadingHistorial,
+        abrirHistorial,
+        arbolSeleccionado,
+        cerrarHistorial: () => setModalHistorial(false),
     };
 };
