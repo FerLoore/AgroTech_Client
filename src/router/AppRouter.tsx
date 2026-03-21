@@ -15,7 +15,6 @@ import AgroArbolPage from "../pages/AgroArbol/AgroArbolPage";
 import AgroSurcoPage from "../pages/AgroSurco/AgroSurcoPage";
 import AgroHistorialPage from "../pages/AgroHistorial/AgroHistorialPage";
 
-// Cada dev importa su página y agrega su <Route> aquí
 
 const AppRouter = () => {
     return (
@@ -42,5 +41,5 @@ const AppRouter = () => {
         </BrowserRouter>
     );
 };
-
+//Exportamos
 export default AppRouter;
