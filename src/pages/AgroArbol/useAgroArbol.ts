@@ -150,12 +150,18 @@ export const useAgroArbol = () => {
             setGuardando(false);
         }
     };
-
-    const handleEliminar = async (a: Arbol) => {
-        await deleteArbol(a.arb_arbol);
-        cargar();
-        toast.success("Eliminado");
-    };
+const handleEliminar = (a: Arbol) => {
+    toast.warning(`¿Desactivar árbol #${a.arb_arbol}?`, {
+        action: {
+            label: "Desactivar",
+            onClick: async () => {
+                await deleteArbol(a.arb_arbol);
+                cargar();
+                toast.success("Árbol desactivado");
+            }
+        }
+    });
+};
 
     const abrirHistorial = async (a: Arbol) => {
         console.log("abrirHistorial llamado", a);
