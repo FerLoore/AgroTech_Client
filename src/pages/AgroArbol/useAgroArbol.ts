@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { getArboles, createArbol, updateArbol, deleteArbol } from "../../api/AgroArbol.api";
 import { ARBOL_FORM_INICIAL } from "./agroArbol.types";
 import type { Arbol, ArbolFormData } from "./agroArbol.types";
@@ -68,6 +68,25 @@ export const useAgroArbol = () => {
         valor: String(t.tipar_tipo_arbol),
         label: t.tipar_nombre_comun
     }));
+
+    const TIPOS_ARBOL_DINAMICO = useMemo(() => {
+        const colores = [
+            { bg: "#fff7e6", text: "#b45309" },
+            { bg: "#e6f4ea", text: "#166534" },
+            { bg: "#fff1f2", text: "#ea580c" },
+            { bg: "#f0fdf4", text: "#65a30d" },
+            { bg: "#fef3c7", text: "#d97706" },
+            { bg: "#ede9fe", text: "#5b21b6" },
+        ];
+        return tiposArbol.reduce((acc, t, i) => {
+            acc[t.tipar_tipo_arbol] = {
+                label: t.tipar_nombre_comun,
+                bg: colores[i % colores.length].bg,
+                text: colores[i % colores.length].text
+            };
+            return acc;
+        }, {} as Record<number, { label: string; bg: string; text: string }>);
+    }, [tiposArbol]);
 
     const arbolesFiltrados = arboles.filter(a =>
         a.arb_estado.toLowerCase().includes(busqueda.toLowerCase())
@@ -139,8 +158,8 @@ export const useAgroArbol = () => {
     };
 
     const abrirHistorial = async (a: Arbol) => {
-         console.log("abrirHistorial llamado", a);
-        setArbolSeleccionado(a); 
+        console.log("abrirHistorial llamado", a);
+        setArbolSeleccionado(a);
         setModalHistorial(true);
         setLoadingHistorial(true);
         try {
@@ -177,5 +196,6 @@ export const useAgroArbol = () => {
         abrirHistorial,
         arbolSeleccionado,
         cerrarHistorial: () => setModalHistorial(false),
+        TIPOS_ARBOL_DINAMICO
     };
 };

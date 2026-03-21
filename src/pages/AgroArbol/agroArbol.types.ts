@@ -35,10 +35,3 @@ export const TipoArbol = {
     Muerto:      { label: "Muerto",      bg: "#f8d7da", text: "#721c24" }
 } as const;
 
-export const TIPOS_ARBOL = {
-    1: { label: "Mango", bg: "#fff7e6", text: "#b45309" },
-    2: { label: "Aguacate", bg: "#e6f4ea", text: "#166534" },
-    3: { label: "Naranja", bg: "#fff1f2", text: "#ea580c" },
-    4: { label: "Limón", bg: "#f0fdf4", text: "#65a30d" },
-    5: { label: "Papaya", bg: "#fef3c7", text: "#d97706" }
-} as const;

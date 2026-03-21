@@ -2,24 +2,8 @@ import { TreePine } from "lucide-react";
 import { useAgroArbol } from "./useAgroArbol";
 import CrudTabla from "../../components/CrudTabla";
 import type { ColumnaConfig, CampoFormulario } from "../../components/CrudTabla";
-import { TipoArbol, TIPOS_ARBOL } from "./agroArbol.types";
+import { TipoArbol } from "./agroArbol.types"; 
 
-const COLUMNAS: ColumnaConfig[] = [
-    { header: "ID", key: "arb_arbol" },
-    { header: "Posición", key: "arb_posicion_surco" },
-    { header: "Fecha Siembra", key: "arb_fecha_siembra" },
-    {
-        header: "Tipo Árbol",
-        key: "tipar_tipo_arbol",
-        badge: TIPOS_ARBOL
-    },
-    {
-        header: "Estado",
-        key: "arb_estado",
-        badge: TipoArbol
-    },
-    { header: "Surco", key: "sur_surcos" }
-];
 
 const CAMPOS = (opcionesTipoArbol: any[]): CampoFormulario[] => [
     { key: "arb_posicion_surco", label: "Posición", tipo: "number", requerido: true },
@@ -71,7 +55,26 @@ const AgroArbolPage = () => {
         abrirHistorial,
         cerrarHistorial,
         arbolSeleccionado,
+        TIPOS_ARBOL_DINAMICO,
     } = useAgroArbol();
+
+    
+const COLUMNAS: ColumnaConfig[] = [
+    { header: "ID", key: "arb_arbol" },
+    { header: "Posición", key: "arb_posicion_surco" },
+    { header: "Fecha Siembra", key: "arb_fecha_siembra" },
+    {
+        header: "Tipo Árbol",
+        key: "tipar_tipo_arbol",
+        badge: TIPOS_ARBOL_DINAMICO
+    },
+    {
+        header: "Estado",
+        key: "arb_estado",
+        badge: TipoArbol
+    },
+    { header: "Surco", key: "sur_surcos" }
+];
 
     return (
         <>
@@ -114,7 +117,7 @@ const AgroArbolPage = () => {
                             <h2 style={{ fontSize: 18, fontWeight: 700, color: "#2d4a2d", margin: 0 }}>
                                 Historial de árbol #{arbolSeleccionado?.arb_arbol}
                                 <span style={{ fontWeight: 400, fontSize: 18, color: "#0e500e", marginLeft: 8 }}>
-                                    {TIPOS_ARBOL[arbolSeleccionado?.tipar_tipo_arbol as keyof typeof TIPOS_ARBOL]?.label}
+                                    {TIPOS_ARBOL_DINAMICO[arbolSeleccionado?.tipar_tipo_arbol as keyof typeof TIPOS_ARBOL_DINAMICO]?.label}
                                 </span>
                             </h2>
                             <button onClick={cerrarHistorial} style={{
