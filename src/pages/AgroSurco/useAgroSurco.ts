@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
 import { getSurcos, createSurco, updateSurco, deleteSurco } from "../../api/AgroSurco.api";
+import { getAgroSecciones } from "../../api/AgroSeccion.api";
 import type { Surco, SurcoFormData } from "./agroSurco.types";
 import { SURCO_FORM_INICIAL } from "./agroSurco.types";
 import { toast } from "sonner";
 
+type Seccion = {
+    secc_seccion: number;
+    secc_nombre: string;
+};
+
 export const useAgroSurco = () => {
 
     const [surcos, setSurcos] = useState<Surco[]>([]);
+    const [secciones, setSecciones] = useState<Seccion[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [busqueda, setBusqueda] = useState("");
@@ -17,12 +24,15 @@ export const useAgroSurco = () => {
     const [guardando, setGuardando] = useState(false);
     const [formError, setFormError] = useState("");
 
+    // =============================
+    // CARGA DE DATOS
+    // =============================
+
     const cargar = async () => {
         try {
             setLoading(true);
-            setError("");
-            const data = await getSurcos();
-            setSurcos(data);
+            const res = await getSurcos();
+            setSurcos(res);
         } catch {
             setError("Error al cargar surcos");
         } finally {
@@ -30,15 +40,50 @@ export const useAgroSurco = () => {
         }
     };
 
+    const cargarSecciones = async () => {
+        try {
+            const res = await getAgroSecciones();
+            setSecciones(res.data?.secciones ?? res.data ?? res);
+        } catch {
+            toast.error("Error al cargar secciones");
+        }
+    };
+
     useEffect(() => {
-        cargar();
+        const init = async () => {
+            await Promise.all([cargar(), cargarSecciones()]);
+        };
+        init();
     }, []);
 
-    const surcosFiltrados = surcos.filter(s =>
-        String(s.sur_numero_surco ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
-        String(s.sur_orientacion ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
-        String(s.secc_secciones ?? "").toLowerCase().includes(busqueda.toLowerCase())
-    );
+    // =============================
+    // FILTRO + JOIN CON SECCIONES
+    // =============================
+
+    const surcosFiltrados = surcos
+        .filter(s =>
+            String(s.sur_numero_surco ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
+            String(s.sur_orientacion ?? "").toLowerCase().includes(busqueda.toLowerCase())
+        )
+        .map(s => ({
+            ...s,
+            secc_nombre:
+                secciones.find(sec => sec.secc_seccion === s.secc_secciones)?.secc_nombre
+                ?? `ID: ${s.secc_secciones}`
+        }));
+
+    // =============================
+    // OPCIONES PARA SELECT
+    // =============================
+
+    const opcionesSecciones = secciones.map(s => ({
+        valor: String(s.secc_seccion),
+        label: s.secc_nombre
+    }));
+
+    // =============================
+    // MODAL
+    // =============================
 
     const abrirCrear = () => {
         setEditando(null);
@@ -60,6 +105,10 @@ export const useAgroSurco = () => {
 
     const cerrarModal = () => setModal(false);
 
+    // =============================
+    // GUARDAR
+    // =============================
+
     const handleGuardar = async () => {
 
         if (!form.sur_numero_surco || !form.secc_secciones || !form.sur_espaciamiento) {
@@ -70,26 +119,22 @@ export const useAgroSurco = () => {
         try {
             setGuardando(true);
 
-            if (editando) {
-                await updateSurco(editando.sur_surco, {
-                    sur_numero_surco: Number(form.sur_numero_surco),
-                    sur_orientacion: form.sur_orientacion,
-                    sur_espaciamiento: Number(form.sur_espaciamiento)
-                });
+            const payload = {
+                sur_numero_surco: Number(form.sur_numero_surco),
+                sur_orientacion: form.sur_orientacion,
+                sur_espaciamiento: Number(form.sur_espaciamiento),
+                secc_secciones: Number(form.secc_secciones)
+            };
 
+            if (editando) {
+                await updateSurco(editando.sur_surco, payload);
                 toast.success("Surco actualizado");
             } else {
-                await createSurco({
-                    sur_numero_surco: Number(form.sur_numero_surco),
-                    sur_orientacion: form.sur_orientacion,
-                    sur_espaciamiento: Number(form.sur_espaciamiento),
-                    secc_secciones: Number(form.secc_secciones)
-                });
-
+                await createSurco(payload);
                 toast.success("Surco creado");
             }
 
-            setModal(false);
+            cerrarModal();
             cargar();
 
         } catch (err: unknown) {
@@ -100,6 +145,10 @@ export const useAgroSurco = () => {
             setGuardando(false);
         }
     };
+
+    // =============================
+    // ELIMINAR
+    // =============================
 
     const handleEliminar = (s: Surco) => {
         toast.warning(`¿Desactivar surco ${s.sur_numero_surco}?`, {
@@ -130,6 +179,7 @@ export const useAgroSurco = () => {
         abrirEditar,
         cerrarModal,
         handleGuardar,
-        handleEliminar
+        handleEliminar,
+        opcionesSecciones
     };
 };

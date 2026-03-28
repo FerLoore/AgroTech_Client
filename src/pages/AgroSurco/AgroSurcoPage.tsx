@@ -11,12 +11,6 @@ const COLUMNAS: ColumnaConfig[] = [
     { header: "Sección", key: "secc_secciones" }
 ];
 
-const CAMPOS: CampoFormulario[] = [
-    { key: "sur_numero_surco", label: "Número", tipo: "number", requerido: true },
-    { key: "sur_orientacion", label: "Orientación", tipo: "text" },
-    { key: "sur_espaciamiento", label: "Espaciamiento", tipo: "number", requerido: true },
-    { key: "secc_secciones", label: "Sección", tipo: "number", requerido: true }
-];
 
 const AgroSurcoPage = () => {
 
@@ -36,8 +30,23 @@ const AgroSurcoPage = () => {
         abrirEditar,
         cerrarModal,
         handleGuardar,
-        handleEliminar
+        handleEliminar,
+        opcionesSecciones
     } = useAgroSurco();
+
+const CAMPOS: CampoFormulario[] = [
+    { key: "sur_numero_surco", label: "Número", tipo: "number", requerido: true },
+    { key: "sur_orientacion", label: "Orientación", tipo: "text" },
+    { key: "sur_espaciamiento", label: "Espaciamiento", tipo: "number", requerido: true },
+    {
+        key: "secc_secciones",
+        label: "Sección",
+        tipo: "select",
+        requerido: true,
+        opciones: opcionesSecciones 
+    }
+];
+
 
     return (
         <CrudTabla

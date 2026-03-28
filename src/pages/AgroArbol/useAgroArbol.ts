@@ -4,8 +4,17 @@ import { ARBOL_FORM_INICIAL } from "./agroArbol.types";
 import type { Arbol, ArbolFormData } from "./agroArbol.types";
 import { getTipoArboles } from "../../api/AgroTipoArbol.api";
 import { getHistorialByArbol } from "../../api/AgroHistorial.api";
+import { getSurcos } from "../../api/AgroSurco.api";
+import { getAgroSecciones } from "../../api/AgroSeccion.api";
 import type { Historial } from "../AgroHistorial/agroHistorial.types";
 import { toast } from "sonner";
+
+// Calcula edad en años desde fecha de siembra
+const calcularEdad = (fecha: string): number => {
+    return Math.floor(
+        (Date.now() - new Date(fecha).getTime()) / (365.25 * 24 * 3600 * 1000)
+    );
+};
 
 export const useAgroArbol = () => {
 
@@ -13,6 +22,11 @@ export const useAgroArbol = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [busqueda, setBusqueda] = useState("");
+    const [filtroEstado, setFiltroEstado] = useState("");
+    const [filtroSurco, setFiltroSurco] = useState("");
+    const [filtroSeccion, setFiltroSeccion] = useState("");
+    const [filtroTipo, setFiltroTipo] = useState("");
+    const [seccionForm, setSeccionForm] = useState("");
 
     const [modal, setModal] = useState(false);
     const [editando, setEditando] = useState<Arbol | null>(null);
@@ -24,25 +38,19 @@ export const useAgroArbol = () => {
     const [loadingHistorial, setLoadingHistorial] = useState(false);
     const [arbolSeleccionado, setArbolSeleccionado] = useState<Arbol | null>(null);
     const [tiposArbol, setTiposArbol] = useState<any[]>([]);
-    // FORMATEADOR DE FECHA (CLAVE)
+    const [surcos, setSurcos] = useState<any[]>([]);
+    const [secciones, setSecciones] = useState<any[]>([]);
+
     const formatFecha = (fecha: string) => {
-        try {
-            return new Date(fecha).toISOString().split("T")[0];
-        } catch {
-            return "";
-        }
+        try { return new Date(fecha).toISOString().split("T")[0]; }
+        catch { return ""; }
     };
 
     const cargar = async () => {
         try {
             setLoading(true);
             const data = await getArboles();
-            // normalizamos arb_estado a mayúsculas para que coincida con TipoArbol
-            const normalizados = data.map((a: Arbol) => ({
-                ...a,
-                arb_estado: String(a.arb_estado)
-            }));
-            setArboles(normalizados);
+            setArboles(data.map((a: Arbol) => ({ ...a, arb_estado: String(a.arb_estado) })));
             setError("");
         } catch {
             setError("Error al cargar árboles");
@@ -53,17 +61,23 @@ export const useAgroArbol = () => {
 
     useEffect(() => {
         const init = async () => {
-            await cargar();        // 👈 ESTO FALTABA
+            await cargar();
             try {
-                const data = await getTipoArboles();
-                setTiposArbol(data);
+                const [tipos, surcoData, seccionData] = await Promise.all([
+                    getTipoArboles(),
+                    getSurcos(),
+                    getAgroSecciones().then(r => r.data.secciones ?? r.data)
+                ]);
+                setTiposArbol(tipos);
+                setSurcos(surcoData);
+                setSecciones(seccionData);
             } catch {
-                console.error("Error cargando tipos de árbol");
+                console.error("Error cargando catálogos");
             }
         };
-
         init();
     }, []);
+
     const opcionesTipoArbol = tiposArbol.map(t => ({
         valor: String(t.tipar_tipo_arbol),
         label: t.tipar_nombre_comun
@@ -88,9 +102,56 @@ export const useAgroArbol = () => {
         }, {} as Record<number, { label: string; bg: string; text: string }>);
     }, [tiposArbol]);
 
-    const arbolesFiltrados = arboles.filter(a =>
-        a.arb_estado.toLowerCase().includes(busqueda.toLowerCase())
-    );
+    // Enriquecer árboles con edad y referencia
+    const arbolesEnriquecidos = useMemo(() => {
+        return arboles.map(a => {
+            const surco = surcos.find(s => s.sur_surco === a.sur_surcos);
+            const referencia = surco
+                ? `S${surco.sur_numero_surco}-P${a.arb_posicion_surco}`
+                : `P${a.arb_posicion_surco}`;
+            return {
+                ...a,
+                arb_edad: calcularEdad(a.arb_fecha_siembra),
+                arb_referencia: referencia,
+                sur_numero: surco?.sur_numero_surco ?? a.sur_surcos,
+                secc_id: surco?.secc_secciones ?? null
+            };
+        });
+    }, [arboles, surcos]);
+
+    const surcosPorSeccion = useMemo(() => {
+        if (!seccionForm) return surcos;
+
+        return surcos.filter(
+            s => String(s.secc_secciones) === seccionForm
+        );
+    }, [surcos, seccionForm]);
+
+    const opcionesSecciones = secciones.map(s => ({
+        valor: String(s.secc_seccion),
+        label: s.secc_nombre
+    }));
+
+    const opcionesSurcos = surcosPorSeccion.map(s => ({
+        valor: String(s.sur_surco),
+        label: `Surco ${s.sur_numero_surco}`
+    }));
+
+    // Filtros combinados
+    const arbolesFiltrados = useMemo(() => {
+        return arbolesEnriquecidos.filter(a => {
+            const matchBusqueda = busqueda
+                ? String(a.arb_referencia).toLowerCase().includes(busqueda.toLowerCase()) ||
+                String(a.arb_estado).toLowerCase().includes(busqueda.toLowerCase()) ||
+                String(a.arb_arbol).includes(busqueda)
+                : true;
+            const matchEstado = filtroEstado ? a.arb_estado === filtroEstado : true;
+            const matchSurco = filtroSurco ? String(a.sur_surcos) === filtroSurco : true;
+            const matchTipo = filtroTipo ? String(a.tipar_tipo_arbol) === filtroTipo : true;
+            const matchSeccion = filtroSeccion ? String(a.secc_id) === filtroSeccion : true;
+            return matchBusqueda && matchEstado && matchSurco && matchTipo && matchSeccion;
+        });
+    }, [arbolesEnriquecidos, busqueda, filtroEstado, filtroSurco, filtroTipo, filtroSeccion]);
 
     const abrirCrear = () => {
         setEditando(null);
@@ -111,16 +172,14 @@ export const useAgroArbol = () => {
         setFormError("");
         setModal(true);
     };
-    console.log("ESTADO:", form.arb_estado);
+
     const handleGuardar = async () => {
         if (!form.arb_posicion_surco || !form.arb_fecha_siembra) {
             setFormError("Campos requeridos");
             return;
         }
-
         try {
             setGuardando(true);
-
             if (editando) {
                 await updateArbol(editando.arb_arbol, {
                     arb_posicion_surco: Number(form.arb_posicion_surco),
@@ -140,31 +199,29 @@ export const useAgroArbol = () => {
                 });
                 toast.success("Creado");
             }
-
             setModal(false);
             cargar();
-
         } catch {
             toast.error("Error al guardar");
         } finally {
             setGuardando(false);
         }
     };
-const handleEliminar = (a: Arbol) => {
-    toast.warning(`¿Desactivar árbol #${a.arb_arbol}?`, {
-        action: {
-            label: "Desactivar",
-            onClick: async () => {
-                await deleteArbol(a.arb_arbol);
-                cargar();
-                toast.success("Árbol desactivado");
+
+    const handleEliminar = (a: Arbol) => {
+        toast.warning(`¿Desactivar árbol #${a.arb_arbol}?`, {
+            action: {
+                label: "Desactivar",
+                onClick: async () => {
+                    await deleteArbol(a.arb_arbol);
+                    cargar();
+                    toast.success("Árbol desactivado");
+                }
             }
-        }
-    });
-};
+        });
+    };
 
     const abrirHistorial = async (a: Arbol) => {
-        console.log("abrirHistorial llamado", a);
         setArbolSeleccionado(a);
         setModalHistorial(true);
         setLoadingHistorial(true);
@@ -184,6 +241,13 @@ const handleEliminar = (a: Arbol) => {
         error,
         busqueda,
         setBusqueda,
+        filtroEstado, setFiltroEstado,
+        filtroSurco, setFiltroSurco,
+        filtroSeccion, setFiltroSeccion,
+        filtroTipo, setFiltroTipo,
+        surcos,
+        secciones,
+        tiposArbol,
         modal,
         editando,
         form,
@@ -196,12 +260,16 @@ const handleEliminar = (a: Arbol) => {
         handleGuardar,
         handleEliminar,
         opcionesTipoArbol,
+        opcionesSecciones,
+        opcionesSurcos,
+        seccionForm,
+        setSeccionForm,
+        TIPOS_ARBOL_DINAMICO,
         modalHistorial,
         historialArbol,
         loadingHistorial,
         abrirHistorial,
         arbolSeleccionado,
-        cerrarHistorial: () => setModalHistorial(false),
-        TIPOS_ARBOL_DINAMICO
+        cerrarHistorial: () => setModalHistorial(false)
     };
 };
