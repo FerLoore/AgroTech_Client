@@ -1,15 +1,10 @@
-// ============================================================
-// AgroMapaPage.tsx — con modo "Configurar Finca"
-// ============================================================
-
 import { useEffect, useState, useRef } from "react";
 import {
     MapContainer, TileLayer, CircleMarker, Polygon,
-    Popup, Circle, Tooltip, LayersControl, useMapEvents,
+    Popup, Circle, Tooltip, LayersControl, useMapEvents, useMap,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import type { LatLng } from "leaflet";
-
+import type { LatLng, Map as LeafletMap } from "leaflet";
 import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMapa.api";
 import type { Finca, ArbolMapa, PuntoPerimetro } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
@@ -17,20 +12,38 @@ import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
 const { BaseLayer } = LayersControl;
 
 // ─────────────────────────────────────────────────────────────
-// Sub-componente: captura clicks del mapa para dibujar perímetro
+// Controla drag del mapa según modo dibujo
 // ─────────────────────────────────────────────────────────────
-const CapturarClicks = ({
-    activo,
+const ControlMapa = ({
+    modoPerimetro,
     onPunto,
 }: {
-    activo: boolean;
+    modoPerimetro: boolean;
     onPunto: (latlng: LatLng) => void;
 }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (modoPerimetro) {
+            // Desactiva drag para que el click no mueva el mapa
+            map.dragging.disable();
+            map.getContainer().style.cursor = "crosshair";
+        } else {
+            map.dragging.enable();
+            map.getContainer().style.cursor = "";
+        }
+        return () => {
+            map.dragging.enable();
+            map.getContainer().style.cursor = "";
+        };
+    }, [modoPerimetro, map]);
+
     useMapEvents({
         click(e) {
-            if (activo) onPunto(e.latlng);
+            if (modoPerimetro) onPunto(e.latlng);
         },
     });
+
     return null;
 };
 
@@ -39,7 +52,6 @@ const CapturarClicks = ({
 // ─────────────────────────────────────────────────────────────
 const AgroMapaPage = () => {
 
-    // ── Estado del mapa ─────────────────────────────────────
     const [fincas, setFincas] = useState<Finca[]>([]);
     const [fincaId, setFincaId] = useState<number | null>(null);
     const [finca, setFinca] = useState<Finca | null>(null);
@@ -48,30 +60,22 @@ const AgroMapaPage = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    // ── Filtros ─────────────────────────────────────────────
     const [filtroEstado, setFiltroEstado] = useState("all");
     const [filtroSeccion, setFiltroSeccion] = useState("all");
     const [cuarentena, setCuarentena] = useState(false);
 
-    // ── Modo dibujo de perímetro ─────────────────────────────
+    // Modo dibujo
     const [modoPerimetro, setModoPerimetro] = useState(false);
     const [puntosNuevos, setPuntosNuevos] = useState<{ lat: number; lng: number }[]>([]);
     const [guardandoPerim, setGuardandoPerim] = useState(false);
     const [msgPerimetro, setMsgPerimetro] = useState("");
 
-    // ── Modo nueva sección/árbol (panel lateral) ─────────────
-    const [panelSiembra, setPanelSiembra] = useState(false);
-    const [formSiembra, setFormSiembra] = useState({
-        seccionNombre: "",
-        numSurcos: "1",
-        arbolesPorSurco: "5",
-        espaciamiento: "2.5",
-    });
-    const [siembraMensaje, setSiembraMensaje] = useState("");
+    // Modal configurar coordenadas de finca sin origen
+    const [modalCoords, setModalCoords] = useState(false);
+    const [coordsForm, setCoordsForm] = useState({ lat: "", lng: "" });
+    const [guardandoCoords, setGuardandoCoords] = useState(false);
 
-    // ─────────────────────────────────────────────────────────
-    // Carga inicial
-    // ─────────────────────────────────────────────────────────
+    // ── Carga fincas ─────────────────────────────────────────
     useEffect(() => {
         getFincas()
             .then((data: Finca[]) => {
@@ -81,23 +85,65 @@ const AgroMapaPage = () => {
             .catch(() => setError("Error al cargar fincas"));
     }, []);
 
-    useEffect(() => {
-        if (!fincaId) return;
+    // ── Carga mapa ───────────────────────────────────────────
+    const cargarMapa = async (id: number) => {
         setLoading(true);
         setError("");
-        getMapaFinca(fincaId)
-            .then(data => {
-                setFinca(data.finca);
-                setArboles(data.arboles);
-                setPerimetro(data.perimetro);
-            })
-            .catch(() => setError("Error al cargar el mapa"))
-            .finally(() => setLoading(false));
+        try {
+            const data = await getMapaFinca(id);
+            setFinca(data.finca);
+            setArboles(data.arboles);
+            setPerimetro(data.perimetro);
+
+            // Si la finca no tiene coordenadas de origen, abrir modal
+            if (!data.finca.fin_latitud_origen || !data.finca.fin_longitud_origen) {
+                setModalCoords(true);
+                setCoordsForm({ lat: "14.6349", lng: "-90.5069" }); // Guatemala por defecto
+            }
+        } catch (e: any) {
+            // Si el backend retorna 400 (sin coordenadas), mostrar modal
+            if (e?.response?.status === 400) {
+                setFinca(fincas.find(f => f.fin_finca === id) ?? null);
+                setArboles([]);
+                setPerimetro([]);
+                setModalCoords(true);
+                setCoordsForm({ lat: "14.6349", lng: "-90.5069" });
+            } else {
+                setError("Error al cargar el mapa");
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!fincaId) return;
+        setModoPerimetro(false);
+        setPuntosNuevos([]);
+        cargarMapa(fincaId);
     }, [fincaId]);
 
-    // ─────────────────────────────────────────────────────────
-    // Datos derivados
-    // ─────────────────────────────────────────────────────────
+    // ── Guardar coordenadas de origen ────────────────────────
+    const guardarCoords = async () => {
+        if (!fincaId || !coordsForm.lat || !coordsForm.lng) return;
+        setGuardandoCoords(true);
+        try {
+            // Importar api directo para el PUT de finca
+            const { default: api } = await import("../../api/Axios");
+            await api.put(`/agro-finca/${fincaId}`, {
+                fin_latitud_origen: Number(coordsForm.lat),
+                fin_longitud_origen: Number(coordsForm.lng),
+            });
+            setModalCoords(false);
+            await cargarMapa(fincaId);
+        } catch {
+            alert("Error al guardar las coordenadas");
+        } finally {
+            setGuardandoCoords(false);
+        }
+    };
+
+    // ── Datos derivados ──────────────────────────────────────
     const secciones = [...new Set(arboles.map(a => a.seccion_nombre))];
 
     const arbolesFiltrados = arboles.filter(a =>
@@ -107,15 +153,13 @@ const AgroMapaPage = () => {
 
     const arbolesEnfermos = arboles.filter(a => a.estado === "Enfermo");
 
-    // Perímetro guardado
     const poligonoGuardado: [number, number][] = perimetro
         .sort((a, b) => a.orden - b.orden)
         .map(p => [p.lat, p.lng]);
 
-    // Perímetro en construcción (mientras dibuja)
     const poligonoNuevo: [number, number][] = puntosNuevos.map(p => [p.lat, p.lng]);
 
-    const centro: [number, number] = finca
+    const centro: [number, number] = finca?.fin_latitud_origen
         ? [finca.fin_latitud_origen, finca.fin_longitud_origen]
         : [14.6349, -90.5069];
 
@@ -126,42 +170,23 @@ const AgroMapaPage = () => {
         crecimiento: arbolesFiltrados.filter(a => a.estado === "Crecimiento").length,
     };
 
-    // ─────────────────────────────────────────────────────────
-    // Handlers perímetro
-    // ─────────────────────────────────────────────────────────
+    // ── Handlers perímetro ───────────────────────────────────
     const agregarPunto = (latlng: LatLng) => {
         setPuntosNuevos(prev => [...prev, { lat: latlng.lat, lng: latlng.lng }]);
     };
 
-    const deshacerPunto = () => {
-        setPuntosNuevos(prev => prev.slice(0, -1));
-    };
-
-    const limpiarPuntos = () => {
-        setPuntosNuevos([]);
-        setMsgPerimetro("");
-    };
-
     const guardarPerimetroNuevo = async () => {
-        if (!fincaId) return;
-        if (puntosNuevos.length < 3) {
-            setMsgPerimetro("Necesitas al menos 3 puntos para definir el perímetro.");
-            return;
-        }
+        if (!fincaId || puntosNuevos.length < 3) return;
         setGuardandoPerim(true);
         setMsgPerimetro("");
         try {
             await guardarPerimetro(fincaId, puntosNuevos);
-            setMsgPerimetro("✓ Perímetro guardado exitosamente.");
+            setMsgPerimetro("✓ Perímetro guardado.");
             setPuntosNuevos([]);
             setModoPerimetro(false);
-            // Recargar mapa para mostrar perímetro nuevo
-            const data = await getMapaFinca(fincaId);
-            setFinca(data.finca);
-            setArboles(data.arboles);
-            setPerimetro(data.perimetro);
+            await cargarMapa(fincaId);
         } catch {
-            setMsgPerimetro("Error al guardar el perímetro. Intenta de nuevo.");
+            setMsgPerimetro("Error al guardar el perímetro.");
         } finally {
             setGuardandoPerim(false);
         }
@@ -171,9 +196,9 @@ const AgroMapaPage = () => {
     // Render
     // ─────────────────────────────────────────────────────────
     return (
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 24, gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 24, gap: 12 }}>
 
-            {/* ── Encabezado + controles ─────────────────── */}
+            {/* Encabezado */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
                 <div>
                     <h1 style={{ fontSize: 22, fontWeight: 700, color: "#2d4a2d", margin: 0 }}>Mapa de Finca</h1>
@@ -206,9 +231,12 @@ const AgroMapaPage = () => {
                         borderColor: "#c0392b",
                     }}>Cuarentena</button>
 
-                    {/* Botón dibujar perímetro */}
                     <button
-                        onClick={() => { setModoPerimetro(!modoPerimetro); setPuntosNuevos([]); setMsgPerimetro(""); }}
+                        onClick={() => {
+                            setModoPerimetro(v => !v);
+                            setPuntosNuevos([]);
+                            setMsgPerimetro("");
+                        }}
                         style={{
                             ...btnStyle,
                             background: modoPerimetro ? "#185FA5" : "transparent",
@@ -216,50 +244,46 @@ const AgroMapaPage = () => {
                             borderColor: "#185FA5",
                         }}
                     >
-                        {modoPerimetro ? "Cancelar dibujo" : "Dibujar perímetro"}
+                        {modoPerimetro ? "✕ Cancelar dibujo" : "Dibujar perímetro"}
                     </button>
 
-                    {/* Botón plantar árboles */}
                     <button
-                        onClick={() => setPanelSiembra(!panelSiembra)}
-                        style={{
-                            ...btnStyle,
-                            background: panelSiembra ? "#b45309" : "transparent",
-                            color: panelSiembra ? "#fff" : "#b45309",
-                            borderColor: "#b45309",
-                        }}
+                        onClick={() => setModalCoords(true)}
+                        style={{ ...btnStyle, borderColor: "#b45309", color: "#b45309" }}
                     >
-                        {panelSiembra ? "Cerrar siembra" : "Plantar árboles"}
+                        Coordenadas de origen
                     </button>
                 </div>
             </div>
 
-            {/* ── Banner modo dibujo ─────────────────────── */}
+            {/* Banner modo dibujo */}
             {modoPerimetro && (
                 <div style={{
                     background: "#ddeef8", border: "0.5px solid #185FA5",
                     borderRadius: 10, padding: "10px 16px",
                     display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
                 }}>
-                    <span style={{ fontSize: 13, color: "#185FA5", fontWeight: 500 }}>
-                        Modo dibujo activo — Hacé click en el mapa para agregar puntos
+                    <span style={{ fontSize: 13, color: "#0C447C", fontWeight: 500 }}>
+                        Modo dibujo — hacé click en el mapa para marcar cada esquina del terreno
                     </span>
-                    <span style={{ fontSize: 12, color: "#185FA5" }}>
-                        {puntosNuevos.length} punto{puntosNuevos.length !== 1 ? "s" : ""} marcado{puntosNuevos.length !== 1 ? "s" : ""}
+                    <span style={{ fontSize: 12, color: "#185FA5", background: "#fff", padding: "2px 10px", borderRadius: 20, border: "0.5px solid #185FA5" }}>
+                        {puntosNuevos.length} punto{puntosNuevos.length !== 1 ? "s" : ""}
                     </span>
                     <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
-                        <button onClick={deshacerPunto} disabled={puntosNuevos.length === 0} style={btnAccionStyle("#888")}>
-                            ← Deshacer
-                        </button>
-                        <button onClick={limpiarPuntos} style={btnAccionStyle("#c0392b")}>
-                            Limpiar todo
+                        <button
+                            onClick={() => setPuntosNuevos(p => p.slice(0, -1))}
+                            disabled={puntosNuevos.length === 0}
+                            style={{ ...btnSmall, background: "#888", opacity: puntosNuevos.length === 0 ? 0.4 : 1 }}
+                        >← Deshacer</button>
+                        <button onClick={() => setPuntosNuevos([])} style={{ ...btnSmall, background: "#c0392b" }}>
+                            Limpiar
                         </button>
                         <button
                             onClick={guardarPerimetroNuevo}
                             disabled={puntosNuevos.length < 3 || guardandoPerim}
-                            style={btnAccionStyle("#185FA5")}
+                            style={{ ...btnSmall, background: "#185FA5", opacity: puntosNuevos.length < 3 ? 0.5 : 1 }}
                         >
-                            {guardandoPerim ? "Guardando..." : `Guardar perímetro (${puntosNuevos.length} pts)`}
+                            {guardandoPerim ? "Guardando..." : `Guardar (${puntosNuevos.length} pts)`}
                         </button>
                     </div>
                     {msgPerimetro && (
@@ -270,72 +294,7 @@ const AgroMapaPage = () => {
                 </div>
             )}
 
-            {/* ── Panel siembra lateral ─────────────────── */}
-            {panelSiembra && (
-                <div style={{
-                    background: "#fff8f0", border: "0.5px solid #e67e22",
-                    borderRadius: 10, padding: "16px",
-                }}>
-                    <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600, color: "#b45309" }}>
-                        Plantar árboles nuevos — estado inicial: Crecimiento
-                    </p>
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-                        <div>
-                            <label style={labelStyle}>Nombre sección</label>
-                            <input
-                                value={formSiembra.seccionNombre}
-                                onChange={e => setFormSiembra({ ...formSiembra, seccionNombre: e.target.value })}
-                                placeholder="Ej: Sección Norte"
-                                style={{ ...inputStyle, width: 180 }}
-                            />
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Cantidad de surcos</label>
-                            <input type="number" min="1" max="20"
-                                value={formSiembra.numSurcos}
-                                onChange={e => setFormSiembra({ ...formSiembra, numSurcos: e.target.value })}
-                                style={{ ...inputStyle, width: 100 }}
-                            />
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Árboles por surco</label>
-                            <input type="number" min="1" max="50"
-                                value={formSiembra.arbolesPorSurco}
-                                onChange={e => setFormSiembra({ ...formSiembra, arbolesPorSurco: e.target.value })}
-                                style={{ ...inputStyle, width: 120 }}
-                            />
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Espaciamiento (m)</label>
-                            <input type="number" min="1" step="0.5"
-                                value={formSiembra.espaciamiento}
-                                onChange={e => setFormSiembra({ ...formSiembra, espaciamiento: e.target.value })}
-                                style={{ ...inputStyle, width: 110 }}
-                            />
-                        </div>
-                        <div style={{
-                            padding: "8px 14px", background: "#fef3c7",
-                            borderRadius: 8, fontSize: 12, color: "#b45309",
-                            border: "0.5px solid #e67e22"
-                        }}>
-                            Total: <strong>{Number(formSiembra.numSurcos) * Number(formSiembra.arbolesPorSurco)}</strong> árboles
-                        </div>
-                        <button
-                            onClick={() => setSiembraMensaje("Para crear surcos y árboles usa la sección Surcos → Árboles del menú. El mapa se actualiza automáticamente.")}
-                            style={{ ...btnAccionStyle("#b45309"), alignSelf: "flex-end" }}
-                        >
-                            Ver instrucciones
-                        </button>
-                    </div>
-                    {siembraMensaje && (
-                        <div style={{ marginTop: 10, padding: "8px 12px", background: "#fff", borderRadius: 8, fontSize: 12, color: "#2d4a2d", border: "0.5px solid #c8d8c0" }}>
-                            {siembraMensaje}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* ── Stats ─────────────────────────────────── */}
+            {/* Stats */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 {[
                     { label: "Total", val: stats.total, color: "#2d4a2d" },
@@ -351,43 +310,53 @@ const AgroMapaPage = () => {
                         <div style={{ fontSize: 11, color: "#7a9a7a" }}>{s.label}</div>
                     </div>
                 ))}
+                {finca && !finca.fin_latitud_origen && (
+                    <div style={{
+                        background: "#fef3c7", borderRadius: 10, padding: "8px 14px",
+                        border: "0.5px solid #e67e22", display: "flex", alignItems: "center",
+                        gap: 8, fontSize: 12, color: "#b45309",
+                    }}>
+                        ⚠ Esta finca no tiene coordenadas de origen — los árboles no se pueden calcular.
+                        <button onClick={() => setModalCoords(true)} style={{ ...btnSmall, background: "#b45309" }}>
+                            Configurar
+                        </button>
+                    </div>
+                )}
             </div>
 
             {error && <p style={{ color: "#c0392b", margin: 0 }}>{error}</p>}
             {loading && <p style={{ color: "#7a9a7a", margin: 0 }}>Cargando mapa...</p>}
 
-            {/* ── Mapa ───────────────────────────────────── */}
+            {/* Mapa */}
             <div style={{ flex: 1, minHeight: 460, borderRadius: 16, overflow: "hidden", border: "0.5px solid #e8e0d0" }}>
                 <MapContainer
                     key={`mapa-${fincaId}`}
                     center={centro}
                     zoom={ZOOM_INICIAL}
+                    maxZoom={19}
                     style={{ height: "100%", width: "100%" }}
                     scrollWheelZoom
-                    // cursor en modo dibujo
-                    className={modoPerimetro ? "cursor-crosshair" : ""}
                 >
-                    {/* Captura clicks para el perímetro */}
-                    <CapturarClicks activo={modoPerimetro} onPunto={agregarPunto} />
+                    <ControlMapa modoPerimetro={modoPerimetro} onPunto={agregarPunto} />
 
                     <LayersControl position="topright">
                         <BaseLayer checked name="Mapa de calles">
                             <TileLayer
                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                                maxZoom={20}
+                                maxZoom={19}
                             />
                         </BaseLayer>
                         <BaseLayer name="Satelital">
                             <TileLayer
                                 url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                                 attribution="&copy; Esri"
-                                maxZoom={20}
+                                maxZoom={19}
                             />
                         </BaseLayer>
                     </LayersControl>
 
-                    {/* Perímetro guardado en BDD */}
+                    {/* Perímetro guardado */}
                     {poligonoGuardado.length >= 3 && (
                         <Polygon
                             positions={poligonoGuardado}
@@ -397,7 +366,7 @@ const AgroMapaPage = () => {
                         </Polygon>
                     )}
 
-                    {/* Perímetro en construcción — azul mientras dibuja */}
+                    {/* Perímetro en construcción */}
                     {modoPerimetro && poligonoNuevo.length >= 2 && (
                         <Polygon
                             positions={poligonoNuevo}
@@ -405,29 +374,23 @@ const AgroMapaPage = () => {
                         />
                     )}
 
-                    {/* Puntos del perímetro en construcción */}
+                    {/* Puntos numerados en construcción */}
                     {modoPerimetro && puntosNuevos.map((p, i) => (
-                        <CircleMarker
-                            key={`np-${i}`}
-                            center={[p.lat, p.lng]}
-                            radius={5}
+                        <CircleMarker key={`np-${i}`} center={[p.lat, p.lng]} radius={7}
                             pathOptions={{ fillColor: "#185FA5", color: "#fff", fillOpacity: 1, weight: 2 }}
                         >
-                            <Tooltip permanent direction="top">{i + 1}</Tooltip>
+                            <Tooltip permanent direction="top" offset={[0, -8]}>
+                                <span style={{ fontSize: 11, fontWeight: 700 }}>{i + 1}</span>
+                            </Tooltip>
                         </CircleMarker>
                     ))}
 
-                    {/* Árboles filtrados */}
+                    {/* Árboles */}
                     {arbolesFiltrados.map(arbol => (
-                        <CircleMarker
-                            key={arbol.id}
-                            center={[arbol.lat, arbol.lng]}
-                            radius={6}
+                        <CircleMarker key={arbol.id} center={[arbol.lat, arbol.lng]} radius={6}
                             pathOptions={{
                                 fillColor: COLORES_ESTADO[arbol.estado] ?? "#888",
-                                color: "#fff",
-                                fillOpacity: 1,
-                                weight: 1.5,
+                                color: "#fff", fillOpacity: 1, weight: 1.5,
                             }}
                         >
                             <Popup>
@@ -443,7 +406,7 @@ const AgroMapaPage = () => {
                                                 ["Estado", arbol.estado],
                                                 ["Variedad", arbol.variedad],
                                                 ["Siembra", arbol.fecha_siembra?.slice(0, 10)],
-                                                ["Coordenada", `${arbol.lat.toFixed(5)}, ${arbol.lng.toFixed(5)}`],
+                                                ["Pos.", `${arbol.lat.toFixed(5)}, ${arbol.lng.toFixed(5)}`],
                                             ].map(([k, v]) => (
                                                 <tr key={k}>
                                                     <td style={{ color: "#7a9a7a", padding: "3px 8px 3px 0" }}>{k}</td>
@@ -458,7 +421,7 @@ const AgroMapaPage = () => {
                         </CircleMarker>
                     ))}
 
-                    {/* Zonas de cuarentena */}
+                    {/* Cuarentena */}
                     {cuarentena && arbolesEnfermos.flatMap(a => [
                         <Circle key={`c5-${a.id}`} center={[a.lat, a.lng]} radius={5}
                             pathOptions={{ color: "#c0392b", fillColor: "#c0392b", fillOpacity: 0.10, weight: 1.5, dashArray: "4 3" }} />,
@@ -468,7 +431,7 @@ const AgroMapaPage = () => {
                 </MapContainer>
             </div>
 
-            {/* ── Leyenda ─────────────────────────────────── */}
+            {/* Leyenda */}
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12, color: "#7a9a7a" }}>
                 {Object.entries(COLORES_ESTADO).map(([estado, color]) => (
                     <span key={estado} style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -478,15 +441,74 @@ const AgroMapaPage = () => {
                 ))}
                 <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <span style={{ width: 14, height: 0, borderTop: "2px dashed #4a7c59", display: "inline-block" }} />
-                    Perímetro guardado
+                    Perímetro
                 </span>
-                {modoPerimetro && (
-                    <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ width: 14, height: 0, borderTop: "2px dashed #185FA5", display: "inline-block" }} />
-                        Perímetro en construcción
-                    </span>
-                )}
             </div>
+
+            {/* ── Modal coordenadas de origen ─────────────────── */}
+            {modalCoords && (
+                <div style={{
+                    position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+                    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+                }}>
+                    <div style={{
+                        background: "#fff", borderRadius: 16, padding: 28,
+                        width: 420, boxShadow: "0 8px 40px rgba(0,0,0,0.2)",
+                    }}>
+                        <h2 style={{ fontSize: 18, fontWeight: 700, color: "#2d4a2d", margin: "0 0 6px" }}>
+                            Configurar origen de la finca
+                        </h2>
+                        <p style={{ fontSize: 13, color: "#7a9a7a", margin: "0 0 20px", lineHeight: 1.6 }}>
+                            Este punto es la esquina <strong>noroeste (NW)</strong> de la finca — desde ahí se calculan las posiciones de todos los árboles.
+                            Podés obtenerlo en <strong>Google Maps</strong>: click derecho → "¿Qué hay aquí?" → copiar lat/lng.
+                        </p>
+
+                        <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+                            <div style={{ flex: 1 }}>
+                                <label style={labelStyle2}>Latitud</label>
+                                <input
+                                    type="number" step="0.00001"
+                                    value={coordsForm.lat}
+                                    onChange={e => setCoordsForm({ ...coordsForm, lat: e.target.value })}
+                                    placeholder="Ej: 14.63492"
+                                    style={inputStyle2}
+                                />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <label style={labelStyle2}>Longitud</label>
+                                <input
+                                    type="number" step="0.00001"
+                                    value={coordsForm.lng}
+                                    onChange={e => setCoordsForm({ ...coordsForm, lng: e.target.value })}
+                                    placeholder="Ej: -90.50689"
+                                    style={inputStyle2}
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ background: "#f5f0e8", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#5F5E5A", marginBottom: 20 }}>
+                            <strong>¿Cómo obtener las coordenadas?</strong><br />
+                            1. Abrí Google Maps en tu computadora<br />
+                            2. Buscá el terreno de la finca<br />
+                            3. Click derecho en la esquina noroeste<br />
+                            4. Copiá los números que aparecen arriba (ej: 14.63492, -90.50689)
+                        </div>
+
+                        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                            <button onClick={() => setModalCoords(false)} style={btnCancelStyle}>
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={guardarCoords}
+                                disabled={guardandoCoords || !coordsForm.lat || !coordsForm.lng}
+                                style={{ ...btnSmall, background: "#4a7c59", padding: "10px 20px", fontSize: 14, opacity: guardandoCoords ? 0.6 : 1 }}
+                            >
+                                {guardandoCoords ? "Guardando..." : "Guardar y cargar mapa"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -497,33 +519,31 @@ const selectStyle: React.CSSProperties = {
     border: "0.5px solid #c8d8c0", borderRadius: 20,
     background: "#fff", color: "#2d4a2d", cursor: "pointer", outline: "none",
 };
-
 const btnStyle: React.CSSProperties = {
     fontSize: 12, padding: "5px 12px",
     border: "0.5px solid", borderRadius: 20,
     cursor: "pointer", transition: "all 0.15s",
 };
-
-const btnAccionStyle = (color: string): React.CSSProperties => ({
+const btnSmall: React.CSSProperties = {
     fontSize: 12, padding: "6px 14px",
-    border: `0.5px solid ${color}`, borderRadius: 8,
-    background: color, color: "#fff",
-    cursor: "pointer", fontWeight: 500,
-    opacity: 1,
-});
-
-const labelStyle: React.CSSProperties = {
+    border: "none", borderRadius: 8,
+    color: "#fff", cursor: "pointer", fontWeight: 500,
+};
+const labelStyle2: React.CSSProperties = {
     display: "block", fontSize: 11, fontWeight: 600,
     color: "#7a9a7a", textTransform: "uppercase",
     letterSpacing: 1, marginBottom: 4,
 };
-
-const inputStyle: React.CSSProperties = {
-    padding: "7px 10px", fontSize: 13,
-    border: "0.5px solid #c8d8c0", borderRadius: 8,
-    background: "#fff", color: "#2d4a2d", outline: "none",
+const inputStyle2: React.CSSProperties = {
+    width: "100%", padding: "9px 12px", fontSize: 14,
+    border: "1.5px solid #c8d8c0", borderRadius: 8,
+    background: "#f9f6f0", color: "#2d4a2d", outline: "none",
+    boxSizing: "border-box",
 };
-
+const btnCancelStyle: React.CSSProperties = {
+    padding: "10px 20px", fontSize: 14, background: "#f0ece4",
+    color: "#6b8c6b", border: "none", borderRadius: 8, cursor: "pointer",
+};
 const popupBtnStyle: React.CSSProperties = {
     marginTop: 10, width: "100%", padding: "6px",
     fontSize: 11, borderRadius: 6, border: "none",
