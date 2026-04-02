@@ -12,12 +12,11 @@ const COLUMNAS: ColumnaConfig[] = [
     { header: "Usuario", key: "usu_usuario" },
 ];
 
-const CAMPOS: CampoFormulario[] = [
+const CAMPOS = (opcionesArboles: CampoFormulario["opciones"], opcionesUsuarios: CampoFormulario["opciones"]): CampoFormulario[] => [
     {
         key: "alertsalud_fecha_deteccion",
         label: "Fecha de detección",
-        tipo: "text",
-        placeholder: "YYYY-MM-DD",
+        tipo: "date",
         requerido: true,
     },
     {
@@ -35,16 +34,16 @@ const CAMPOS: CampoFormulario[] = [
     {
         key: "arb_arbol",
         label: "Árbol",
-        tipo: "text",
-        placeholder: "Ej: 10",
+        tipo: "select",
         requerido: true,
+        opciones: opcionesArboles,
     },
     {
         key: "usu_usuario",
         label: "Usuario",
-        tipo: "text",
-        placeholder: "Ej: 13",
+        tipo: "select",
         requerido: true,
+        opciones: opcionesUsuarios,
     },
 ];
 
@@ -66,6 +65,8 @@ const AgroAlertaSaludPage = () => {
         cerrarModal,
         handleGuardar,
         handleEliminar,
+        opcionesArboles,
+        opcionesUsuarios,
     } = useAgroAlertaSalud();
 
     return (
@@ -76,7 +77,7 @@ const AgroAlertaSaludPage = () => {
             columnas={COLUMNAS}
             datos={alertasFiltradas}
             idKey="alertsalud_id"
-            campos={CAMPOS}
+            campos={CAMPOS(opcionesArboles, opcionesUsuarios)}
             loading={loading}
             error={error}
             busqueda={busqueda}

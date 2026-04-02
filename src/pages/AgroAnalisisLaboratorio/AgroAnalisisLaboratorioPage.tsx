@@ -10,11 +10,13 @@ const COLUMNAS: ColumnaConfig[] = [
     { header: "Fecha resultado", key: "analab_fecha_resultado" },
     { header: "Resultado", key: "analab_resultado_tipo" },
     { header: "Alerta Salud", key: "alert_alerta_salud" },
-    { header: "Catálogo Patógeno", key: "catpato_catalogo_patogeno" },
-    { header: "Usuario", key: "usu_usuario" },
 ];
 
-const CAMPOS: CampoFormulario[] = [
+const CAMPOS = (
+    opcionesAlertas: CampoFormulario["opciones"],
+    opcionesPatogenos: CampoFormulario["opciones"],
+    opcionesUsuarios: CampoFormulario["opciones"]
+): CampoFormulario[] => [
     {
         key: "analab_laboratorio_nombre",
         label: "Laboratorio",
@@ -25,15 +27,13 @@ const CAMPOS: CampoFormulario[] = [
     {
         key: "analab_fecha_envio",
         label: "Fecha envío",
-        tipo: "text",
-        placeholder: "Ej: 2026-03-19",
+        tipo: "date",
         requerido: true,
     },
     {
         key: "analab_fecha_resultado",
         label: "Fecha resultado",
-        tipo: "text",
-        placeholder: "Ej: 2026-03-21",
+        tipo: "date",
     },
     {
         key: "analab_resultado_tipo",
@@ -43,22 +43,22 @@ const CAMPOS: CampoFormulario[] = [
     },
     {
         key: "alert_alerta_salud",
-        label: "Alerta Salud",
-        tipo: "text",
-        placeholder: "Ej: 1",
+        label: "Alerta de Salud",
+        tipo: "select",
         requerido: true,
+        opciones: opcionesAlertas,
     },
     {
         key: "catpato_catalogo_patogeno",
         label: "Catálogo Patógeno",
-        tipo: "text",
-        placeholder: "Ej: 1",
+        tipo: "select",
+        opciones: opcionesPatogenos,
     },
     {
         key: "usu_usuario",
         label: "Usuario",
-        tipo: "text",
-        placeholder: "Ej: 13",
+        tipo: "select",
+        opciones: opcionesUsuarios,
     },
 ];
 
@@ -80,6 +80,9 @@ const AgroAnalisisLaboratorioPage = () => {
         cerrarModal,
         handleGuardar,
         handleEliminar,
+        opcionesAlertas,
+        opcionesPatogenos,
+        opcionesUsuarios,
     } = useAgroAnalisisLaboratorio();
 
     return (
@@ -90,7 +93,7 @@ const AgroAnalisisLaboratorioPage = () => {
             columnas={COLUMNAS}
             datos={analisisFiltrados}
             idKey="analab_analisis_laboratorio"
-            campos={CAMPOS}
+            campos={CAMPOS(opcionesAlertas, opcionesPatogenos, opcionesUsuarios)}
             loading={loading}
             error={error}
             busqueda={busqueda}

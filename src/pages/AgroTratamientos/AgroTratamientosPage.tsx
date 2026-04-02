@@ -14,26 +14,31 @@ const COLUMNAS: ColumnaConfig[] = [
     { header: "Producto", key: "produ_producto" },
 ];
 
-const CAMPOS: CampoFormulario[] = [
+const CAMPOS = (
+    opcionesAlertas: CampoFormulario["opciones"],
+    opcionesProductos: CampoFormulario["opciones"]
+): CampoFormulario[] => [
     {
         key: "trata_fecha_inicio",
         label: "Fecha de inicio",
-        tipo: "text",
-        placeholder: "Ej: 2026-03-18",
+        tipo: "date",
         requerido: true,
     },
     {
         key: "trata_fecha_fin",
         label: "Fecha de fin",
-        tipo: "text",
-        placeholder: "Ej: 2026-03-25",
+        tipo: "date",
     },
     {
         key: "trata_estado",
         label: "Estado",
-        tipo: "text",
-        placeholder: "Ej: En curso",
+        tipo: "select",
         requerido: true,
+        opciones: [
+            { valor: "En curso",    label: "En curso"    },
+            { valor: "Finalizado",  label: "Finalizado"  },
+            { valor: "Cancelado",   label: "Cancelado"   },
+        ],
     },
     {
         key: "trata_dosis",
@@ -49,17 +54,17 @@ const CAMPOS: CampoFormulario[] = [
     },
     {
         key: "alertsalu_alerta_salud",
-        label: "Alerta Salud",
-        tipo: "text",
-        placeholder: "Ej: 1",
+        label: "Alerta de Salud",
+        tipo: "select",
         requerido: true,
+        opciones: opcionesAlertas,
     },
     {
         key: "produ_producto",
         label: "Producto",
-        tipo: "text",
-        placeholder: "Ej: 1",
+        tipo: "select",
         requerido: true,
+        opciones: opcionesProductos,
     },
 ];
 
@@ -81,6 +86,8 @@ const AgroTratamientosPage = () => {
         cerrarModal,
         handleGuardar,
         handleEliminar,
+        opcionesAlertas,
+        opcionesProductos,
     } = useAgroTratamientos();
 
     return (
@@ -91,7 +98,7 @@ const AgroTratamientosPage = () => {
             columnas={COLUMNAS}
             datos={tratamientosFiltrados}
             idKey="trata_tratamientos"
-            campos={CAMPOS}
+            campos={CAMPOS(opcionesAlertas, opcionesProductos)}
             loading={loading}
             error={error}
             busqueda={busqueda}

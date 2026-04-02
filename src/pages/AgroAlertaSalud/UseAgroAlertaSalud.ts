@@ -5,6 +5,8 @@ import {
     updateAlerta,
     deleteAlerta
 } from "../../api/AgroAlertaSalud.api";
+import { getArboles } from "../../api/AgroArbol.api";
+import { getAgroUsuarios } from "../../api/AgroUsuario.api";
 
 import type { AlertaSalud, AlertaSaludFormData } from "./AgroAlertaSalud.types";
 import { ALERTA_SALUD_FORM_INICIAL } from "./AgroAlertaSalud.types";
@@ -15,6 +17,8 @@ export const useAgroAlertaSalud = () => {
     const [alertas, setAlertas] = useState<AlertaSalud[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [arboles, setArboles] = useState<any[]>([]);
+    const [usuarios, setUsuarios] = useState<any[]>([]);
 
     const [busqueda, setBusqueda] = useState("");
 
@@ -46,8 +50,33 @@ export const useAgroAlertaSalud = () => {
     };
 
     useEffect(() => {
-        cargarAlertas();
+        const init = async () => {
+            await cargarAlertas();
+            try {
+                const data = await getArboles();
+                setArboles(data);
+            } catch {
+                console.error("Error cargando árboles para select");
+            }
+            try {
+                const response = await getAgroUsuarios();
+                setUsuarios(response.data.usuarios || []);
+            } catch {
+                console.error("Error cargando usuarios para select");
+            }
+        };
+        init();
     }, []);
+
+    const opcionesArboles = arboles.map(a => ({
+        valor: String(a.arb_arbol),
+        label: `Árbol #${a.arb_arbol} - Surco ${a.sur_surcos}`
+    }));
+
+    const opcionesUsuarios = usuarios.map(u => ({
+        valor: String(u.usu_usuario),
+        label: u.usu_nombre
+    }));
 
     // ============================
     // FILTRO
@@ -72,10 +101,11 @@ export const useAgroAlertaSalud = () => {
     const abrirEditar = (alerta: AlertaSalud) => {
         setEditando(alerta);
 
+        const fecha = String((alerta as any).fecha_deteccion ?? "");
         setForm({
-            alertsalud_fecha_deteccion: String(alerta.alertsalud_fecha_deteccion ?? ""),
-            alertsalud_descripcion_sintoma: String(alerta.alertsalud_descripcion_sintoma ?? ""),
-            alertsalud_foto: String(alerta.alertsalud_foto ?? ""),
+            alertsalud_fecha_deteccion: fecha ? fecha.split("T")[0] : "",
+            alertsalud_descripcion_sintoma: String((alerta as any).descripcion_sintoma ?? ""),
+            alertsalud_foto: String((alerta as any).foto ?? ""),
             arb_arbol: Number(alerta.arb_arbol ?? 0),
             usu_usuario: Number(alerta.usu_usuario ?? 0),
         });
@@ -112,11 +142,10 @@ export const useAgroAlertaSalud = () => {
             setGuardando(true);
             setFormError("");
 
-            // ⚠️ ESTE ES EL FIX CLAVE
             const payload = {
                 fecha_deteccion: form.alertsalud_fecha_deteccion,
-                descripcion_sintoma: form.alertsalud_descripcion_sintoma || "",
-                foto: form.alertsalud_foto || "",
+                descripcion_sintoma: form.alertsalud_descripcion_sintoma || undefined,
+                foto: form.alertsalud_foto || undefined,
                 arb_arbol: Number(form.arb_arbol),
                 usu_usuario: Number(form.usu_usuario),
             };
@@ -187,5 +216,7 @@ export const useAgroAlertaSalud = () => {
         cerrarModal,
         handleGuardar,
         handleEliminar,
+        opcionesArboles,
+        opcionesUsuarios,
     };
 };
