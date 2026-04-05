@@ -11,16 +11,10 @@ import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
 
 const { BaseLayer } = LayersControl;
 
-// ─────────────────────────────────────────────────────────────
-// Constante de espaciado fija
-// ─────────────────────────────────────────────────────────────
 const ESPACIADO_METROS = 2;
-const GRADO_POR_METRO = 0.000009; // 1m ≈ 0.000009 grados
+const GRADO_POR_METRO = 0.000009;
 
-// ─────────────────────────────────────────────────────────────
-// Pasos del wizard
-// ─────────────────────────────────────────────────────────────
-type Paso = "idle" | "coords" | "dibujando" | "preview" | "guardando" | "listo";
+type Paso = "idle" | "coords" | "dibujando" | "preview" | "sin-seccion" | "guardando" | "listo";
 
 interface ArbolPreview {
     lat: number;
@@ -29,9 +23,7 @@ interface ArbolPreview {
     posicion: number;
 }
 
-// ─────────────────────────────────────────────────────────────
-// Ray Casting — punto dentro de polígono
-// ─────────────────────────────────────────────────────────────
+// ─── Ray Casting ──────────────────────────────────────────────
 function puntoEnPoligono(lat: number, lng: number, poly: { lat: number; lng: number }[]): boolean {
     let inside = false;
     const n = poly.length;
@@ -44,16 +36,13 @@ function puntoEnPoligono(lat: number, lng: number, poly: { lat: number; lng: num
     return inside;
 }
 
-// ─────────────────────────────────────────────────────────────
-// Genera grilla de árboles dentro del polígono a 2m
-// ─────────────────────────────────────────────────────────────
+// ─── Grilla de árboles ───────────────────────────────────────
 function generarGrilla(poly: { lat: number; lng: number }[]): ArbolPreview[] {
     const paso = ESPACIADO_METROS * GRADO_POR_METRO;
     const lats = poly.map(p => p.lat);
     const lngs = poly.map(p => p.lng);
     const arboles: ArbolPreview[] = [];
     let numSurco = 1;
-
     for (let lng = Math.min(...lngs); lng <= Math.max(...lngs); lng += paso) {
         let posicion = 1;
         let haySurco = false;
@@ -69,9 +58,7 @@ function generarGrilla(poly: { lat: number; lng: number }[]): ArbolPreview[] {
     return arboles;
 }
 
-// ─────────────────────────────────────────────────────────────
-// Control del mapa — cursor crosshair + clicks
-// ─────────────────────────────────────────────────────────────
+// ─── Control crosshair ───────────────────────────────────────
 const ControlMapa = ({ activo, onPunto }: { activo: boolean; onPunto: (ll: LatLng) => void }) => {
     const map = useMap();
     useEffect(() => {
@@ -83,9 +70,7 @@ const ControlMapa = ({ activo, onPunto }: { activo: boolean; onPunto: (ll: LatLn
     return null;
 };
 
-// ─────────────────────────────────────────────────────────────
-// WizardPanel — contenedor visual de cada paso
-// ─────────────────────────────────────────────────────────────
+// ─── WizardPanel ─────────────────────────────────────────────
 const WizardPanel = ({
     paso, totalPasos, titulo, descripcion, color, children,
 }: {
@@ -93,10 +78,8 @@ const WizardPanel = ({
     descripcion?: string; color: string; children?: React.ReactNode;
 }) => (
     <div style={{
-        background: "#fff",
-        borderLeft: `4px solid ${color}`,
-        border: `1px solid ${color}22`,
-        borderRadius: 12, padding: "16px 20px",
+        background: "#fff", borderLeft: `4px solid ${color}`,
+        border: `1px solid ${color}22`, borderRadius: 12, padding: "16px 20px",
         display: "flex", flexDirection: "column", gap: 10,
         boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
     }}>
@@ -128,7 +111,6 @@ const WizardPanel = ({
 // ─────────────────────────────────────────────────────────────
 const AgroMapaPage = () => {
 
-    // ── Datos base ───────────────────────────────────────────
     const [fincas, setFincas] = useState<Finca[]>([]);
     const [fincaId, setFincaId] = useState<number | null>(null);
     const [finca, setFinca] = useState<Finca | null>(null);
@@ -137,37 +119,36 @@ const AgroMapaPage = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    // ── Filtros ──────────────────────────────────────────────
     const [filtroEstado, setFiltroEstado] = useState("all");
     const [filtroSeccion, setFiltroSeccion] = useState("all");
     const [cuarentena, setCuarentena] = useState(false);
 
-    // ── Wizard ───────────────────────────────────────────────
     const [paso, setPaso] = useState<Paso>("idle");
     const [puntosNuevos, setPuntosNuevos] = useState<{ lat: number; lng: number }[]>([]);
     const [arbolesPreview, setArbolesPreview] = useState<ArbolPreview[]>([]);
     const [progreso, setProgreso] = useState(0);
     const [msgWizard, setMsgWizard] = useState("");
 
-    // ── Coordenadas de origen ────────────────────────────────
     const [coordsForm, setCoordsForm] = useState({ lat: "", lng: "" });
     const [guardandoCoords, setGuardandoCoords] = useState(false);
 
-    // ─────────────────────────────────────────────────────────
-    // Reset del wizard
-    // ─────────────────────────────────────────────────────────
+    // ── Estado para crear sección inline ────────────────────
+    const [seccionForm, setSeccionForm] = useState({ secc_nombre: "", secc_tipo_suelo: "Franco" });
+    const [guardandoSeccion, setGuardandoSeccion] = useState(false);
+
+    const TIPOS_SUELO = ["Franco", "Arcilloso", "Arenoso", "Limoso", "Franco-arcilloso", "Franco-arenoso"];
+
+    // ─── Reset ───────────────────────────────────────────────
     const resetWizard = () => {
         setPaso("idle");
         setPuntosNuevos([]);
         setArbolesPreview([]);
         setMsgWizard("");
         setProgreso(0);
+        setSeccionForm({ secc_nombre: "", secc_tipo_suelo: "Franco" });
     };
 
-    // ─────────────────────────────────────────────────────────
-    // FIX: Carga de datos SIN resetear el wizard
-    // Usada internamente cuando no queremos interrumpir el flujo
-    // ─────────────────────────────────────────────────────────
+    // ─── Carga sin resetear wizard ───────────────────────────
     const cargarDatosMapa = useCallback(async (id: number) => {
         setLoading(true);
         setError("");
@@ -179,23 +160,18 @@ const AgroMapaPage = () => {
             return data;
         } catch (e: any) {
             if (e?.response?.status === 400) {
-                setFinca((prev) => prev); // mantiene la finca actual si ya estaba seteada
                 setArboles([]);
                 setPerimetro([]);
                 return null;
-            } else {
-                setError("Error al cargar el mapa");
-                return null;
             }
+            setError("Error al cargar el mapa");
+            return null;
         } finally {
             setLoading(false);
         }
     }, []);
 
-    // ─────────────────────────────────────────────────────────
-    // Carga completa del mapa (incluye reset del wizard)
-    // Usada al cambiar de finca o al inicializar
-    // ─────────────────────────────────────────────────────────
+    // ─── Carga completa (resetea wizard) ─────────────────────
     const cargarMapa = useCallback(async (id: number) => {
         setLoading(true);
         setError("");
@@ -235,9 +211,7 @@ const AgroMapaPage = () => {
 
     useEffect(() => { if (fincaId) cargarMapa(fincaId); }, [fincaId]);
 
-    // ─────────────────────────────────────────────────────────
-    // Paso 1a — Guardar coordenadas de origen
-    // ─────────────────────────────────────────────────────────
+    // ─── Paso 1a: coordenadas ────────────────────────────────
     const guardarCoords = async () => {
         if (!fincaId || !coordsForm.lat || !coordsForm.lng) return;
         setGuardandoCoords(true);
@@ -256,50 +230,49 @@ const AgroMapaPage = () => {
         }
     };
 
-    // ─────────────────────────────────────────────────────────
-    // Paso 1b — Guardar perímetro dibujado
-    //           + generar preview automático a 2m
-    //
-    // FIX: Se usa cargarDatosMapa() en lugar de cargarMapa()
-    //      para NO resetear el wizard y no borrar arbolesPreview.
-    //      El preview se setea ANTES de refrescar el mapa.
-    // ─────────────────────────────────────────────────────────
+    // ─── Paso 1b: perímetro + grilla ─────────────────────────
     const guardarPerimetroYPreview = async () => {
         if (!fincaId || puntosNuevos.length < 3) return;
         setMsgWizard("");
-
         try {
-            // 1. Guardar perímetro en BD
             await guardarPerimetro(fincaId, puntosNuevos);
-
-            // 2. Generar grilla ANTES de que cualquier setState lo limpie
-            const puntosSnapshot = [...puntosNuevos]; // snapshot defensivo
+            const puntosSnapshot = [...puntosNuevos];
             const preview = generarGrilla(puntosSnapshot);
-
-            console.log("[AgroMapa] Puntos del polígono:", puntosSnapshot.length);
-            console.log("[AgroMapa] Árboles generados en preview:", preview.length);
-
             if (preview.length === 0) {
-                setMsgWizard("El perímetro es muy pequeño para el espaciado de 2m. Intentá con un terreno más grande.");
+                setMsgWizard("El perímetro es muy pequeño para el espaciado de 2m.");
                 return;
             }
-
-            // 3. Setear preview y avanzar al paso ANTES de refrescar datos
             setArbolesPreview(preview);
             setPaso("preview");
-
-            // 4. Refrescar solo el perímetro/árboles del mapa sin tocar el wizard
             await cargarDatosMapa(fincaId);
-
-        } catch (err) {
-            console.error("[AgroMapa] Error al guardar perímetro:", err);
+        } catch {
             setMsgWizard("Error al guardar el perímetro.");
         }
     };
 
-    // ─────────────────────────────────────────────────────────
-    // Paso 2 — Confirmar y guardar surcos + árboles en BD
-    // ─────────────────────────────────────────────────────────
+    // ─── Crear sección inline y continuar ────────────────────
+    const crearSeccionYContinuar = async () => {
+        if (!fincaId || !seccionForm.secc_nombre.trim()) return;
+        setGuardandoSeccion(true);
+        setMsgWizard("");
+        try {
+            const { default: api } = await import("../../api/Axios");
+            await api.post("/agro-seccion", {
+                secc_nombre: seccionForm.secc_nombre.trim(),
+                fin_finca: fincaId,
+                secc_tipo_suelo: seccionForm.secc_tipo_suelo,
+            });
+            // Sección creada — volver al preview para que confirmarGuardar la encuentre
+            setSeccionForm({ secc_nombre: "", secc_tipo_suelo: "Franco" });
+            setPaso("preview");
+        } catch {
+            setMsgWizard("Error al crear la sección. Intentá nuevamente.");
+        } finally {
+            setGuardandoSeccion(false);
+        }
+    };
+
+    // ─── Confirmar y guardar en BD ───────────────────────────
     const confirmarGuardar = async () => {
         if (!fincaId || arbolesPreview.length === 0) return;
         setPaso("guardando");
@@ -308,18 +281,19 @@ const AgroMapaPage = () => {
         try {
             const { default: api } = await import("../../api/Axios");
 
-            // 1. Primera sección activa de la finca
-            const resSec = await api.get("/agro-seccion");
+            // Buscar secciones filtrando por esta finca específica
+            const resSec = await api.get(`/agro-seccion?fincaId=${fincaId}`);
             const secciones: any[] = resSec.data.secciones ?? [];
-            const seccionFinca = secciones.find((s: any) => s.fin_finca === fincaId);
+            const seccionFinca = secciones[0]; // primera sección activa de esta finca
 
+            // Si no tiene secciones, desviar al paso de creación inline
             if (!seccionFinca) {
-                setMsgWizard("⚠ La finca no tiene secciones. Crea al menos una sección primero.");
-                setPaso("preview");
+                setMsgWizard("");
+                setPaso("sin-seccion");
                 return;
             }
 
-            // 2. Crear surcos (uno por columna de la grilla)
+            // Crear surcos
             const surcosUnicos = [...new Set(arbolesPreview.map(a => a.surco))];
             const surcoIdMap: Record<number, number> = {};
 
@@ -332,16 +306,31 @@ const AgroMapaPage = () => {
                     secc_secciones: seccionFinca.secc_seccion,
                     sur_activo: 1,
                 });
-                surcoIdMap[num] = r.data.surco?.sur_surco;
+
+                // ── Agregá este log ──
+                console.log("Respuesta surco:", r.data);
+
+                const surcoId = r.data.surco?.sur_surco ?? r.data.sur_surco ?? r.data.id;
+                if (!surcoId) {
+                    setMsgWizard(`Error: el surco ${num} no devolvió un ID válido.`);
+                    setPaso("preview");
+                    return;
+                }
+                surcoIdMap[num] = surcoId;
                 setProgreso(Math.round(((i + 1) / surcosUnicos.length) * 35));
             }
 
-            // 3. Tipo árbol por defecto (primero disponible)
+            // Tipo árbol por defecto
             const resTipos = await api.get("/agro-tipo-arbol");
-            const tipoDefault = resTipos.data.tipos?.[0]?.tipar_tipo_arbol ?? 1;
+            const tipoDefault = resTipos.data.tipoArboles?.[0]?.tipar_tipo_arbol;
+            if (!tipoDefault) {
+                setMsgWizard("No hay tipos de árbol registrados. Creá al menos uno en Catálogos → Tipos de Árbol.");
+                setPaso("preview");
+                return;
+            }
             const hoy = new Date().toISOString().slice(0, 10);
 
-            // 4. Insertar árboles en lotes de 20
+            // Insertar árboles en lotes de 20
             const LOTE = 20;
             for (let i = 0; i < arbolesPreview.length; i += LOTE) {
                 await Promise.all(
@@ -378,9 +367,7 @@ const AgroMapaPage = () => {
         }
     };
 
-    // ─────────────────────────────────────────────────────────
-    // Datos derivados
-    // ─────────────────────────────────────────────────────────
+    // ─── Datos derivados ──────────────────────────────────────
     const seccionesUnicas = [...new Set(arboles.map(a => a.seccion_nombre))];
     const arbolesFiltrados = arboles.filter(a =>
         (filtroEstado === "all" || a.estado === filtroEstado) &&
@@ -402,9 +389,6 @@ const AgroMapaPage = () => {
 
     const estaEnWizard = paso !== "idle" && paso !== "listo";
 
-    // ─────────────────────────────────────────────────────────
-    // Render
-    // ─────────────────────────────────────────────────────────
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 24, gap: 12 }}>
 
@@ -441,7 +425,6 @@ const AgroMapaPage = () => {
                         color: cuarentena ? "#fff" : "#c0392b", borderColor: "#c0392b",
                     }}>Cuarentena</button>
 
-                    {/* Iniciar wizard */}
                     {paso === "idle" && (
                         <button onClick={() => {
                             if (!finca?.fin_latitud_origen) { setPaso("coords"); }
@@ -450,23 +433,18 @@ const AgroMapaPage = () => {
                             + Configurar terreno
                         </button>
                     )}
-
-                    {/* Cancelar wizard */}
                     {estaEnWizard && (
-                        <button onClick={resetWizard} style={{
-                            ...btnOutline, color: "#c0392b", borderColor: "#c0392b",
-                        }}>✕ Cancelar</button>
+                        <button onClick={resetWizard} style={{ ...btnOutline, color: "#c0392b", borderColor: "#c0392b" }}>
+                            ✕ Cancelar
+                        </button>
                     )}
                 </div>
             </div>
 
-            {/* ══════════════════════════════════════════════
-                WIZARD PANELS
-            ══════════════════════════════════════════════ */}
+            {/* ══ WIZARD PANELS ══════════════════════════════════ */}
 
-            {/* PASO coords */}
             {paso === "coords" && (
-                <WizardPanel paso={1} totalPasos={2} color="#b45309"
+                <WizardPanel paso={1} totalPasos={3} color="#b45309"
                     titulo="Paso 1 — Configura el punto de origen de la finca"
                     descripcion="Ingresá las coordenadas de la esquina noroeste (NW) del terreno. Podés obtenerlas haciendo click derecho en Google Maps.">
                     <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -491,10 +469,9 @@ const AgroMapaPage = () => {
                 </WizardPanel>
             )}
 
-            {/* PASO dibujando */}
             {paso === "dibujando" && (
-                <WizardPanel paso={1} totalPasos={2} color="#185FA5"
-                    titulo="Paso 1 — Marcá las esquinas del terreno en el mapa"
+                <WizardPanel paso={2} totalPasos={3} color="#185FA5"
+                    titulo="Paso 2 — Marcá las esquinas del terreno en el mapa"
                     descripcion={`Hacé click sobre el mapa para agregar puntos. El sistema generará árboles cada ${ESPACIADO_METROS}m automáticamente.`}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                         <span style={{
@@ -510,9 +487,7 @@ const AgroMapaPage = () => {
                             style={{ ...btnSecondary, opacity: puntosNuevos.length === 0 ? 0.4 : 1 }}>
                             ← Deshacer
                         </button>
-                        <button onClick={() => setPuntosNuevos([])} style={btnDanger}>
-                            Limpiar
-                        </button>
+                        <button onClick={() => setPuntosNuevos([])} style={btnDanger}>Limpiar</button>
                         <button onClick={guardarPerimetroYPreview}
                             disabled={puntosNuevos.length < 3}
                             style={{ ...btnPrimary, marginLeft: "auto", opacity: puntosNuevos.length < 3 ? 0.5 : 1 }}>
@@ -523,12 +498,10 @@ const AgroMapaPage = () => {
                 </WizardPanel>
             )}
 
-            {/* PASO preview */}
             {paso === "preview" && arbolesPreview.length > 0 && (
-                <WizardPanel paso={2} totalPasos={2} color="#4a7c59"
-                    titulo="Paso 2 — Confirmá los árboles generados">
+                <WizardPanel paso={3} totalPasos={3} color="#4a7c59"
+                    titulo="Paso 3 — Confirmá los árboles generados">
                     <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                        {/* Resumen */}
                         <div style={{ display: "flex", gap: 16 }}>
                             {[
                                 { icon: "🌱", label: "Árboles", val: arbolesPreview.length.toLocaleString() },
@@ -546,8 +519,8 @@ const AgroMapaPage = () => {
                             ))}
                         </div>
                         <p style={{ fontSize: 12, color: "#5a7a5a", flex: 1, margin: 0 }}>
-                            Los puntos verdes en el mapa muestran las posiciones calculadas.
-                            Se asignarán a la primera sección de la finca.
+                            Los puntos verdes muestran las posiciones calculadas.
+                            Se asignarán a la primera sección activa de la finca.
                         </p>
                         <div style={{ display: "flex", gap: 8 }}>
                             <button onClick={() => { setArbolesPreview([]); setPaso("dibujando"); setPuntosNuevos([]); }}
@@ -563,9 +536,71 @@ const AgroMapaPage = () => {
                 </WizardPanel>
             )}
 
-            {/* PASO guardando */}
+            {/* ── PASO SIN-SECCION: creación inline ────────────
+                Se activa automáticamente cuando confirmarGuardar
+                detecta que la finca no tiene secciones.
+                El usuario completa el form y se vuelve al preview
+                para reintentar el guardado.
+            ──────────────────────────────────────────────────── */}
+            {paso === "sin-seccion" && (
+                <WizardPanel paso={3} totalPasos={3} color="#b45309"
+                    titulo="Paso 3 — Primero creá una sección para esta finca"
+                    descripcion="La finca aún no tiene secciones. Completá los datos y se creará automáticamente antes de guardar los árboles.">
+
+                    <div style={{
+                        background: "#fef9ec", border: "1px solid #f0c040",
+                        borderRadius: 8, padding: "10px 14px",
+                        display: "flex", alignItems: "flex-start", gap: 10,
+                    }}>
+                        <span style={{ fontSize: 18, lineHeight: 1 }}>ℹ️</span>
+                        <div style={{ fontSize: 12, color: "#7a5a00" }}>
+                            <strong>¿Qué es una sección?</strong> Es una subdivisión del terreno
+                            (ej: "Sector Norte", "Lote A"). Los {arbolesPreview.length.toLocaleString()} árboles
+                            generados se asignarán a esta sección.
+                        </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+                        <div style={{ flex: 2, minWidth: 180 }}>
+                            <label style={labelStyle}>Nombre de la sección *</label>
+                            <input
+                                type="text"
+                                value={seccionForm.secc_nombre}
+                                onChange={e => setSeccionForm({ ...seccionForm, secc_nombre: e.target.value })}
+                                placeholder='Ej: "Sector Norte", "Lote A"'
+                                style={{ ...inputStyle, width: "100%" }}
+                                autoFocus
+                            />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 140 }}>
+                            <label style={labelStyle}>Tipo de suelo</label>
+                            <select
+                                value={seccionForm.secc_tipo_suelo}
+                                onChange={e => setSeccionForm({ ...seccionForm, secc_tipo_suelo: e.target.value })}
+                                style={{ ...inputStyle, width: "100%", cursor: "pointer" }}
+                            >
+                                {TIPOS_SUELO.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={() => setPaso("preview")} style={btnSecondary}>
+                                ← Volver
+                            </button>
+                            <button
+                                onClick={crearSeccionYContinuar}
+                                disabled={guardandoSeccion || !seccionForm.secc_nombre.trim()}
+                                style={{ ...btnPrimary, opacity: (!seccionForm.secc_nombre.trim() || guardandoSeccion) ? 0.6 : 1 }}
+                            >
+                                {guardandoSeccion ? "Creando sección..." : "Crear y continuar →"}
+                            </button>
+                        </div>
+                    </div>
+                    {msgWizard && <p style={{ fontSize: 12, color: "#c0392b", margin: "4px 0 0" }}>{msgWizard}</p>}
+                </WizardPanel>
+            )}
+
             {paso === "guardando" && (
-                <WizardPanel paso={2} totalPasos={2} color="#4a7c59" titulo="Guardando en la base de datos...">
+                <WizardPanel paso={3} totalPasos={3} color="#4a7c59" titulo="Guardando en la base de datos...">
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#5a7a5a" }}>
                             <span>Creando surcos y árboles...</span>
@@ -581,9 +616,8 @@ const AgroMapaPage = () => {
                 </WizardPanel>
             )}
 
-            {/* PASO listo */}
             {paso === "listo" && (
-                <WizardPanel paso={2} totalPasos={2} color="#4a7c59" titulo="¡Terreno configurado exitosamente!">
+                <WizardPanel paso={3} totalPasos={3} color="#4a7c59" titulo="¡Terreno configurado exitosamente!">
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#2d6a2d" }}>{msgWizard}</p>
                 </WizardPanel>
             )}
@@ -628,7 +662,6 @@ const AgroMapaPage = () => {
                         activo={paso === "dibujando"}
                         onPunto={ll => setPuntosNuevos(prev => [...prev, { lat: ll.lat, lng: ll.lng }])}
                     />
-
                     <LayersControl position="topright">
                         <BaseLayer checked name="Mapa de calles">
                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -640,21 +673,16 @@ const AgroMapaPage = () => {
                         </BaseLayer>
                     </LayersControl>
 
-                    {/* Perímetro guardado */}
                     {poligonoGuardado.length >= 3 && (
                         <Polygon positions={poligonoGuardado}
                             pathOptions={{ color: "#4a7c59", fillColor: "#4a7c59", fillOpacity: 0.08, weight: 2, dashArray: "6 4" }}>
                             <Tooltip sticky>{finca?.fin_nombre}</Tooltip>
                         </Polygon>
                     )}
-
-                    {/* Polígono en construcción */}
                     {paso === "dibujando" && poligonoEnDibujo.length >= 2 && (
                         <Polygon positions={poligonoEnDibujo}
                             pathOptions={{ color: "#185FA5", fillColor: "#185FA5", fillOpacity: 0.10, weight: 2, dashArray: "4 3" }} />
                     )}
-
-                    {/* Puntos numerados del dibujo */}
                     {paso === "dibujando" && puntosNuevos.map((p, i) => (
                         <CircleMarker key={`np-${i}`} center={[p.lat, p.lng]} radius={7}
                             pathOptions={{ fillColor: "#185FA5", color: "#fff", fillOpacity: 1, weight: 2 }}>
@@ -663,8 +691,6 @@ const AgroMapaPage = () => {
                             </Tooltip>
                         </CircleMarker>
                     ))}
-
-                    {/* Preview de árboles generados */}
                     {arbolesPreview.map((a, i) => (
                         <CircleMarker key={`prev-${i}`} center={[a.lat, a.lng]} radius={4}
                             pathOptions={{ fillColor: "#6aaa7a", color: "#fff", fillOpacity: 0.9, weight: 1 }}>
@@ -673,8 +699,6 @@ const AgroMapaPage = () => {
                             </Tooltip>
                         </CircleMarker>
                     ))}
-
-                    {/* Árboles reales de la BD */}
                     {arbolesFiltrados.map(arbol => (
                         <CircleMarker key={arbol.id} center={[arbol.lat, arbol.lng]} radius={6}
                             pathOptions={{
@@ -708,8 +732,6 @@ const AgroMapaPage = () => {
                             </Popup>
                         </CircleMarker>
                     ))}
-
-                    {/* Cuarentena */}
                     {cuarentena && arbolesEnfermos.flatMap(a => [
                         <Circle key={`c5-${a.id}`} center={[a.lat, a.lng]} radius={5}
                             pathOptions={{ color: "#c0392b", fillColor: "#c0392b", fillOpacity: 0.10, weight: 1.5, dashArray: "4 3" }} />,
@@ -742,9 +764,7 @@ const AgroMapaPage = () => {
     );
 };
 
-// ─────────────────────────────────────────────────────────────
-// Estilos
-// ─────────────────────────────────────────────────────────────
+// ─── Estilos ─────────────────────────────────────────────────
 const selectStyle: React.CSSProperties = {
     fontSize: 12, padding: "5px 10px", border: "0.5px solid #c8d8c0",
     borderRadius: 20, background: "#fff", color: "#2d4a2d", cursor: "pointer", outline: "none",
