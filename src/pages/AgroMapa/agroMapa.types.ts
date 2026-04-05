@@ -46,5 +46,5 @@ export const COLORES_ESTADO: Record<string, string> = {
     Muerto: "#888888",
 };
 
-// Zoom alto para ver árboles separados en 1 hectárea
-export const ZOOM_INICIAL = 18;
+// Zoom fallback (el AutoFit lo sobreescribe automáticamente)
+export const ZOOM_INICIAL = 19;
