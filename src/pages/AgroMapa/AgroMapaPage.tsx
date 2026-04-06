@@ -80,6 +80,15 @@ const ControlMapa = ({ activo, onPunto }: { activo: boolean; onPunto: (ll: LatLn
     return null;
 };
 
+// ─── Control para centrar el mapa ────────────────────────────
+const MapUpdater = ({ lat, lng }: { lat: number; lng: number }) => {
+    const map = useMap();
+    useEffect(() => {
+        map.setView([lat, lng], map.getZoom(), { animate: true });
+    }, [lat, lng, map]);
+    return null;
+};
+
 // ─── WizardPanel ─────────────────────────────────────────────
 const WizardPanel = ({
     paso, totalPasos, titulo, descripcion, color, children,
@@ -288,11 +297,11 @@ const AgroMapaPage = () => {
         setGuardandoCoords(true);
         try {
             const { default: api } = await import("../../api/Axios");
-            
+
             // Reemplazamos coma por punto en caso de que su teclado introduzca coma decimal
             const latLimpia = Number(String(coordsForm.lat).replace(',', '.'));
             const lngLimpia = Number(String(coordsForm.lng).replace(',', '.'));
-            
+
             await api.put(`/agro-finca/${fincaId}`, {
                 fin_latitud_origen: latLimpia,
                 fin_longitud_origen: lngLimpia,
@@ -785,6 +794,7 @@ const AgroMapaPage = () => {
             <div style={{ flex: 1, minHeight: 460, borderRadius: 16, overflow: "hidden", border: "0.5px solid #e8e0d0" }}>
                 <MapContainer key={`mapa-${fincaId}`} center={centro} zoom={ZOOM_INICIAL}
                     maxZoom={19} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
+                    <MapUpdater lat={centro[0]} lng={centro[1]} />
                     <ControlMapa
                         activo={paso === "dibujando"}
                         onPunto={ll => setPuntosNuevos(prev => [...prev, { lat: ll.lat, lng: ll.lng }])}
