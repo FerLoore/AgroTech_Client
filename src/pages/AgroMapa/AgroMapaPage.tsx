@@ -47,23 +47,27 @@ function puntoEnPoligono(lat: number, lng: number, poly: { lat: number; lng: num
 }
 
 // ─── Grilla de árboles (espaciado dinámico) ──────────────────
-function generarGrilla(poly: { lat: number; lng: number }[], espaciado = 2): ArbolPreview[] {
+function generarGrilla(poly: { lat: number; lng: number }[], espaciado = 2, latOrigen: number, lngOrigen: number): ArbolPreview[] {
     const paso = espaciado * GRADO_POR_METRO;
     const lats = poly.map(p => p.lat);
     const lngs = poly.map(p => p.lng);
     const arboles: ArbolPreview[] = [];
-    let numSurco = 1;
-    for (let lng = Math.min(...lngs); lng <= Math.max(...lngs); lng += paso) {
-        let posicion = 1;
-        let haySurco = false;
-        for (let lat = Math.min(...lats); lat <= Math.max(...lats); lat += paso) {
+
+    // Calcular el rango absoluto
+    const minM = Math.floor((Math.min(...lngs) - lngOrigen) / paso);
+    const maxM = Math.ceil((Math.max(...lngs) - lngOrigen) / paso);
+
+    const minN = Math.floor((Math.min(...lats) - latOrigen) / paso);
+    const maxN = Math.ceil((Math.max(...lats) - latOrigen) / paso);
+
+    for (let m = minM; m <= maxM; m++) {
+        let lng = lngOrigen + m * paso;
+        for (let n = minN; n <= maxN; n++) {
+            let lat = latOrigen + n * paso;
             if (puntoEnPoligono(lat, lng, poly)) {
-                arboles.push({ lat, lng, surco: numSurco, posicion });
-                posicion++;
-                haySurco = true;
+                arboles.push({ lat, lng, surco: m, posicion: n });
             }
         }
-        if (haySurco) numSurco++;
     }
     return arboles;
 }
@@ -271,7 +275,12 @@ const AgroMapaPage = () => {
     const confirmarConfiguracion = () => {
         if (!seccionSeleccionada || !tipoArbolSeleccionado) return;
         setMsgWizard("");
-        const preview = generarGrilla(puntosNuevos, espaciadoSeleccionado);
+        const preview = generarGrilla(
+            puntosNuevos, 
+            espaciadoSeleccionado,
+            finca?.fin_latitud_origen ?? 14.6349,
+            finca?.fin_longitud_origen ?? -90.5069
+        );
         if (preview.length === 0) {
             setMsgWizard("El perímetro es muy pequeño para el espaciado configurado. Reducí el espaciado o dibujá un área más grande.");
             return;
