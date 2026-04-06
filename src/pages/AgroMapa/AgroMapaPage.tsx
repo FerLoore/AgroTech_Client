@@ -11,16 +11,26 @@ import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
 
 const { BaseLayer } = LayersControl;
 
-const ESPACIADO_METROS = 2;
 const GRADO_POR_METRO = 0.000009;
 
-type Paso = "idle" | "coords" | "dibujando" | "preview" | "sin-seccion" | "guardando" | "listo";
+type Paso = "idle" | "coords" | "dibujando" | "configurar" | "preview" | "sin-seccion" | "guardando" | "listo";
 
 interface ArbolPreview {
     lat: number;
     lng: number;
     surco: number;
     posicion: number;
+}
+
+interface TipoArbol {
+    tipar_tipo_arbol: number;
+    tipar_nombre_comun: string;
+}
+
+interface SeccionFinca {
+    secc_seccion: number;
+    secc_nombre: string;
+    secc_tipo_suelo: string;
 }
 
 // ─── Ray Casting ──────────────────────────────────────────────
@@ -36,9 +46,9 @@ function puntoEnPoligono(lat: number, lng: number, poly: { lat: number; lng: num
     return inside;
 }
 
-// ─── Grilla de árboles ───────────────────────────────────────
-function generarGrilla(poly: { lat: number; lng: number }[]): ArbolPreview[] {
-    const paso = ESPACIADO_METROS * GRADO_POR_METRO;
+// ─── Grilla de árboles (espaciado dinámico) ──────────────────
+function generarGrilla(poly: { lat: number; lng: number }[], espaciado = 2): ArbolPreview[] {
+    const paso = espaciado * GRADO_POR_METRO;
     const lats = poly.map(p => p.lat);
     const lngs = poly.map(p => p.lng);
     const arboles: ArbolPreview[] = [];
@@ -111,6 +121,7 @@ const WizardPanel = ({
 // ─────────────────────────────────────────────────────────────
 const AgroMapaPage = () => {
 
+    // ── Datos generales ──────────────────────────────────────
     const [fincas, setFincas] = useState<Finca[]>([]);
     const [fincaId, setFincaId] = useState<number | null>(null);
     const [finca, setFinca] = useState<Finca | null>(null);
@@ -119,26 +130,37 @@ const AgroMapaPage = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
+    // ── Filtros ──────────────────────────────────────────────
     const [filtroEstado, setFiltroEstado] = useState("all");
     const [filtroSeccion, setFiltroSeccion] = useState("all");
     const [cuarentena, setCuarentena] = useState(false);
 
+    // ── Wizard ───────────────────────────────────────────────
     const [paso, setPaso] = useState<Paso>("idle");
     const [puntosNuevos, setPuntosNuevos] = useState<{ lat: number; lng: number }[]>([]);
     const [arbolesPreview, setArbolesPreview] = useState<ArbolPreview[]>([]);
     const [progreso, setProgreso] = useState(0);
     const [msgWizard, setMsgWizard] = useState("");
 
+    // ── Paso 1: coordenadas ──────────────────────────────────
     const [coordsForm, setCoordsForm] = useState({ lat: "", lng: "" });
     const [guardandoCoords, setGuardandoCoords] = useState(false);
 
-    // ── Estado para crear sección inline ────────────────────
+    // ── Paso 3: configuración desde BD ──────────────────────
+    const [tiposArbol, setTiposArbol] = useState<TipoArbol[]>([]);
+    const [seccionesFinca, setSeccionesFinca] = useState<SeccionFinca[]>([]);
+    const [seccionSeleccionada, setSeccionSeleccionada] = useState<number | null>(null);
+    const [tipoArbolSeleccionado, setTipoArbolSeleccionado] = useState<number | null>(null);
+    const [espaciadoSeleccionado, setEspaciadoSeleccionado] = useState<number>(2);
+    const [cargandoConfig, setCargandoConfig] = useState(false);
+
+    // ── Paso sin-seccion: creación inline ───────────────────
     const [seccionForm, setSeccionForm] = useState({ secc_nombre: "", secc_tipo_suelo: "Franco" });
     const [guardandoSeccion, setGuardandoSeccion] = useState(false);
 
     const TIPOS_SUELO = ["Franco", "Arcilloso", "Arenoso", "Limoso", "Franco-arcilloso", "Franco-arenoso"];
 
-    // ─── Reset ───────────────────────────────────────────────
+    // ─── Reset completo del wizard ───────────────────────────
     const resetWizard = () => {
         setPaso("idle");
         setPuntosNuevos([]);
@@ -146,9 +168,14 @@ const AgroMapaPage = () => {
         setMsgWizard("");
         setProgreso(0);
         setSeccionForm({ secc_nombre: "", secc_tipo_suelo: "Franco" });
+        setSeccionSeleccionada(null);
+        setTipoArbolSeleccionado(null);
+        setEspaciadoSeleccionado(2);
+        setSeccionesFinca([]);
+        setTiposArbol([]);
     };
 
-    // ─── Carga sin resetear wizard ───────────────────────────
+    // ─── Carga mapa sin resetear wizard ─────────────────────
     const cargarDatosMapa = useCallback(async (id: number) => {
         setLoading(true);
         setError("");
@@ -171,7 +198,7 @@ const AgroMapaPage = () => {
         }
     }, []);
 
-    // ─── Carga completa (resetea wizard) ─────────────────────
+    // ─── Carga mapa completa (resetea wizard) ────────────────
     const cargarMapa = useCallback(async (id: number) => {
         setLoading(true);
         setError("");
@@ -200,6 +227,50 @@ const AgroMapaPage = () => {
         }
     }, [fincas]);
 
+    // ─── Carga secciones y tipos de árbol desde BD ───────────
+    const cargarConfiguracion = async (id: number) => {
+        setCargandoConfig(true);
+        setMsgWizard("");
+        try {
+            const { default: api } = await import("../../api/Axios");
+            const [resSec, resTipos] = await Promise.all([
+                api.get(`/agro-seccion?fincaId=${id}`),
+                api.get("/agro-tipo-arbol"),
+            ]);
+            const secciones: SeccionFinca[] = resSec.data.secciones ?? [];
+            const tipos: TipoArbol[] = resTipos.data.tipoArboles ?? [];
+
+            setSeccionesFinca(secciones);
+            setTiposArbol(tipos);
+
+            if (secciones.length > 0) setSeccionSeleccionada(secciones[0].secc_seccion);
+            if (tipos.length > 0) setTipoArbolSeleccionado(tipos[0].tipar_tipo_arbol);
+
+            // Si no tiene secciones, ir a crearla primero
+            if (secciones.length === 0) setPaso("sin-seccion");
+            else setPaso("configurar");
+
+        } catch {
+            setMsgWizard("Error al cargar configuración. Intentá nuevamente.");
+            setPaso("dibujando");
+        } finally {
+            setCargandoConfig(false);
+        }
+    };
+
+    // ─── Confirmar configuración y generar grilla ────────────
+    const confirmarConfiguracion = () => {
+        if (!seccionSeleccionada || !tipoArbolSeleccionado) return;
+        setMsgWizard("");
+        const preview = generarGrilla(puntosNuevos, espaciadoSeleccionado);
+        if (preview.length === 0) {
+            setMsgWizard("El perímetro es muy pequeño para el espaciado configurado. Reducí el espaciado o dibujá un área más grande.");
+            return;
+        }
+        setArbolesPreview(preview);
+        setPaso("preview");
+    };
+
     useEffect(() => {
         getFincas()
             .then((data: Finca[]) => {
@@ -211,46 +282,46 @@ const AgroMapaPage = () => {
 
     useEffect(() => { if (fincaId) cargarMapa(fincaId); }, [fincaId]);
 
-    // ─── Paso 1a: coordenadas ────────────────────────────────
+    // ─── Paso 1: guardar coordenadas ─────────────────────────
     const guardarCoords = async () => {
         if (!fincaId || !coordsForm.lat || !coordsForm.lng) return;
         setGuardandoCoords(true);
         try {
             const { default: api } = await import("../../api/Axios");
+            
+            // Reemplazamos coma por punto en caso de que su teclado introduzca coma decimal
+            const latLimpia = Number(String(coordsForm.lat).replace(',', '.'));
+            const lngLimpia = Number(String(coordsForm.lng).replace(',', '.'));
+            
             await api.put(`/agro-finca/${fincaId}`, {
-                fin_latitud_origen: Number(coordsForm.lat),
-                fin_longitud_origen: Number(coordsForm.lng),
+                fin_latitud_origen: latLimpia,
+                fin_longitud_origen: lngLimpia,
             });
-            await cargarMapa(fincaId);
-            setPaso("dibujando");
-        } catch {
-            alert("Error al guardar las coordenadas");
+            // Usá cargarDatosMapa (no cargarMapa) para no resetear el wizard
+            await cargarDatosMapa(fincaId);
+            setPaso("dibujando"); // ahora sí llega limpio
+        } catch (e: any) {
+            console.error("Error completo:", e);
+            alert("Error al guardar las coordenadas: " + (e.response?.data?.message || e.message));
         } finally {
             setGuardandoCoords(false);
         }
     };
 
-    // ─── Paso 1b: perímetro + grilla ─────────────────────────
-    const guardarPerimetroYPreview = async () => {
+    // ─── Paso 2: guardar perímetro → ir a configuración ──────
+    const guardarPerimetroYConfigurar = async () => {
         if (!fincaId || puntosNuevos.length < 3) return;
         setMsgWizard("");
         try {
             await guardarPerimetro(fincaId, puntosNuevos);
-            const puntosSnapshot = [...puntosNuevos];
-            const preview = generarGrilla(puntosSnapshot);
-            if (preview.length === 0) {
-                setMsgWizard("El perímetro es muy pequeño para el espaciado de 2m.");
-                return;
-            }
-            setArbolesPreview(preview);
-            setPaso("preview");
             await cargarDatosMapa(fincaId);
+            await cargarConfiguracion(fincaId);
         } catch {
             setMsgWizard("Error al guardar el perímetro.");
         }
     };
 
-    // ─── Crear sección inline y continuar ────────────────────
+    // ─── Paso sin-seccion: crear sección y volver a config ───
     const crearSeccionYContinuar = async () => {
         if (!fincaId || !seccionForm.secc_nombre.trim()) return;
         setGuardandoSeccion(true);
@@ -262,9 +333,9 @@ const AgroMapaPage = () => {
                 fin_finca: fincaId,
                 secc_tipo_suelo: seccionForm.secc_tipo_suelo,
             });
-            // Sección creada — volver al preview para que confirmarGuardar la encuentre
             setSeccionForm({ secc_nombre: "", secc_tipo_suelo: "Franco" });
-            setPaso("preview");
+            // Recargar configuración para que aparezca la sección recién creada
+            await cargarConfiguracion(fincaId);
         } catch {
             setMsgWizard("Error al crear la sección. Intentá nuevamente.");
         } finally {
@@ -272,97 +343,68 @@ const AgroMapaPage = () => {
         }
     };
 
-    // ─── Confirmar y guardar en BD ───────────────────────────
+    // ─── Paso 4: confirmar y guardar en BD ───────────────────
     const confirmarGuardar = async () => {
         if (!fincaId || arbolesPreview.length === 0) return;
+
         setPaso("guardando");
         setProgreso(0);
-        setMsgWizard("");
+
         try {
             const { default: api } = await import("../../api/Axios");
-
-            // Buscar secciones filtrando por esta finca específica
-            const resSec = await api.get(`/agro-seccion?fincaId=${fincaId}`);
-            const secciones: any[] = resSec.data.secciones ?? [];
-            const seccionFinca = secciones[0]; // primera sección activa de esta finca
-
-            // Si no tiene secciones, desviar al paso de creación inline
-            if (!seccionFinca) {
-                setMsgWizard("");
-                setPaso("sin-seccion");
-                return;
-            }
-
-            // Crear surcos
             const surcosUnicos = [...new Set(arbolesPreview.map(a => a.surco))];
             const surcoIdMap: Record<number, number> = {};
 
+            // 1. Crear Surcos uno por uno para obtener IDs reales
             for (let i = 0; i < surcosUnicos.length; i++) {
                 const num = surcosUnicos[i];
                 const r = await api.post("/agro-surcos", {
                     sur_numero_surco: num,
                     sur_orientacion: "Norte-Sur",
-                    sur_espaciamiento: ESPACIADO_METROS,
-                    secc_secciones: seccionFinca.secc_seccion,
+                    sur_espaciamiento: espaciadoSeleccionado,
+                    secc_secciones: seccionSeleccionada,
                     sur_activo: 1,
                 });
 
-                // ── Agregá este log ──
-                console.log("Respuesta surco:", r.data);
+                // Extraemos el ID que ahora sí viene gracias al fix del backend
+                const idReal = r.data.surco?.sur_surco;
+                if (!idReal) throw new Error(`El surco ${num} no generó ID`);
 
-                const surcoId = r.data.surco?.sur_surco ?? r.data.sur_surco ?? r.data.id;
-                if (!surcoId) {
-                    setMsgWizard(`Error: el surco ${num} no devolvió un ID válido.`);
-                    setPaso("preview");
-                    return;
-                }
-                surcoIdMap[num] = surcoId;
-                setProgreso(Math.round(((i + 1) / surcosUnicos.length) * 35));
+                surcoIdMap[num] = idReal;
+                setProgreso(Math.round(((i + 1) / surcosUnicos.length) * 30));
             }
 
-            // Tipo árbol por defecto
-            const resTipos = await api.get("/agro-tipo-arbol");
-            const tipoDefault = resTipos.data.tipoArboles?.[0]?.tipar_tipo_arbol;
-            if (!tipoDefault) {
-                setMsgWizard("No hay tipos de árbol registrados. Creá al menos uno en Catálogos → Tipos de Árbol.");
-                setPaso("preview");
-                return;
-            }
-            const hoy = new Date().toISOString().slice(0, 10);
-
-            // Insertar árboles en lotes de 20
-            const LOTE = 20;
+            // 2. Insertar Árboles en lotes pequeños (LOTE de 10 es más seguro para Oracle)
+            const LOTE = 10;
             for (let i = 0; i < arbolesPreview.length; i += LOTE) {
-                await Promise.all(
-                    arbolesPreview.slice(i, i + LOTE).map(a =>
-                        api.post("/agro-arboles", {
-                            arb_posicion_surco: a.posicion,
-                            arb_fecha_siembra: hoy,
-                            tipar_tipo_arbol: tipoDefault,
-                            arb_estado: "Crecimiento",
-                            sur_surcos: surcoIdMap[a.surco],
-                            arb_activo: 1,
-                        })
-                    )
-                );
-                setProgreso(35 + Math.min(Math.round(((i + LOTE) / arbolesPreview.length) * 65), 64));
+                const chunk = arbolesPreview.slice(i, i + LOTE);
+
+                // Usamos un for simple en lugar de Promise.all para no saturar Oracle
+                for (const a of chunk) {
+                    await api.post("/agro-arboles", {
+                        arb_posicion_surco: a.posicion,
+                        arb_fecha_siembra: new Date().toISOString().split('T')[0],
+                        tipar_tipo_arbol: tipoArbolSeleccionado,
+                        arb_estado: "Crecimiento",
+                        sur_surcos: surcoIdMap[a.surco], // ID Real de Oracle
+                        arb_activo: 1,
+                    });
+                }
+
+                setProgreso(30 + Math.round(((i + LOTE) / arbolesPreview.length) * 70));
             }
 
-            setProgreso(100);
-            setMsgWizard(
-                `✓ ${arbolesPreview.length.toLocaleString()} árboles · ${surcosUnicos.length} surcos · sección: "${seccionFinca.secc_nombre}"`
-            );
-            setArbolesPreview([]);
+            setMsgWizard("✓ ¡Guardado exitoso!");
             setPaso("listo");
 
             setTimeout(async () => {
                 resetWizard();
-                if (fincaId) await cargarMapa(fincaId);
-            }, 2500);
+                if (fincaId) await cargarDatosMapa(fincaId);
+            }, 3000);
 
         } catch (err) {
             console.error(err);
-            setMsgWizard("Error al guardar. Revisá la consola.");
+            setMsgWizard("Error al guardar: revisa los IDs de los surcos.");
             setPaso("preview");
         }
     };
@@ -443,9 +485,10 @@ const AgroMapaPage = () => {
 
             {/* ══ WIZARD PANELS ══════════════════════════════════ */}
 
+            {/* PASO 1 — Coordenadas */}
             {paso === "coords" && (
-                <WizardPanel paso={1} totalPasos={3} color="#b45309"
-                    titulo="Paso 1 — Configura el punto de origen de la finca"
+                <WizardPanel paso={1} totalPasos={4} color="#b45309"
+                    titulo="Paso 1 — Configurá el punto de origen de la finca"
                     descripcion="Ingresá las coordenadas de la esquina noroeste (NW) del terreno. Podés obtenerlas haciendo click derecho en Google Maps.">
                     <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
                         <div>
@@ -469,10 +512,11 @@ const AgroMapaPage = () => {
                 </WizardPanel>
             )}
 
+            {/* PASO 2 — Dibujar perímetro */}
             {paso === "dibujando" && (
-                <WizardPanel paso={2} totalPasos={3} color="#185FA5"
+                <WizardPanel paso={2} totalPasos={4} color="#185FA5"
                     titulo="Paso 2 — Marcá las esquinas del terreno en el mapa"
-                    descripcion={`Hacé click sobre el mapa para agregar puntos. El sistema generará árboles cada ${ESPACIADO_METROS}m automáticamente.`}>
+                    descripcion="Hacé click sobre el mapa para agregar puntos que definan el perímetro del terreno.">
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                         <span style={{
                             background: puntosNuevos.length >= 3 ? "#185FA5" : "#aaa",
@@ -480,7 +524,7 @@ const AgroMapaPage = () => {
                             fontSize: 12, fontWeight: 600, transition: "background 0.2s",
                         }}>
                             {puntosNuevos.length} punto{puntosNuevos.length !== 1 ? "s" : ""}
-                            {puntosNuevos.length < 3 ? ` (mínimo 3)` : " ✓"}
+                            {puntosNuevos.length < 3 ? " (mínimo 3)" : " ✓"}
                         </span>
                         <button onClick={() => setPuntosNuevos(p => p.slice(0, -1))}
                             disabled={puntosNuevos.length === 0}
@@ -488,75 +532,116 @@ const AgroMapaPage = () => {
                             ← Deshacer
                         </button>
                         <button onClick={() => setPuntosNuevos([])} style={btnDanger}>Limpiar</button>
-                        <button onClick={guardarPerimetroYPreview}
-                            disabled={puntosNuevos.length < 3}
+                        <button onClick={guardarPerimetroYConfigurar}
+                            disabled={puntosNuevos.length < 3 || cargandoConfig}
                             style={{ ...btnPrimary, marginLeft: "auto", opacity: puntosNuevos.length < 3 ? 0.5 : 1 }}>
-                            Guardar y generar árboles ({ESPACIADO_METROS}m) →
+                            {cargandoConfig ? "Cargando..." : "Continuar →"}
                         </button>
                     </div>
                     {msgWizard && <p style={{ fontSize: 12, color: "#c0392b", margin: "4px 0 0" }}>{msgWizard}</p>}
                 </WizardPanel>
             )}
 
-            {paso === "preview" && arbolesPreview.length > 0 && (
-                <WizardPanel paso={3} totalPasos={3} color="#4a7c59"
-                    titulo="Paso 3 — Confirmá los árboles generados">
-                    <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                        <div style={{ display: "flex", gap: 16 }}>
-                            {[
-                                { icon: "🌱", label: "Árboles", val: arbolesPreview.length.toLocaleString() },
-                                { icon: "🌾", label: "Surcos", val: String(new Set(arbolesPreview.map(a => a.surco)).size) },
-                                { icon: "📏", label: "Espaciado", val: `${ESPACIADO_METROS}m` },
-                            ].map(item => (
-                                <div key={item.label} style={{
-                                    background: "#f0f7f0", borderRadius: 10,
-                                    padding: "8px 16px", textAlign: "center",
-                                }}>
-                                    <div style={{ fontSize: 18 }}>{item.icon}</div>
-                                    <div style={{ fontSize: 16, fontWeight: 700, color: "#2d4a2d" }}>{item.val}</div>
-                                    <div style={{ fontSize: 10, color: "#7a9a7a" }}>{item.label}</div>
-                                </div>
-                            ))}
+            {/* PASO 3 — Configurar sección y tipo de árbol desde BD */}
+            {paso === "configurar" && (
+                <WizardPanel paso={3} totalPasos={4} color="#7c3aed"
+                    titulo="Paso 3 — Configurá la sección y el tipo de árbol"
+                    descripcion="Esta información se asignará a todos los árboles que se generarán en la grilla.">
+
+                    <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
+
+                        {/* Sección */}
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                            <label style={labelStyle}>Sección de la finca</label>
+                            {seccionesFinca.length === 0 ? (
+                                <p style={{ fontSize: 12, color: "#c0392b", margin: 0 }}>
+                                    No hay secciones para esta finca.{" "}
+                                    <button onClick={() => setPaso("sin-seccion")}
+                                        style={{ background: "none", border: "none", color: "#185FA5", cursor: "pointer", textDecoration: "underline", fontSize: 12, padding: 0 }}>
+                                        Crear una
+                                    </button>
+                                </p>
+                            ) : (
+                                <select
+                                    value={seccionSeleccionada ?? ""}
+                                    onChange={e => setSeccionSeleccionada(Number(e.target.value))}
+                                    style={{ ...inputStyle, width: "100%", cursor: "pointer" }}>
+                                    {seccionesFinca.map(s => (
+                                        <option key={s.secc_seccion} value={s.secc_seccion}>
+                                            {s.secc_nombre} — {s.secc_tipo_suelo}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
-                        <p style={{ fontSize: 12, color: "#5a7a5a", flex: 1, margin: 0 }}>
-                            Los puntos verdes muestran las posiciones calculadas.
-                            Se asignarán a la primera sección activa de la finca.
-                        </p>
-                        <div style={{ display: "flex", gap: 8 }}>
-                            <button onClick={() => { setArbolesPreview([]); setPaso("dibujando"); setPuntosNuevos([]); }}
-                                style={btnSecondary}>
-                                ← Redibujar
-                            </button>
-                            <button onClick={confirmarGuardar} style={btnPrimary}>
-                                ✓ Guardar en BD
-                            </button>
+
+                        {/* Tipo de árbol */}
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                            <label style={labelStyle}>Tipo de árbol</label>
+                            {tiposArbol.length === 0 ? (
+                                <p style={{ fontSize: 12, color: "#c0392b", margin: 0 }}>
+                                    No hay tipos registrados. Creá uno en{" "}
+                                    <strong>Catálogos → Tipos de Árbol</strong>.
+                                </p>
+                            ) : (
+                                <select
+                                    value={tipoArbolSeleccionado ?? ""}
+                                    onChange={e => setTipoArbolSeleccionado(Number(e.target.value))}
+                                    style={{ ...inputStyle, width: "100%", cursor: "pointer" }}>
+                                    {tiposArbol.map(t => (
+                                        <option key={t.tipar_tipo_arbol} value={t.tipar_tipo_arbol}>
+                                            {t.tipar_nombre_comun}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
+
+                        {/* Espaciado */}
+                        <div style={{ minWidth: 160 }}>
+                            <label style={labelStyle}>Espaciado entre árboles</label>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <input
+                                    type="number" min={1} max={10} step={0.5}
+                                    value={espaciadoSeleccionado}
+                                    onChange={e => setEspaciadoSeleccionado(Number(e.target.value))}
+                                    style={{ ...inputStyle, width: 80 }}
+                                />
+                                <span style={{ fontSize: 13, color: "#7a9a7a" }}>metros</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                        <button onClick={() => { setPaso("dibujando"); setMsgWizard(""); }} style={btnSecondary}>
+                            ← Redibujar
+                        </button>
+                        <button
+                            onClick={confirmarConfiguracion}
+                            disabled={!seccionSeleccionada || !tipoArbolSeleccionado}
+                            style={{ ...btnPrimary, opacity: (!seccionSeleccionada || !tipoArbolSeleccionado) ? 0.5 : 1 }}>
+                            Generar árboles →
+                        </button>
                     </div>
                     {msgWizard && <p style={{ fontSize: 12, color: "#c0392b", margin: "4px 0 0" }}>{msgWizard}</p>}
                 </WizardPanel>
             )}
 
-            {/* ── PASO SIN-SECCION: creación inline ────────────
-                Se activa automáticamente cuando confirmarGuardar
-                detecta que la finca no tiene secciones.
-                El usuario completa el form y se vuelve al preview
-                para reintentar el guardado.
-            ──────────────────────────────────────────────────── */}
+            {/* PASO sin-seccion — Crear sección inline */}
             {paso === "sin-seccion" && (
-                <WizardPanel paso={3} totalPasos={3} color="#b45309"
+                <WizardPanel paso={3} totalPasos={4} color="#b45309"
                     titulo="Paso 3 — Primero creá una sección para esta finca"
-                    descripcion="La finca aún no tiene secciones. Completá los datos y se creará automáticamente antes de guardar los árboles.">
+                    descripcion="La finca aún no tiene secciones. Completá los datos y continuará automáticamente.">
 
                     <div style={{
                         background: "#fef9ec", border: "1px solid #f0c040",
                         borderRadius: 8, padding: "10px 14px",
                         display: "flex", alignItems: "flex-start", gap: 10,
                     }}>
-                        <span style={{ fontSize: 18, lineHeight: 1 }}>ℹ️</span>
+                        <span style={{ fontSize: 16, lineHeight: 1 }}>ℹ️</span>
                         <div style={{ fontSize: 12, color: "#7a5a00" }}>
                             <strong>¿Qué es una sección?</strong> Es una subdivisión del terreno
-                            (ej: "Sector Norte", "Lote A"). Los {arbolesPreview.length.toLocaleString()} árboles
-                            generados se asignarán a esta sección.
+                            (ej: "Sector Norte", "Lote A"). Los árboles generados se asignarán a esta sección.
                         </div>
                     </div>
 
@@ -577,21 +662,19 @@ const AgroMapaPage = () => {
                             <select
                                 value={seccionForm.secc_tipo_suelo}
                                 onChange={e => setSeccionForm({ ...seccionForm, secc_tipo_suelo: e.target.value })}
-                                style={{ ...inputStyle, width: "100%", cursor: "pointer" }}
-                            >
+                                style={{ ...inputStyle, width: "100%", cursor: "pointer" }}>
                                 {TIPOS_SUELO.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
-                            <button onClick={() => setPaso("preview")} style={btnSecondary}>
+                            <button onClick={() => { setPaso("dibujando"); setMsgWizard(""); }} style={btnSecondary}>
                                 ← Volver
                             </button>
                             <button
                                 onClick={crearSeccionYContinuar}
                                 disabled={guardandoSeccion || !seccionForm.secc_nombre.trim()}
-                                style={{ ...btnPrimary, opacity: (!seccionForm.secc_nombre.trim() || guardandoSeccion) ? 0.6 : 1 }}
-                            >
-                                {guardandoSeccion ? "Creando sección..." : "Crear y continuar →"}
+                                style={{ ...btnPrimary, opacity: (!seccionForm.secc_nombre.trim() || guardandoSeccion) ? 0.6 : 1 }}>
+                                {guardandoSeccion ? "Creando..." : "Crear y continuar →"}
                             </button>
                         </div>
                     </div>
@@ -599,8 +682,51 @@ const AgroMapaPage = () => {
                 </WizardPanel>
             )}
 
+            {/* PASO 4 — Preview */}
+            {paso === "preview" && arbolesPreview.length > 0 && (
+                <WizardPanel paso={4} totalPasos={4} color="#4a7c59"
+                    titulo="Paso 4 — Confirmá los árboles generados">
+                    <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                            {[
+                                { icon: "🌱", label: "Árboles", val: arbolesPreview.length.toLocaleString() },
+                                { icon: "🌾", label: "Surcos", val: String(new Set(arbolesPreview.map(a => a.surco)).size) },
+                                { icon: "📏", label: "Espaciado", val: `${espaciadoSeleccionado}m` },
+                                {
+                                    icon: "🗂️", label: "Sección",
+                                    val: seccionesFinca.find(s => s.secc_seccion === seccionSeleccionada)?.secc_nombre ?? "—"
+                                },
+                                {
+                                    icon: "🌳", label: "Tipo",
+                                    val: tiposArbol.find(t => t.tipar_tipo_arbol === tipoArbolSeleccionado)?.tipar_nombre_comun ?? "—"
+                                },
+                            ].map(item => (
+                                <div key={item.label} style={{
+                                    background: "#f0f7f0", borderRadius: 10,
+                                    padding: "8px 14px", textAlign: "center", minWidth: 70,
+                                }}>
+                                    <div style={{ fontSize: 16 }}>{item.icon}</div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: "#2d4a2d" }}>{item.val}</div>
+                                    <div style={{ fontSize: 10, color: "#7a9a7a" }}>{item.label}</div>
+                                </div>
+                            ))}
+                        </div>
+                        <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+                            <button onClick={() => { setPaso("configurar"); setArbolesPreview([]); }} style={btnSecondary}>
+                                ← Reconfigurar
+                            </button>
+                            <button onClick={confirmarGuardar} style={btnPrimary}>
+                                ✓ Guardar en BD
+                            </button>
+                        </div>
+                    </div>
+                    {msgWizard && <p style={{ fontSize: 12, color: "#c0392b", margin: "4px 0 0" }}>{msgWizard}</p>}
+                </WizardPanel>
+            )}
+
+            {/* Guardando */}
             {paso === "guardando" && (
-                <WizardPanel paso={3} totalPasos={3} color="#4a7c59" titulo="Guardando en la base de datos...">
+                <WizardPanel paso={4} totalPasos={4} color="#4a7c59" titulo="Guardando en la base de datos...">
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#5a7a5a" }}>
                             <span>Creando surcos y árboles...</span>
@@ -616,8 +742,9 @@ const AgroMapaPage = () => {
                 </WizardPanel>
             )}
 
+            {/* Listo */}
             {paso === "listo" && (
-                <WizardPanel paso={3} totalPasos={3} color="#4a7c59" titulo="¡Terreno configurado exitosamente!">
+                <WizardPanel paso={4} totalPasos={4} color="#4a7c59" titulo="¡Terreno configurado exitosamente!">
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#2d6a2d" }}>{msgWizard}</p>
                 </WizardPanel>
             )}

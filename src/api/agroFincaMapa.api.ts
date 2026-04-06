@@ -9,10 +9,11 @@ import type { MapaFincaResponse } from "../pages/AgroMapa/agroMapa.types";
 // GET /agro-finca-mapa/:fincaId
 // Retorna: { ok, finca, perimetro, arboles }
 export const getMapaFinca = async (fincaId: number): Promise<MapaFincaResponse> => {
-    const res = await api.get(`/agro-finca-mapa/${fincaId}`);
+    // Forzamos Number() para quitar cualquier ":1" o string residual
+    const idLimpio = Number(fincaId);
+    const res = await api.get(`/agro-finca-mapa/${idLimpio}`);
     return res.data;
 };
-
 // GET /agro-finca — para el selector de fincas
 export const getFincas = async () => {
     const res = await api.get("/agro-finca");

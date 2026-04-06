@@ -1,0 +1,1 @@
+fetch('http://localhost:9090/agro-finca/5', {  method: 'PUT',  headers: {    'Content-Type': 'application/json'  },  body: JSON.stringify({    fin_latitud_origen: "14.6349",    fin_longitud_origen: "-90.5069"  })}).then(res => {  console.log('STATUS:', res.status);  return res.text();}).then(text => {  console.log('BODY:', text);}).catch(console.error);
