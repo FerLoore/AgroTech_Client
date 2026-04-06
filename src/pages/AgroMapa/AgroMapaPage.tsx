@@ -802,7 +802,7 @@ const AgroMapaPage = () => {
             {/* ── MAPA ── */}
             <div style={{ flex: 1, minHeight: 460, borderRadius: 16, overflow: "hidden", border: "0.5px solid #e8e0d0" }}>
                 <MapContainer key={`mapa-${fincaId}`} center={centro} zoom={ZOOM_INICIAL}
-                    maxZoom={19} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
+                    maxZoom={24} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
                     <MapUpdater lat={centro[0]} lng={centro[1]} />
                     <ControlMapa
                         activo={paso === "dibujando"}
@@ -811,11 +811,11 @@ const AgroMapaPage = () => {
                     <LayersControl position="topright">
                         <BaseLayer checked name="Mapa de calles">
                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' maxZoom={19} />
+                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' maxZoom={24} maxNativeZoom={19} />
                         </BaseLayer>
                         <BaseLayer name="Satelital">
                             <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                                attribution="&copy; Esri" maxZoom={19} />
+                                attribution="&copy; Esri" maxZoom={24} maxNativeZoom={19} />
                         </BaseLayer>
                     </LayersControl>
 
