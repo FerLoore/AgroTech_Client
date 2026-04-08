@@ -1,8 +1,8 @@
 import api from "./Axios";
 
-export const getSurcos = async () => {
-    const res = await api.get("/agro-surcos");
-    return res.data.surcos;
+export const getSurcos = async (page = 1, limit = 1000) => {
+    const res = await api.get(`/agro-surcos?page=${page}&limit=${limit}`);
+    return res.data;
 };
 
 export const getSurcoById = async (id: number) => {

@@ -11,18 +11,23 @@ export const useAgroSurco = () => {
     const [error, setError] = useState("");
     const [busqueda, setBusqueda] = useState("");
 
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+
     const [modal, setModal] = useState(false);
     const [editando, setEditando] = useState<Surco | null>(null);
     const [form, setForm] = useState<SurcoFormData>(SURCO_FORM_INICIAL);
     const [guardando, setGuardando] = useState(false);
     const [formError, setFormError] = useState("");
 
-    const cargar = async () => {
+    const cargar = async (currentPage = page) => {
         try {
             setLoading(true);
             setError("");
-            const data = await getSurcos();
-            setSurcos(data);
+            const data = await getSurcos(currentPage, 100);
+            
+            setSurcos(Array.isArray(data) ? data : (data?.surcos || []));
+            setTotalPages(data?.totalPages || 1);
         } catch {
             setError("Error al cargar surcos");
         } finally {
@@ -31,8 +36,8 @@ export const useAgroSurco = () => {
     };
 
     useEffect(() => {
-        cargar();
-    }, []);
+        cargar(page);
+    }, [page]);
 
     const surcosFiltrados = surcos.filter(s =>
         String(s.sur_numero_surco ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -90,7 +95,7 @@ export const useAgroSurco = () => {
             }
 
             setModal(false);
-            cargar();
+            cargar(page);
 
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "Error al guardar";
@@ -107,7 +112,7 @@ export const useAgroSurco = () => {
                 label: "Desactivar",
                 onClick: async () => {
                     await deleteSurco(s.sur_surco);
-                    cargar();
+                    cargar(page);
                     toast.success("Surco desactivado");
                 }
             }
@@ -130,6 +135,9 @@ export const useAgroSurco = () => {
         abrirEditar,
         cerrarModal,
         handleGuardar,
-        handleEliminar
+        handleEliminar,
+        page,
+        setPage,
+        totalPages
     };
 };

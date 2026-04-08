@@ -11,27 +11,27 @@ export const useAgroHistorial = () => {
     const [error, setError] = useState<string>("");
     const [busqueda, setBusqueda] = useState<string>("");
 
-    // Cargar los historiales desde la API
- useEffect(() => {
-    const cargar = async () => {
-        setLoading(true);
-        setError("");
-        try {
-            const res = await getHistorial();
-            if (Array.isArray(res)) {
-                setHistoriales(res);
-            } else {
-                setError("Error al cargar historiales");
-            }
-        } catch (err) {
-            setError("Error de conexión");
-        } finally {
-            setLoading(false);
-        }
-    };
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
-    cargar();
-}, []);
+    // Cargar los historiales desde la API
+    useEffect(() => {
+        const cargar = async (currentPage = page) => {
+            setLoading(true);
+            setError("");
+            try {
+                const data = await getHistorial(currentPage, 100);
+                setHistoriales(Array.isArray(data) ? data : (data?.historiales || []));
+                setTotalPages(data?.totalPages || 1);
+            } catch (err) {
+                setError("Error de conexión");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        cargar(page);
+    }, [page]);
 
     // Filtrar historiales según busqueda
     const historialFiltrado = useMemo(() => {
@@ -67,6 +67,9 @@ export const useAgroHistorial = () => {
         loading,
         error,
         busqueda,
-        setBusqueda
+        setBusqueda,
+        page,
+        setPage,
+        totalPages
     };
 };

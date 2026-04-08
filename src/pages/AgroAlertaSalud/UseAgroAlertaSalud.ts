@@ -83,7 +83,7 @@ export const useAgroAlertaSalud = () => {
             setAlertas(Array.isArray(alertasData) ? alertasData : []);
             setAnalisis(Array.isArray(analisisData) ? analisisData : []);
             setArboles(Array.isArray(arbolesData) ? arbolesData : (arbolesData?.arboles || []));
-            setSurcos(surcosData || []);
+            setSurcos(Array.isArray(surcosData) ? surcosData : (surcosData?.surcos || []));
             setSecciones(seccionesResp.data.secciones || []);
             setFincas(fincasResp.data.fincas || []);
             setUsuarios(usuariosResp.data.usuarios || []);

@@ -36,7 +36,10 @@ const AgroSurcoPage = () => {
         abrirEditar,
         cerrarModal,
         handleGuardar,
-        handleEliminar
+        handleEliminar,
+        page,
+        setPage,
+        totalPages
     } = useAgroSurco();
 
     return (
@@ -63,6 +66,10 @@ const AgroSurcoPage = () => {
             onEliminar={handleEliminar}
             onGuardar={handleGuardar}
             onCerrar={cerrarModal}
+            page={page}
+            totalPages={totalPages}
+            onNextPage={() => setPage(page + 1)}
+            onPrevPage={() => setPage(page - 1)}
         />
     );
 };

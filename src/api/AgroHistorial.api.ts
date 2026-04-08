@@ -14,10 +14,9 @@ import api from "./Axios";
 // GET /agro-historial
 // Retorna: Historial[]
 // ------------------------------------------------------------
-export const getHistorial = async () => {
-    const res = await api.get("/agro-historial");
-    
-    return res.data.historiales;
+export const getHistorial = async (page = 1, limit = 1000) => {
+    const res = await api.get(`/agro-historial?page=${page}&limit=${limit}`);
+    return res.data;
 };
 
 // ------------------------------------------------------------
