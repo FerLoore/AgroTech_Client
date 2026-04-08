@@ -8,7 +8,7 @@ export const getAnalisisLaboratorio = async () => {
 
 // POST
 export const createAnalisisLaboratorio = async (data: {
-  analab_analisis_laboratorio: number;
+  analab_analisis_laboratorio?: number;
   analab_laboratorio_nombre: string;
   analab_fecha_envio: string;
   analab_fecha_resultado?: string | null;

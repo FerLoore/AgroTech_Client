@@ -5,12 +5,18 @@ import {
   updateAnalisisLaboratorio,
   deleteAnalisisLaboratorio,
 } from "../../api/agroAnalisisLaboratorio.api";
+import { getAlertas } from "../../api/AgroAlertaSalud.api";
+import { getCatalogoPatogenos } from "../../api/AgroCatalogoPatogeno.api";
+import { getAgroUsuarios } from "../../api/AgroUsuario.api";
 import { toast } from "sonner";
 
 export const useAgroAnalisisLaboratorio = () => {
   const [analisis, setAnalisis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [alertas, setAlertas] = useState<any[]>([]);
+  const [patogenos, setPatogenos] = useState<any[]>([]);
+  const [usuarios, setUsuarios] = useState<any[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState<any | null>(null);
@@ -42,8 +48,44 @@ export const useAgroAnalisisLaboratorio = () => {
   };
 
   useEffect(() => {
-    cargarAnalisis();
+    const init = async () => {
+      await cargarAnalisis();
+      try {
+        const data = await getAlertas();
+        setAlertas(Array.isArray(data) ? data : []);
+      } catch {
+        console.error("Error cargando alertas para select");
+      }
+      try {
+        const data = await getCatalogoPatogenos();
+        setPatogenos(Array.isArray(data) ? data : []);
+      } catch {
+        console.error("Error cargando patógenos para select");
+      }
+      try {
+        const response = await getAgroUsuarios();
+        setUsuarios(response.data.usuarios || []);
+      } catch {
+        console.error("Error cargando usuarios para select");
+      }
+    };
+    init();
   }, []);
+
+  const opcionesAlertas = alertas.map(a => ({
+    valor: String(a.alertsalud_id),
+    label: `Alerta #${a.alertsalud_id} - Árbol ${a.arb_arbol}`
+  }));
+
+  const opcionesPatogenos = patogenos.map(p => ({
+    valor: String(p.catpato_catalogo_patogeno),
+    label: p.catpato_nombre_comun
+  }));
+
+  const opcionesUsuarios = usuarios.map(u => ({
+    valor: String(u.usu_usuario),
+    label: u.usu_nombre
+  }));
 
   const analisisFiltrados = analisis.filter((a) =>
     String(a.analab_laboratorio_nombre || "")
@@ -68,10 +110,11 @@ export const useAgroAnalisisLaboratorio = () => {
 
   const abrirEditar = (a: any) => {
     setEditando(a);
+    const toDate = (d: string) => d ? String(d).split("T")[0] : "";
     setForm({
       analab_laboratorio_nombre: a.analab_laboratorio_nombre || "",
-      analab_fecha_envio: a.analab_fecha_envio || "",
-      analab_fecha_resultado: a.analab_fecha_resultado || "",
+      analab_fecha_envio: toDate(a.analab_fecha_envio),
+      analab_fecha_resultado: toDate(a.analab_fecha_resultado),
       analab_resultado_tipo: a.analab_resultado_tipo || "",
       alert_alerta_salud: String(a.alert_alerta_salud || ""),
       catpato_catalogo_patogeno: String(a.catpato_catalogo_patogeno || ""),
@@ -180,5 +223,8 @@ export const useAgroAnalisisLaboratorio = () => {
     cerrarModal,
     handleGuardar,
     handleEliminar,
+    opcionesAlertas,
+    opcionesPatogenos,
+    opcionesUsuarios,
   };
 };
