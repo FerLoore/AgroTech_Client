@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
     getAlertas,
     createAlerta,
@@ -25,6 +26,7 @@ export interface AlertaEnriquecida extends AlertaSalud {
 }
 
 export const useAgroAlertaSalud = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // ── Datos crudos ──────────────────────────────────────────
     const [alertas, setAlertas] = useState<AlertaSalud[]>([]);
@@ -80,12 +82,24 @@ export const useAgroAlertaSalud = () => {
 
             setAlertas(Array.isArray(alertasData) ? alertasData : []);
             setAnalisis(Array.isArray(analisisData) ? analisisData : []);
-            setArboles(arbolesData || []);
+            setArboles(Array.isArray(arbolesData) ? arbolesData : (arbolesData?.arboles || []));
             setSurcos(surcosData || []);
             setSecciones(seccionesResp.data.secciones || []);
             setFincas(fincasResp.data.fincas || []);
             setUsuarios(usuariosResp.data.usuarios || []);
             setRoles(Array.isArray(rolesData) ? rolesData : []);
+
+            const arrParam = searchParams.get("nuevoArbol");
+            if (arrParam) {
+                setEditando(null);
+                setFormError("");
+                setForm({
+                    ...ALERTA_SALUD_FORM_INICIAL,
+                    arb_arbol: Number(arrParam),
+                });
+                setModal(true);
+                setSearchParams({});
+            }
 
         } catch (err: unknown) {
             const mensaje = err instanceof Error ? err.message : "Error al cargar los datos";

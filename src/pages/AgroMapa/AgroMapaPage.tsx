@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
     MapContainer, TileLayer, CircleMarker, Polygon,
     Popup, Circle, Tooltip, LayersControl, useMapEvents, useMap,
@@ -160,6 +161,7 @@ const WizardPanel = ({
 // Componente principal
 // ─────────────────────────────────────────────────────────────
 const AgroMapaPage = () => {
+    const navigate = useNavigate();
 
     // ── Datos generales ──────────────────────────────────────
     const [fincas, setFincas] = useState<Finca[]>([]);
@@ -918,7 +920,7 @@ const AgroMapaPage = () => {
                                             ))}
                                         </tbody>
                                     </table>
-                                    <button style={popupBtnStyle}>+ Nueva alerta</button>
+                                    <button onClick={() => navigate(`/agro-alerta-salud?nuevoArbol=${arbol.id}`)} style={popupBtnStyle}>+ Nueva alerta</button>
                                 </div>
                             </Popup>
                         </CircleMarker>
