@@ -56,6 +56,9 @@ const AgroArbolPage = () => {
         cerrarHistorial,
         arbolSeleccionado,
         TIPOS_ARBOL_DINAMICO,
+        page,
+        setPage,
+        totalPages
     } = useAgroArbol();
 
     
@@ -102,6 +105,10 @@ const COLUMNAS: ColumnaConfig[] = [
                 onGuardar={handleGuardar}
                 onCerrar={cerrarModal}
                 onHistorial={abrirHistorial}
+                page={page}
+                totalPages={totalPages}
+                onNextPage={() => setPage(page + 1)}
+                onPrevPage={() => setPage(page - 1)}
             />
             {modalHistorial && (
                 <div style={{

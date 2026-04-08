@@ -93,6 +93,33 @@ const MapUpdater = ({ lat, lng }: { lat: number; lng: number }) => {
     return null;
 };
 
+// ─── Control de ubicación GPS ──────────────────────────────────
+const LocationMarker = ({ onPos }: { onPos: (p: LatLng) => void }) => {
+    const [position, setPosition] = useState<LatLng | null>(null);
+    const map = useMap();
+
+    useEffect(() => {
+        map.locate({ watch: true, enableHighAccuracy: true });
+    }, [map]);
+
+    useMapEvents({
+        locationfound(e) {
+            setPosition(e.latlng);
+            onPos(e.latlng);
+        },
+    });
+
+    if (!position) return null;
+
+    return (
+        <CircleMarker center={position} radius={7} pathOptions={{ fillColor: "#3b82f6", color: "#fff", fillOpacity: 1, weight: 2 }}>
+            <Tooltip permanent direction="top" offset={[0, -8]}>
+                <span style={{ fontSize: 11, fontWeight: 700 }}>Tú</span>
+            </Tooltip>
+        </CircleMarker>
+    );
+};
+
 // ─── WizardPanel ─────────────────────────────────────────────
 const WizardPanel = ({
     paso, totalPasos, titulo, descripcion, color, children,
@@ -142,6 +169,10 @@ const AgroMapaPage = () => {
     const [perimetro, setPerimetro] = useState<PuntoPerimetro[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+
+    // GPS 
+    const [gpsPosition, setGpsPosition] = useState<LatLng | null>(null);
+    const [centroManual, setCentroManual] = useState<[number, number] | null>(null);
 
     // ── Filtros ──────────────────────────────────────────────
     const [filtroEstado, setFiltroEstado] = useState("all");
@@ -276,7 +307,7 @@ const AgroMapaPage = () => {
         if (!seccionSeleccionada || !tipoArbolSeleccionado) return;
         setMsgWizard("");
         const preview = generarGrilla(
-            puntosNuevos, 
+            puntosNuevos,
             espaciadoSeleccionado,
             finca?.fin_latitud_origen ?? 14.6349,
             finca?.fin_longitud_origen ?? -90.5069
@@ -298,7 +329,12 @@ const AgroMapaPage = () => {
             .catch(() => setError("Error al cargar fincas"));
     }, []);
 
-    useEffect(() => { if (fincaId) cargarMapa(fincaId); }, [fincaId]);
+    useEffect(() => {
+        if (fincaId) {
+            setCentroManual(null); // Return to default finca center when switching
+            cargarMapa(fincaId);
+        }
+    }, [fincaId]);
 
     // ─── Paso 1: guardar coordenadas ─────────────────────────
     const guardarCoords = async () => {
@@ -436,9 +472,10 @@ const AgroMapaPage = () => {
     const arbolesEnfermos = arboles.filter(a => a.estado === "Enfermo");
     const poligonoGuardado = perimetro.sort((a, b) => a.orden - b.orden).map(p => [p.lat, p.lng] as [number, number]);
     const poligonoEnDibujo = puntosNuevos.map(p => [p.lat, p.lng] as [number, number]);
-    const centro: [number, number] = finca?.fin_latitud_origen
+    const centro: [number, number] = finca?.fin_latitud_origen && finca?.fin_longitud_origen
         ? [finca.fin_latitud_origen, finca.fin_longitud_origen]
         : [14.6349, -90.5069];
+    const centroActivo = centroManual ?? centro;
 
     const stats = {
         total: arbolesFiltrados.length,
@@ -484,6 +521,13 @@ const AgroMapaPage = () => {
                         background: cuarentena ? "#c0392b" : "transparent",
                         color: cuarentena ? "#fff" : "#c0392b", borderColor: "#c0392b",
                     }}>Cuarentena</button>
+
+                    {gpsPosition && (
+                        <button onClick={() => setCentroManual([gpsPosition.lat, gpsPosition.lng])}
+                            style={{ ...btnOutline, background: "#eff6ff", color: "#1d4ed8", borderColor: "#3b82f6", fontWeight: "bold" }}>
+                            📍 Encontrarme
+                        </button>
+                    )}
 
                     {paso === "idle" && (
                         <button onClick={() => {
@@ -801,9 +845,10 @@ const AgroMapaPage = () => {
 
             {/* ── MAPA ── */}
             <div style={{ flex: 1, minHeight: 460, borderRadius: 16, overflow: "hidden", border: "0.5px solid #e8e0d0" }}>
-                <MapContainer key={`mapa-${fincaId}`} center={centro} zoom={ZOOM_INICIAL}
+                <MapContainer key={`mapa-${fincaId}`} center={centroActivo} zoom={ZOOM_INICIAL}
                     maxZoom={24} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
-                    <MapUpdater lat={centro[0]} lng={centro[1]} />
+                    <MapUpdater lat={centroActivo[0]} lng={centroActivo[1]} />
+                    <LocationMarker onPos={setGpsPosition} />
                     <ControlMapa
                         activo={paso === "dibujando"}
                         onPunto={ll => setPuntosNuevos(prev => [...prev, { lat: ll.lat, lng: ll.lng }])}
