@@ -4,6 +4,7 @@ import CrudTabla, { type ColumnaConfig, type CampoFormulario } from '../../compo
 import { useAgroUsuario } from './useAgroUsuario';
 import type { AgroUsuario } from './AgroUsuario.types';
 
+// Las columnas se quedan igual, esto solo afecta la vista de la tabla
 const columnas: ColumnaConfig[] = [
     { header: 'ID Usuario', key: 'usu_usuario' },
     { header: 'Nombre Completo', key: 'usu_nombre' },
@@ -18,16 +19,17 @@ const campos: CampoFormulario[] = [
 ];
 
 const AgroUsuarioPage: React.FC = () => {
+    // 1. Obtenemos hookData, que ahora incluye 'opcionesRoles' traídas del backend
     const hookData = useAgroUsuario();
 
     return (
         <CrudTabla<AgroUsuario>
             titulo="Gestión de Usuarios"
             subtitulo="AGRO_USUARIO"
-            icono={Users as any} // 🛡️ Evita peleas de versiones de lucide-react
+            icono={Users as any} 
             
             columnas={columnas}
-            campos={campos}
+            campos={campos} // Pasamos los campos que acabamos de definir arriba
             idKey="usu_usuario"
             
             datos={hookData.usuarios}

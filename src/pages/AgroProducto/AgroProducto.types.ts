@@ -1,11 +1,13 @@
 export interface Producto {
     [key: string]: unknown;
-    produ_producto:     number;
-    produ_nombre:       string;
-    produ_tipo:         string;   // "Fungicida" | "Bactericida" | "Insecticida"
-    produ_concentracion:string;
-    produ_unidad:       string;
-    produ_activo:       number;
+    produ_producto:      number;
+    produ_nombre:        string;
+    produ_tipo:          string;   
+    produ_concentracion: string;
+    produ_unidad:        string;
+    produ_activo:        number;
+    produ_stock:         number; // Nuevo
+    produ_stock_minimo:  number; // Nuevo
 }
 
 export interface ProductoFormData {
@@ -14,13 +16,18 @@ export interface ProductoFormData {
     produ_tipo:          string;
     produ_concentracion: string;
     produ_unidad:        string;
+    produ_stock:         number | string; // Permitimos string temporalmente mientras el usuario escribe en el input
+    produ_stock_minimo:  number | string; 
 }
 
+// Valores por defecto al darle click al botón "Nuevo"
 export const PRODUCTO_FORM_INICIAL: ProductoFormData = {
     produ_nombre:        "",
     produ_tipo:          "",
     produ_concentracion: "",
     produ_unidad:        "",
+    produ_stock:         0, 
+    produ_stock_minimo:  5, 
 };
 
 export const TIPO_PRODUCTO: Record<string, { label: string; bg: string; text: string }> = {

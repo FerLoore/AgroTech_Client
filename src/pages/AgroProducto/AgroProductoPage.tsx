@@ -16,6 +16,16 @@ const COLUMNAS: ColumnaConfig[] = [
     },
     { header: "Concentración", key: "produ_concentracion" },
     { header: "Unidad",        key: "produ_unidad"        },
+    // --- NUEVAS COLUMNAS DE STOCK ---
+    { header: "Stock",         key: "produ_stock"         },
+    {
+        header: "Alerta Stock",
+        key: "alerta_stock", // Esta llave es la que calculamos en el UseAgroProducto
+        badge: {
+            "BAJO": { label: "¡Stock Bajo!", bg: "#fde8e0", text: "#a03020" }, // Rojo alerta
+            "OK":   { label: "Normal",       bg: "#e8f0e0", text: "#4a7c59" }  // Verde OK
+        }
+    }
 ];
 
 const CAMPOS: CampoFormulario[] = [
@@ -51,6 +61,21 @@ const CAMPOS: CampoFormulario[] = [
         tipo:        "text",
         placeholder: "Ej: kg, L, ml",
     },
+    // --- NUEVOS INPUTS DEL FORMULARIO ---
+    {
+        key:         "produ_stock",
+        label:       "Stock Actual",
+        tipo:        "number",
+        placeholder: "Ej: 100",
+        requerido:   true,
+    },
+    {
+        key:         "produ_stock_minimo",
+        label:       "Stock Mínimo Permitido",
+        tipo:        "number",
+        placeholder: "Ej: 15",
+        requerido:   true,
+    },
 ];
 
 const AgroProductoPage = () => {
@@ -63,8 +88,8 @@ const AgroProductoPage = () => {
 
     return (
         <CrudTabla
-            titulo="Productos"
-            subtitulo="AGRO_PRODUCTO"
+            titulo="Inventario de Productos"
+            subtitulo="Control de Stock y Alertas"
             icono={Package}
             columnas={COLUMNAS}
             datos={productosFiltrados}

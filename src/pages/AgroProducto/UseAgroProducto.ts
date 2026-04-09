@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { getProductos, createProducto, updateProducto, deleteProducto } from "../../api/AgroProducto.api";
 import type { Producto, ProductoFormData } from "./AgroProducto.types";
 import { PRODUCTO_FORM_INICIAL } from "./AgroProducto.types";
@@ -31,11 +31,20 @@ export const useAgroProducto = () => {
 
     useEffect(() => { cargarProductos(); }, []);
 
-    const productosFiltrados = productos.filter(p =>
+    // 1. Primero filtramos por la búsqueda del usuario
+    const filtrados = productos.filter(p =>
         p.produ_nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
         p.produ_tipo.toLowerCase().includes(busqueda.toLowerCase()) ||
         p.produ_concentracion?.toLowerCase().includes(busqueda.toLowerCase())
     );
+
+    // 2. Luego mapeamos para inyectar dinámicamente la "alerta_stock"
+    const productosFiltrados = useMemo(() => {
+        return filtrados.map(p => ({
+            ...p,
+            alerta_stock: (p.produ_stock || 0) <= (p.produ_stock_minimo || 0) ? "BAJO" : "OK"
+        }));
+    }, [filtrados]);
 
     const abrirCrear = () => {
         setEditando(null);
@@ -46,11 +55,14 @@ export const useAgroProducto = () => {
 
     const abrirEditar = (producto: Producto) => {
         setEditando(producto);
+        // Cargamos los datos existentes al formulario, incluyendo el stock
         setForm({
             produ_nombre:        producto.produ_nombre,
             produ_tipo:          producto.produ_tipo,
             produ_concentracion: producto.produ_concentracion || "",
             produ_unidad:        producto.produ_unidad || "",
+            produ_stock:         producto.produ_stock || 0,
+            produ_stock_minimo:  producto.produ_stock_minimo || 0,
         });
         setFormError("");
         setModal(true);
@@ -72,11 +84,14 @@ export const useAgroProducto = () => {
             setGuardando(true);
             setFormError("");
 
+            // Preparamos el paquete de datos, asegurando que el stock viaje como número
             const payload = {
                 produ_nombre:        form.produ_nombre,
                 produ_tipo:          form.produ_tipo,
                 produ_concentracion: form.produ_concentracion || undefined,
                 produ_unidad:        form.produ_unidad || undefined,
+                produ_stock:         Number(form.produ_stock),
+                produ_stock_minimo:  Number(form.produ_stock_minimo),
             };
 
             if (editando) {
