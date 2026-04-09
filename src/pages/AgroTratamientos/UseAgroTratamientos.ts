@@ -5,6 +5,8 @@ import {
     updateTratamiento,
     deleteTratamiento
 } from "../../api/AgroTratamientos.api";
+import { getAlertas } from "../../api/AgroAlertaSalud.api";
+import { getProductos } from "../../api/AgroProducto.api";
 import type { Tratamiento, TratamientoFormData } from "./AgroTratamientos.types";
 import { TRATAMIENTO_FORM_INICIAL } from "./AgroTratamientos.types";
 import { toast } from "sonner";
@@ -13,6 +15,8 @@ export const useAgroTratamientos = () => {
     const [tratamientos, setTratamientos] = useState<Tratamiento[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [alertas, setAlertas] = useState<any[]>([]);
+    const [productos, setProductos] = useState<any[]>([]);
     const [busqueda, setBusqueda] = useState("");
     const [modal, setModal] = useState(false);
     const [editando, setEditando] = useState<Tratamiento | null>(null);
@@ -35,8 +39,33 @@ export const useAgroTratamientos = () => {
     };
 
     useEffect(() => {
-        cargarTratamientos();
+        const init = async () => {
+            await cargarTratamientos();
+            try {
+                const data = await getAlertas();
+                setAlertas(Array.isArray(data) ? data : []);
+            } catch {
+                console.error("Error cargando alertas para select");
+            }
+            try {
+                const data = await getProductos();
+                setProductos(Array.isArray(data) ? data : []);
+            } catch {
+                console.error("Error cargando productos para select");
+            }
+        };
+        init();
     }, []);
+
+    const opcionesAlertas = alertas.map(a => ({
+        valor: String(a.alertsalud_id),
+        label: `Alerta #${a.alertsalud_id} - Árbol ${a.arb_arbol}`
+    }));
+
+    const opcionesProductos = productos.map(p => ({
+        valor: String(p.produ_producto),
+        label: p.produ_nombre
+    }));
 
     const tratamientosFiltrados = tratamientos.filter((t) =>
         String(t.trata_estado ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -54,9 +83,10 @@ export const useAgroTratamientos = () => {
 
     const abrirEditar = (t: Tratamiento) => {
         setEditando(t);
+        const toDate = (d?: string) => d ? String(d).split("T")[0] : "";
         setForm({
-            trata_fecha_inicio: t.trata_fecha_inicio,
-            trata_fecha_fin: t.trata_fecha_fin || "",
+            trata_fecha_inicio: toDate(t.trata_fecha_inicio),
+            trata_fecha_fin: toDate(t.trata_fecha_fin),
             trata_estado: t.trata_estado,
             trata_dosis: t.trata_dosis || "",
             trata_observaciones: t.trata_observaciones || "",
@@ -161,5 +191,7 @@ export const useAgroTratamientos = () => {
         cerrarModal,
         handleGuardar,
         handleEliminar,
+        opcionesAlertas,
+        opcionesProductos,
     };
 };
