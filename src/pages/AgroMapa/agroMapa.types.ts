@@ -15,6 +15,7 @@ export interface PuntoPerimetro {
     orden: number;
     lat: number;
     lng: number;
+    seccion_id?: number;
 }
 
 export interface ArbolMapa {

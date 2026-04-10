@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getAgroClimas, createAgroClima, updateAgroClima, deleteAgroClima } from '../../api/AgroClima.api';
 import type { AgroClima } from './AgroClima.types';
+import { toast } from 'sonner';
 
 export const useAgroClima = () => {
     const [climas, setClimas] = useState<AgroClima[]>([]);
@@ -63,28 +64,38 @@ export const useAgroClima = () => {
         try {
             if (editando) {
                 await updateAgroClima(editando.clim_clima, form);
+                toast.success("Registro climático actualizado correctamente");
             } else {
                 await createAgroClima(form);
+                toast.success("Registro climático creado exitosamente");
             }
             await fetchClimas();
             setModal(false);
         } catch (err: any) {
-            setFormError(err.response?.data?.message || "Error al guardar el clima");
+            const msg = err.response?.data?.message || "Error al guardar el clima";
+            setFormError(msg);
+            toast.error(msg);
         } finally {
             setGuardando(false);
         }
     };
 
-    const onEliminar = async (item: AgroClima) => {
-        // Cambié la palabra "desactivar" a "eliminar" porque esta tabla hace borrado físico
-        if (window.confirm(`¿Estás seguro de ELIMINAR permanentemente este registro climático?`)) {
-            try {
-                await deleteAgroClima(item.clim_clima);
-                await fetchClimas();
-            } catch (err: any) {
-                alert("Error al eliminar el registro");
-            }
-        }
+    const onEliminar = (item: AgroClima) => {
+        toast.warning(`¿Estás seguro de ELIMINAR permanentemente este registro climático?`, {
+            action: {
+                label: "Eliminar",
+                onClick: async () => {
+                    try {
+                        await deleteAgroClima(item.clim_clima);
+                        await fetchClimas();
+                        toast.success("Registro climático eliminado correctamente");
+                    } catch (err: any) {
+                        toast.error("Error al eliminar el registro");
+                    }
+                }
+            },
+            cancel: { label: "Cancelar", onClick: () => {} }
+        });
     };
 
     return {

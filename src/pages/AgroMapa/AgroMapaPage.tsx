@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import {
     MapContainer, TileLayer, CircleMarker, Polygon,
     Popup, Circle, Tooltip, LayersControl, useMapEvents, useMap,
@@ -297,7 +298,7 @@ const AgroMapaPage = () => {
             else setPaso("configurar");
 
         } catch {
-            setMsgWizard("Error al cargar configuración. Intentá nuevamente.");
+            toast.error("Error al cargar configuración. Intentá nuevamente.");
             setPaso("dibujando");
         } finally {
             setCargandoConfig(false);
@@ -315,7 +316,7 @@ const AgroMapaPage = () => {
             finca?.fin_longitud_origen ?? -90.5069
         );
         if (preview.length === 0) {
-            setMsgWizard("El perímetro es muy pequeño para el espaciado configurado. Reducí el espaciado o dibujá un área más grande.");
+            toast.error("El perímetro es muy pequeño para el espaciado configurado. Reducí el espaciado o dibujá un área más grande.");
             return;
         }
         setArbolesPreview(preview);
@@ -358,22 +359,22 @@ const AgroMapaPage = () => {
             setPaso("dibujando"); // ahora sí llega limpio
         } catch (e: any) {
             console.error("Error completo:", e);
-            alert("Error al guardar las coordenadas: " + (e.response?.data?.message || e.message));
+            toast.error("Error al guardar las coordenadas: " + (e.response?.data?.message || e.message));
         } finally {
             setGuardandoCoords(false);
         }
     };
 
-    // ─── Paso 2: guardar perímetro → ir a configuración ──────
-    const guardarPerimetroYConfigurar = async () => {
+    // ─── Paso 2: Ir a configuración (sin guardar en BD aún) ──
+    const irAConfigurar = async () => {
         if (!fincaId || puntosNuevos.length < 3) return;
         setMsgWizard("");
         try {
-            await guardarPerimetro(fincaId, puntosNuevos);
-            await cargarDatosMapa(fincaId);
+            // Ya no guardamos el perímetro aquí para no sobreescribir el de la finca
+            // Se guardará al final asociado a la sección elegida
             await cargarConfiguracion(fincaId);
         } catch {
-            setMsgWizard("Error al guardar el perímetro.");
+            toast.error("Error al cargar la configuración.");
         }
     };
 
@@ -393,7 +394,7 @@ const AgroMapaPage = () => {
             // Recargar configuración para que aparezca la sección recién creada
             await cargarConfiguracion(fincaId);
         } catch {
-            setMsgWizard("Error al crear la sección. Intentá nuevamente.");
+            toast.error("Error al crear la sección. Intentá nuevamente.");
         } finally {
             setGuardandoSeccion(false);
         }
@@ -401,13 +402,18 @@ const AgroMapaPage = () => {
 
     // ─── Paso 4: confirmar y guardar en BD ───────────────────
     const confirmarGuardar = async () => {
-        if (!fincaId || arbolesPreview.length === 0) return;
+        if (!fincaId || !seccionSeleccionada || arbolesPreview.length === 0) return;
 
         setPaso("guardando");
         setProgreso(0);
 
         try {
             const { default: api } = await import("../../api/Axios");
+
+            // 0. Guardar el perímetro para esta sección
+            await guardarPerimetro(fincaId, puntosNuevos, seccionSeleccionada);
+            setProgreso(5);
+
             const surcosUnicos = [...new Set(arbolesPreview.map(a => a.surco))];
             const surcoIdMap: Record<number, number> = {};
 
@@ -450,19 +456,53 @@ const AgroMapaPage = () => {
                 setProgreso(30 + Math.round(((i + LOTE) / arbolesPreview.length) * 70));
             }
 
-            setMsgWizard("✓ ¡Guardado exitoso!");
+            toast.success("✓ ¡Guardado exitoso!");
             setPaso("listo");
 
             setTimeout(async () => {
+                const fid = fincaId;
                 resetWizard();
-                if (fincaId) await cargarDatosMapa(fincaId);
+                if (fid) await cargarDatosMapa(fid);
             }, 3000);
 
         } catch (err) {
             console.error(err);
-            setMsgWizard("Error al guardar: revisa los IDs de los surcos.");
+            toast.error("Error al guardar: revisa los IDs de los surcos.");
             setPaso("preview");
         }
+    };
+
+    // ─── Eliminar Terreno (Sección + Árboles + Perímetro) ─────
+    const eliminarTerrenoActual = async () => {
+        const idSecc = arboles.find(a => a.seccion_nombre === filtroSeccion)?.seccion_id;
+        if (!idSecc) {
+            toast.info("Selecciona una sección específica para eliminar su terreno.");
+            return;
+        }
+
+        toast.warning(`¿Estás seguro de eliminar el terreno "${filtroSeccion}"?`, {
+            description: "Se borrarán todos sus árboles y el perímetro. Esta acción no se puede deshacer.",
+            action: {
+                label: "Eliminar definitivamente",
+                onClick: async () => {
+                    setLoading(true);
+                    try {
+                        const { default: api } = await import("../../api/Axios");
+                        await api.delete(`/agro-seccion/${idSecc}`);
+                        setFiltroSeccion("all");
+                        if (fincaId) await cargarDatosMapa(fincaId);
+                        toast.success("Terreno eliminado exitosamente.");
+                    } catch (err) {
+                        console.error(err);
+                        toast.error("Error al eliminar el terreno.");
+                    } finally {
+                        setLoading(false);
+                    }
+                }
+            },
+            cancel: { label: "Cancelar", onClick: () => {} },
+            duration: 8000
+        });
     };
 
     // ─── Datos derivados ──────────────────────────────────────
@@ -472,7 +512,22 @@ const AgroMapaPage = () => {
         (filtroSeccion === "all" || a.seccion_nombre === filtroSeccion)
     );
     const arbolesEnfermos = arboles.filter(a => a.estado === "Enfermo");
-    const poligonoGuardado = perimetro.sort((a, b) => a.orden - b.orden).map(p => [p.lat, p.lng] as [number, number]);
+
+    // Agrupar perímetros por sección
+    const poligonosPorSeccion = perimetro.reduce((acc, p) => {
+        const sid = p.seccion_id || 0;
+        if (!acc[sid]) acc[sid] = [];
+        acc[sid].push(p);
+        return acc;
+    }, {} as Record<number, PuntoPerimetro[]>);
+
+    // Convertir a formato Leaflet, sorteando por orden
+    const renderPoligonos = Object.entries(poligonosPorSeccion).map(([sid, puntos]) => ({
+        seccionId: Number(sid),
+        nombre: arboles.find(a => a.seccion_id === Number(sid))?.seccion_nombre || "Sección",
+        puntos: puntos.sort((a, b) => a.orden - b.orden).map(p => [p.lat, p.lng] as [number, number])
+    })).filter(p => p.puntos.length >= 3);
+
     const poligonoEnDibujo = puntosNuevos.map(p => [p.lat, p.lng] as [number, number]);
     const centro: [number, number] = finca?.fin_latitud_origen && finca?.fin_longitud_origen
         ? [finca.fin_latitud_origen, finca.fin_longitud_origen]
@@ -523,6 +578,12 @@ const AgroMapaPage = () => {
                         background: cuarentena ? "#c0392b" : "transparent",
                         color: cuarentena ? "#fff" : "#c0392b", borderColor: "#c0392b",
                     }}>Cuarentena</button>
+
+                    {filtroSeccion !== "all" && paso === "idle" && (
+                        <button onClick={eliminarTerrenoActual} style={{ ...btnOutline, color: "#c0392b", borderColor: "#c0392b", fontWeight: "bold" }}>
+                            🗑️ Eliminar Terreno
+                        </button>
+                    )}
 
                     {gpsPosition && (
                         <button onClick={() => setCentroManual([gpsPosition.lat, gpsPosition.lng])}
@@ -596,13 +657,12 @@ const AgroMapaPage = () => {
                             ← Deshacer
                         </button>
                         <button onClick={() => setPuntosNuevos([])} style={btnDanger}>Limpiar</button>
-                        <button onClick={guardarPerimetroYConfigurar}
+                        <button onClick={irAConfigurar}
                             disabled={puntosNuevos.length < 3 || cargandoConfig}
                             style={{ ...btnPrimary, marginLeft: "auto", opacity: puntosNuevos.length < 3 ? 0.5 : 1 }}>
                             {cargandoConfig ? "Cargando..." : "Continuar →"}
                         </button>
                     </div>
-                    {msgWizard && <p style={{ fontSize: 12, color: "#c0392b", margin: "4px 0 0" }}>{msgWizard}</p>}
                 </WizardPanel>
             )}
 
@@ -687,7 +747,6 @@ const AgroMapaPage = () => {
                             Generar árboles →
                         </button>
                     </div>
-                    {msgWizard && <p style={{ fontSize: 12, color: "#c0392b", margin: "4px 0 0" }}>{msgWizard}</p>}
                 </WizardPanel>
             )}
 
@@ -742,7 +801,6 @@ const AgroMapaPage = () => {
                             </button>
                         </div>
                     </div>
-                    {msgWizard && <p style={{ fontSize: 12, color: "#c0392b", margin: "4px 0 0" }}>{msgWizard}</p>}
                 </WizardPanel>
             )}
 
@@ -784,7 +842,6 @@ const AgroMapaPage = () => {
                             </button>
                         </div>
                     </div>
-                    {msgWizard && <p style={{ fontSize: 12, color: "#c0392b", margin: "4px 0 0" }}>{msgWizard}</p>}
                 </WizardPanel>
             )}
 
@@ -809,7 +866,7 @@ const AgroMapaPage = () => {
             {/* Listo */}
             {paso === "listo" && (
                 <WizardPanel paso={4} totalPasos={4} color="#4a7c59" titulo="¡Terreno configurado exitosamente!">
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#2d6a2d" }}>{msgWizard}</p>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#2d6a2d" }}>Configuración completada correctamente.</p>
                 </WizardPanel>
             )}
 
@@ -866,12 +923,18 @@ const AgroMapaPage = () => {
                         </BaseLayer>
                     </LayersControl>
 
-                    {poligonoGuardado.length >= 3 && (
-                        <Polygon positions={poligonoGuardado}
-                            pathOptions={{ color: "#4a7c59", fillColor: "#4a7c59", fillOpacity: 0.08, weight: 2, dashArray: "6 4" }}>
-                            <Tooltip sticky>{finca?.fin_nombre}</Tooltip>
+                    {renderPoligonos.map(poly => (
+                        <Polygon key={`poly-${poly.seccionId}`} positions={poly.puntos}
+                            pathOptions={{ 
+                                color: filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc", 
+                                fillColor: filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc", 
+                                fillOpacity: (filtroSeccion === poly.nombre) ? 0.2 : 0.05, 
+                                weight: (filtroSeccion === poly.nombre) ? 3 : 1.5,
+                                dashArray: (filtroSeccion === poly.nombre) ? "0" : "6 4" 
+                            }}>
+                            <Tooltip sticky>{poly.nombre}</Tooltip>
                         </Polygon>
-                    )}
+                    ))}
                     {paso === "dibujando" && poligonoEnDibujo.length >= 2 && (
                         <Polygon positions={poligonoEnDibujo}
                             pathOptions={{ color: "#185FA5", fillColor: "#185FA5", fillOpacity: 0.10, weight: 2, dashArray: "4 3" }} />

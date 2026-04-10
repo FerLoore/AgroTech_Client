@@ -21,8 +21,8 @@ export const getFincas = async () => {
 };
 
 // POST /agro-finca-perimetro/:fincaId
-// Body: { puntos: [{ lat, lng }] }
-export const guardarPerimetro = async (fincaId: number, puntos: { lat: number; lng: number }[]) => {
-    const res = await api.post(`/agro-finca-perimetro/${fincaId}`, { puntos });
+// Body: { puntos: [{ lat, lng }], seccionId: number }
+export const guardarPerimetro = async (fincaId: number, puntos: { lat: number; lng: number }[], seccionId: number) => {
+    const res = await api.post(`/agro-finca-perimetro/${fincaId}`, { puntos, seccionId });
     return res.data;
 };
