@@ -57,6 +57,7 @@ export const useAgroSurco = () => {
 
     useEffect(() => {
         cargar(page);
+        cargarSecciones();
     }, [page]);
 
     // =============================

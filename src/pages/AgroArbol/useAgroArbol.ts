@@ -10,7 +10,7 @@ import { getAgroFincas } from "../../api/AgroFinca.api"; // 👈 NUEVO
 import type { Historial } from "../AgroHistorial/agroHistorial.types";
 import { toast } from "sonner";
 
-const calcularEdad = (fecha: string): number => {
+export const calcularEdad = (fecha: string): number => {
     return Math.floor(
         (Date.now() - new Date(fecha).getTime()) / (365.25 * 24 * 3600 * 1000)
     );
@@ -19,6 +19,7 @@ const calcularEdad = (fecha: string): number => {
 export const useAgroArbol = () => {
 
     const [arboles, setArboles] = useState<Arbol[]>([]);
+    const [kpiResumen, setKpiResumen] = useState({ total: 0, produccion: 0, crecimiento: 0, enfermo: 0 });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [busqueda, setBusqueda] = useState("");
@@ -79,16 +80,29 @@ export const useAgroArbol = () => {
         const init = async () => {
             await cargar();
             try {
-                const [tipos, surcoData, seccionData, fincaData] = await Promise.all([
-                    getTipoArboles(),
-                    getSurcos(),
-                    getAgroSecciones().then(r => r.data.secciones ?? r.data),
-                    getAgroFincas().then(r => r.data.fincas ?? r.data) // 👈 NUEVO
+                const [tipos, surcoData, seccionData, fincaData, kpisDataFull] = await Promise.all([
+                    getTipoArboles().then((r: any) => r.tipoArboles ?? r.data?.tipoArboles ?? r),
+                    getSurcos(1, 4000).then((r: any) => r.surcos ?? r.data?.surcos ?? r),
+                    getAgroSecciones().then((r: any) => r.data?.secciones ?? r.secciones ?? r),
+                    getAgroFincas().then((r: any) => r.data?.fincas ?? r.fincas ?? r),
+                    getArboles(1, 20000) // Masiva en background para calcular dashboard general
                 ]);
                 setTiposArbol(tipos);
                 setSurcos(surcoData);
                 setSecciones(seccionData);
-                setFincas(fincaData); // 👈 NUEVO
+                setFincas(fincaData);
+
+                if (kpisDataFull?.arboles) {
+                    const stats = kpisDataFull.arboles.reduce((acc: any, a: any) => {
+                        acc.total++;
+                        const est = String(a.arb_estado || "Crecimiento").toLowerCase();
+                        if (est === "produccion") acc.produccion++;
+                        else if (est === "enfermo") acc.enfermo++;
+                        else acc.crecimiento++;
+                        return acc;
+                    }, { total: 0, produccion: 0, crecimiento: 0, enfermo: 0 });
+                    setKpiResumen(stats);
+                }
             } catch {
                 console.error("Error cargando catálogos");
             }
@@ -279,6 +293,7 @@ export const useAgroArbol = () => {
 
     return {
         arbolesFiltrados,
+        kpiResumen,
         loading,
         error,
         busqueda, setBusqueda,

@@ -1,10 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Polygon, CircleMarker } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+
 import { getAgroFincas } from "../../api/AgroFinca.api";
+import { getMapaFinca } from "../../api/agroFincaMapa.api";
 import { getAgroUsuarios } from "../../api/AgroUsuario.api";
 import { getHistorial } from "../../api/AgroHistorial.api";
 import { getAlertas } from "../../api/AgroAlertaSalud.api";
 import { getArboles } from "../../api/AgroArbol.api";
+import { getProductos } from "../../api/AgroProducto.api";
 
 // ─── tipos mínimos para los datos del dashboard ───────────────────────────────
 interface FincaOption {
@@ -42,73 +47,101 @@ function EstadoBadge({ estado }: { estado: string | null }) {
   );
 }
 
-// ─── mini-mapa SVG estático ────────────────────────────────────────────────────
-function MapaPreview() {
-  const trees = [
-    { cx: 80, cy: 55, color: "#2d4a2d", label: "S1" },
-    { cx: 120, cy: 55, color: "#2d4a2d" },
-    { cx: 160, cy: 55, color: "#2d4a2d" },
-    { cx: 200, cy: 55, color: "#2d4a2d" },
-    { cx: 80, cy: 85, color: "#2d4a2d" },
-    { cx: 120, cy: 85, color: "#185FA5" },
-    { cx: 160, cy: 85, color: "#185FA5" },
-    { cx: 200, cy: 85, color: "#2d4a2d" },
-    { cx: 240, cy: 55, color: "#185FA5" },
-    { cx: 240, cy: 85, color: "#185FA5" },
-    { cx: 330, cy: 55, color: "#2d4a2d" },
-    { cx: 370, cy: 55, color: "#185FA5" },
-    { cx: 410, cy: 55, color: "#185FA5" },
-    { cx: 450, cy: 55, color: "#185FA5" },
-    { cx: 490, cy: 55, color: "#854F0B" },
-    { cx: 330, cy: 85, color: "#185FA5" },
-    { cx: 370, cy: 85, color: "#E24B4A", alert: true },
-    { cx: 410, cy: 85, color: "#E24B4A", alert: true },
-    { cx: 450, cy: 85, color: "#185FA5" },
-    { cx: 80, cy: 155, color: "#185FA5" },
-    { cx: 120, cy: 155, color: "#185FA5" },
-    { cx: 160, cy: 155, color: "#854F0B" },
-    { cx: 200, cy: 155, color: "#185FA5" },
-    { cx: 330, cy: 155, color: "#185FA5" },
-    { cx: 370, cy: 155, color: "#E24B4A", alert: true },
-  ];
+// ─── preview del mapa con react-leaflet (Real) ─────────────────────────────────
+function MapaPreview({ fincaId }: { fincaId: number }) {
+  const [mapaData, setMapaData] = useState<any>(null);
+
+  useEffect(() => {
+    if (!fincaId) return;
+    getMapaFinca(fincaId)
+      .then(setMapaData)
+      .catch(() => setMapaData({ error: true }));
+  }, [fincaId]);
+
+  if (!mapaData || mapaData.error) {
+    return (
+      <div style={{ height: 220, background: "#e5e7eb", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#9ca3af" }}>
+        {mapaData?.error ? "Sin datos del mapa para esta finca" : "Cargando terreno..."}
+      </div>
+    );
+  }
+
+  const { finca, arboles, perimetro } = mapaData;
+
+  // Agrupar perímetro
+  const poligonosPorSeccion = (perimetro || []).reduce((acc: any, p: any) => {
+    const sid = p.seccion_id || 0;
+    if (!acc[sid]) acc[sid] = [];
+    acc[sid].push(p);
+    return acc;
+  }, {});
+
+  // Identificar la última sección agregada (la que tenga el ID mayor)
+  const ultimaSeccionId = Object.keys(poligonosPorSeccion)
+    .map(Number)
+    .filter(id => !isNaN(id) && id > 0)
+    .sort((a, b) => b - a)[0];
+
+  let centro: [number, number] = finca?.fin_latitud_origen && finca?.fin_longitud_origen
+    ? [finca.fin_latitud_origen, finca.fin_longitud_origen]
+    : [14.6349, -90.5069];
+
+  // Si tenemos una última sección, calculamos su punto central para enfocar el mapa ahí
+  if (ultimaSeccionId && poligonosPorSeccion[ultimaSeccionId]?.length > 0) {
+    const pts = poligonosPorSeccion[ultimaSeccionId];
+    const avgLat = pts.reduce((s: number, p: any) => s + p.lat, 0) / pts.length;
+    const avgLng = pts.reduce((s: number, p: any) => s + p.lng, 0) / pts.length;
+    centro = [avgLat, avgLng];
+  }
+
+  // Si el usuario quiere mostrar la última sección, podemos filtrar renderPoligonos para mostrar SOLO esa,
+  // o mostrar todas. Según su petición de "quiero que muestre la ultima", filtraremos solo esta:
+  const renderPoligonos = ultimaSeccionId && poligonosPorSeccion[ultimaSeccionId]?.length >= 3
+    ? [{
+      puntos: poligonosPorSeccion[ultimaSeccionId]
+        .sort((a: any, b: any) => a.orden - b.orden)
+        .map((p: any) => [p.lat, p.lng] as [number, number])
+    }]
+    : [];
+
+  const COLORES_ESTADO: Record<string, string> = {
+    Crecimiento: "#4a7c59", // verde mas suave
+    Produccion: "#185FA5",
+    Enfermo: "#A32D2D",
+    Muerto: "#333333",
+  };
 
   return (
     <div style={{ borderRadius: 10, background: "#c8e0b8", height: 220, position: "relative", overflow: "hidden" }}>
-      <svg viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", height: "100%" }}>
-        <rect width="600" height="220" fill="#c8e0b8" />
-        <polygon points="30,30 280,20 290,110 25,115" fill="#c4ddb4" />
-        <polygon points="300,20 570,25 575,115 295,110" fill="#b8d4a8" />
-        <polygon points="25,125 290,118 285,200 20,200" fill="#b8d4a8" />
-        <polygon points="298,118 575,122 578,200 294,200" fill="#c4ddb4" />
-        <line x1="292" y1="10" x2="292" y2="210" stroke="#a8c898" strokeWidth="2" strokeDasharray="6,4" />
-        <line x1="10" y1="116" x2="590" y2="116" stroke="#a8c898" strokeWidth="2" strokeDasharray="6,4" />
-        <text x="60" y="70" fontSize="9" fill="#3B6D11" fontFamily="sans-serif" opacity=".7">Sección A</text>
-        <text x="370" y="70" fontSize="9" fill="#3B6D11" fontFamily="sans-serif" opacity=".7">Sección B</text>
-        <text x="60" y="165" fontSize="9" fill="#3B6D11" fontFamily="sans-serif" opacity=".7">Sección C</text>
-        <text x="370" y="165" fontSize="9" fill="#3B6D11" fontFamily="sans-serif" opacity=".7">Sección D</text>
-        {trees.map((t, i) => (
-          <g key={i} style={{ cursor: "pointer" }}>
-            <circle cx={t.cx} cy={t.cy} r="7" fill={t.color} />
-            {t.label && <text x={t.cx} y={t.cy + 3} textAnchor="middle" fontSize="7" fill="#fff" fontFamily="sans-serif">{t.label}</text>}
-            {t.alert && <text x={t.cx} y={t.cy + 3} textAnchor="middle" fontSize="7" fill="#fff" fontFamily="sans-serif">!</text>}
-          </g>
+      <MapContainer center={centro} zoom={18} zoomControl={false} dragging={false} scrollWheelZoom={false} doubleClickZoom={false} style={{ width: "100%", height: "100%", zIndex: 1 }}>
+        <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
+
+        {renderPoligonos.map((poly, i) => (
+          <Polygon key={i} positions={poly.puntos} pathOptions={{ color: "#a3e635", fillColor: "#84cc16", fillOpacity: 0.2, weight: 2 }} />
         ))}
-      </svg>
+
+        {(arboles || []).map((t: any, i: number) => {
+          const color = COLORES_ESTADO[t.estado || "Crecimiento"] || "#4a7c59";
+          return (
+            <CircleMarker key={i} center={[t.lat, t.lng]} radius={4.5} pathOptions={{ fillColor: color, color: "#fff", fillOpacity: 1, weight: 1.5 }} />
+          );
+        })}
+      </MapContainer>
 
       {/* leyenda superpuesta */}
       <div style={{
         position: "absolute", bottom: 8, left: 8,
-        background: "rgba(255,255,255,.85)", borderRadius: 8, padding: "6px 10px",
+        background: "rgba(255,255,255,.9)", borderRadius: 8, padding: "6px 10px",
         fontSize: 10, color: "#2d4a2d", display: "flex", gap: 10, alignItems: "center",
+        zIndex: 1000, boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
       }}>
         {[
-          { color: "#2d4a2d", label: "Crecimiento" },
-          { color: "#185FA5", label: "Producción" },
-          { color: "#E24B4A", label: "Enfermo" },
-          { color: "#854F0B", label: "Sospechoso" },
+          { color: COLORES_ESTADO["Crecimiento"], label: "Crecimiento" },
+          { color: COLORES_ESTADO["Produccion"], label: "Producción" },
+          { color: COLORES_ESTADO["Enfermo"], label: "Enfermo" },
         ].map(({ color, label }) => (
-          <span key={label} style={{ display: "flex", alignItems: "center", gap: 3 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block" }} />
+          <span key={label} style={{ display: "flex", alignItems: "center", gap: 3, fontWeight: 500 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, display: "inline-block" }} />
             {label}
           </span>
         ))}
@@ -132,6 +165,8 @@ export default function HomeDashboardPage() {
   const [historialDb, setHistorialDb] = useState<any[]>([]);
   const [alertasDb, setAlertasDb] = useState<any[]>([]);
   const [arbolesDb, setArbolesDb] = useState<any[]>([]);
+  const [productosDb, setProductosDb] = useState<any[]>([]);
+  const [vistaInventario, setVistaInventario] = useState<"arboles" | "productos">("arboles");
 
   useEffect(() => {
     const cargarFincas = async () => {
@@ -174,19 +209,23 @@ export default function HomeDashboardPage() {
     const cargarDashData = async () => {
       try {
         const hist = await getHistorial();
-        setHistorialDb(hist || []);
+        setHistorialDb(Array.isArray(hist) ? hist : (hist?.historiales || []));
       } catch (e) { console.error("Error historial", e); }
 
       try {
-        // Algunas APIs devuelven res.data y otras res.data.alertas
         const resAlertas = await getAlertas();
-        setAlertasDb(resAlertas.alertas || resAlertas || []);
+        setAlertasDb(Array.isArray(resAlertas) ? resAlertas : (resAlertas?.alertas || []));
       } catch (e) { console.error("Error alertas", e); }
 
       try {
-        const arb = await getArboles();
-        setArbolesDb(arb || []);
+        const arb = await getArboles(1, 4000); // traemos muchos para KPIS si está paginado
+        setArbolesDb(Array.isArray(arb) ? arb : (arb?.arboles || []));
       } catch (e) { console.error("Error arboles", e); }
+
+      try {
+        const prod = await getProductos();
+        setProductosDb(Array.isArray(prod) ? prod : (prod?.productos || []));
+      } catch (e) { console.error("Error productos", e); }
     };
     cargarDashData();
 
@@ -243,11 +282,18 @@ export default function HomeDashboardPage() {
     { label: "Alertas activas", value: totalAlert, color: "#E24B4A", sub: "pendientes análisis", trend: "", up: null as null | boolean, mod: "alertas" },
   ];
 
-  const inventarioProps = [
+  const totProd = productosDb.length;
+  // Calculamos insumos por estado. Si no tienen estado, asumimos genéricamente
+  const actProd = productosDb.filter(p => !p.produ_estado || p.produ_estado === "D" || p.produ_estado === "Activo" || p.produ_estado === "Disponible" || true).length; // todo es disponible temporalmente
+  // TODO: Refinar lógica de activos en AgroProducto
+
+  const inventarioProps = vistaInventario === "arboles" ? [
     { label: "Producción", count: prodArb, pct: totArb ? Math.round((prodArb / totArb) * 100) : 0, color: "#185FA5" },
     { label: "Crecimiento", count: creArb, pct: totArb ? Math.round((creArb / totArb) * 100) : 0, color: "#4a7c59" },
     { label: "Enfermo", count: enfArb, pct: totArb ? Math.round((enfArb / totArb) * 100) : 0, color: "#E24B4A" },
     { label: "Muerto", count: muerArb, pct: totArb ? Math.round((muerArb / totArb) * 100) : 0, color: "#888" },
+  ] : [
+    { label: "Suficientes", count: actProd, pct: totProd ? Math.round((actProd / totProd) * 100) : 0, color: "#185FA5" }
   ];
 
   // ─── estilos inline compartidos ─────────────────────────────────────────────
@@ -344,8 +390,8 @@ export default function HomeDashboardPage() {
             <span style={S.cardTitle}>Vista de finca</span>
           </div>
 
-          {/* mapa SVG */}
-          <MapaPreview />
+          {/* mapa real leaflet */}
+          <MapaPreview fincaId={fincaActiva?.id} />
 
           {/* ── BOTÓN "ABRIR MAPA COMPLETO" dentro del card, bajo el mapa ── */}
           <div style={{ marginTop: 12 }}>
@@ -373,7 +419,17 @@ export default function HomeDashboardPage() {
         <div style={S.card}>
           <div style={S.cardHd}>
             <span style={S.cardTitle}>Estado del inventario</span>
-            <span style={S.cardLink} onClick={() => navigate("/agro-arboles")}>ver →</span>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <select 
+                value={vistaInventario}
+                onChange={e => setVistaInventario(e.target.value as any)}
+                style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, border: "1px solid #d4c9b0", background: "#f5f0e8", color: "#2d4a2d", outline: "none", cursor: "pointer" }}
+              >
+                <option value="arboles">Árboles</option>
+                <option value="productos">Insumos</option>
+              </select>
+              <span style={S.cardLink} onClick={() => navigate(vistaInventario === "arboles" ? "/agro-arboles" : "/agro-productos")}>ver →</span>
+            </div>
           </div>
 
           {inventarioProps.map((b) => (
@@ -396,8 +452,8 @@ export default function HomeDashboardPage() {
             <div style={{ fontSize: 10, color: "#9aaa9a", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 10 }}>Accesos rápidos</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {[
-                { label: "+ Nuevo árbol", mod: "arboles", neutral: false },
-                { label: "Trazabilidad", mod: "trazabilidad", neutral: true },
+                { label: "+ Nueva sección", mod: "mapa", neutral: false },
+                { label: "Trazabilidad", mod: "arbol-timeline", neutral: true },
                 { label: "Auditoría", mod: "auditoria", neutral: true },
                 { label: "Ver historial", mod: "historial", neutral: true },
               ].map((a) => (
