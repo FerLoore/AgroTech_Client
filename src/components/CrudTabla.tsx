@@ -49,7 +49,8 @@ export interface CeldaBadge {
 // ------------------------------------------------------------
 export interface ColumnaConfig {
     header: string;                                      // texto del encabezado
-    key: string;                                      // nombre del campo en el objeto de datos
+    key: string;  
+    render?: (valor: any, fila: any) => React.ReactNode;                                    // nombre del campo en el objeto de datos
     badge?: Record<string | number, CeldaBadge>;         // opcional: si existe, la celda muestra badge
     // la clave es el valor del campo (ej: 1, 2, 3, 4)
 }
@@ -267,15 +268,17 @@ const CrudTabla = <T extends Record<string, unknown>>({
 
                                     {/* Celdas dinámicas según COLUMNAS */}
                                     {columnas.map(col => {
-                                        const valor = item[col.key];
+                                        const valor = item ? item[col.key] : undefined;
 
                                         // badge?: busca si este valor tiene un estilo de badge definido
                                         // ej: col.badge[1] = { label: "Operario", bg: "...", text: "..." }
-                                        const badge = col.badge?.[valor as string | number];
+                                        const badge = valor !== undefined && valor !== null ? col.badge?.[valor as string | number] : undefined;
 
                                         return (
                                             <td key={col.key} style={{ padding: "13px 20px", textAlign: "center", color: "#6b8c6b" }}>
-                                                {badge ? (
+                                                {col.render ? (
+                                                    col.render(valor, item)
+                                                ) : badge ? (
                                                     // Renderiza badge de color si está configurado
                                                     <span style={{
                                                         padding: "4px 12px", borderRadius: 20, fontSize: 12,

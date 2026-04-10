@@ -1,9 +1,8 @@
 import api from "./Axios";
 
-// GET /agro-producto
 export const getProductos = async () => {
     const res = await api.get("/agro-producto");
-    return res.data.productos;
+    return res.data?.productos || res.data || [];
 };
 
 // POST /agro-producto

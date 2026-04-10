@@ -93,10 +93,10 @@ export const useRegistroAnalisis = () => {
             setAlertas(Array.isArray(alertasData)  ? alertasData  : []);
             setAnalisis(Array.isArray(analisisData) ? analisisData : []);
             setPatogenos(Array.isArray(patogenosData) ? patogenosData : []);
-            setArboles(arbolesData || []);
-            setSurcos(surcosData || []);
-            setSecciones(seccionesResp.data.secciones || []);
-            setFincas(fincasResp.data.fincas || []);
+            setArboles(Array.isArray(arbolesData) ? arbolesData : (arbolesData?.arboles || []));
+            setSurcos(Array.isArray(surcosData) ? surcosData : (surcosData?.surcos || []));
+            setSecciones(Array.isArray(seccionesResp) ? seccionesResp : (seccionesResp?.secciones || []));
+            setFincas(Array.isArray(fincasResp?.data) ? fincasResp.data : (fincasResp?.data?.fincas || []));
 
         } catch (err: unknown) {
             setError("Error al cargar los datos");

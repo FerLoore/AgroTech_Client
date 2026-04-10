@@ -1,197 +1,104 @@
-import { useEffect, useState } from "react";
-import {
-    getTratamientos,
-    createTratamiento,
-    updateTratamiento,
-    deleteTratamiento
-} from "../../api/AgroTratamientos.api";
-import { getAlertas } from "../../api/AgroAlertaSalud.api";
+import { useState, useEffect, useMemo } from "react";
+import { getTratamientos, createTratamiento, finalizarTratamiento } from "../../api/AgroTratamientos.api";
 import { getProductos } from "../../api/AgroProducto.api";
-import type { Tratamiento, TratamientoFormData } from "./AgroTratamientos.types";
+import { getAlertas } from "../../api/AgroAlertaSalud.api";
 import { TRATAMIENTO_FORM_INICIAL } from "./AgroTratamientos.types";
 import { toast } from "sonner";
 
 export const useAgroTratamientos = () => {
-    const [tratamientos, setTratamientos] = useState<Tratamiento[]>([]);
+    const [tratamientos, setTratamientos] = useState<any[]>([]);
+    const [productos, setProductos] = useState<any[]>([]);
+    const [alertas, setAlertas] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [alertas, setAlertas] = useState<any[]>([]);
-    const [productos, setProductos] = useState<any[]>([]);
     const [busqueda, setBusqueda] = useState("");
     const [modal, setModal] = useState(false);
-    const [editando, setEditando] = useState<Tratamiento | null>(null);
-    const [form, setForm] = useState<TratamientoFormData>(TRATAMIENTO_FORM_INICIAL);
+    
+    // Ajustado para coincidir con CrudTabla
+    const [form, setForm] = useState<Record<string, unknown>>(TRATAMIENTO_FORM_INICIAL as Record<string, unknown>);
     const [guardando, setGuardando] = useState(false);
     const [formError, setFormError] = useState("");
 
-    const cargarTratamientos = async () => {
+    const cargarDatos = async () => {
         try {
             setLoading(true);
-            setError("");
-            const data = await getTratamientos();
-            setTratamientos(Array.isArray(data) ? data : []);
+            const [dataTratamientos, dataProductos, dataAlertas] = await Promise.all([
+                getTratamientos(),
+                getProductos().catch(() => []),
+                getAlertas().catch(() => [])
+            ]);
+            setTratamientos(Array.isArray(dataTratamientos) ? dataTratamientos : (dataTratamientos?.tratamientos || dataTratamientos?.data || []));
+            setProductos(Array.isArray(dataProductos) ? dataProductos : (dataProductos?.productos || dataProductos?.data || []));
+            setAlertas(Array.isArray(dataAlertas) ? dataAlertas : (dataAlertas?.alertas || dataAlertas?.data || []));
         } catch (err) {
-            console.error("Error al cargar los tratamientos:", err);
-            setError("Error al cargar los tratamientos");
+            setError("Error al cargar datos.");
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        const init = async () => {
-            await cargarTratamientos();
-            try {
-                const data = await getAlertas();
-                setAlertas(Array.isArray(data) ? data : []);
-            } catch {
-                console.error("Error cargando alertas para select");
-            }
-            try {
-                const data = await getProductos();
-                setProductos(Array.isArray(data) ? data : []);
-            } catch {
-                console.error("Error cargando productos para select");
-            }
-        };
-        init();
-    }, []);
+    useEffect(() => { cargarDatos(); }, []);
 
-    const opcionesAlertas = alertas.map(a => ({
-        valor: String(a.alertsalud_id),
-        label: `Alerta #${a.alertsalud_id} - Árbol ${a.arb_arbol}`
-    }));
-
-    const opcionesProductos = productos.map(p => ({
-        valor: String(p.produ_producto),
-        label: p.produ_nombre
-    }));
-
-    const tratamientosFiltrados = tratamientos.filter((t) =>
-        String(t.trata_estado ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
-        String(t.trata_dosis ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
-        String(t.alertsalu_alerta_salud ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
-        String(t.produ_producto ?? "").toLowerCase().includes(busqueda.toLowerCase())
-    );
-
-    const abrirCrear = () => {
-        setEditando(null);
-        setForm(TRATAMIENTO_FORM_INICIAL);
-        setFormError("");
-        setModal(true);
-    };
-
-    const abrirEditar = (t: Tratamiento) => {
-        setEditando(t);
-        const toDate = (d?: string) => d ? String(d).split("T")[0] : "";
-        setForm({
-            trata_fecha_inicio: toDate(t.trata_fecha_inicio),
-            trata_fecha_fin: toDate(t.trata_fecha_fin),
-            trata_estado: t.trata_estado,
-            trata_dosis: t.trata_dosis || "",
-            trata_observaciones: t.trata_observaciones || "",
-            alertsalu_alerta_salud: t.alertsalu_alerta_salud,
-            produ_producto: t.produ_producto,
+    const filtrados = useMemo(() => {
+        return (tratamientos || []).filter(t => 
+            String(t?.alertsalu_alerta_salud || "").toLowerCase().includes((busqueda || "").toLowerCase()) ||
+            String(t?.trata_dosis || "").toLowerCase().includes((busqueda || "").toLowerCase())
+        ).map((t: any) => {
+            const alerta = (alertas || []).find(a => String(a?.alertsalud_id) === String(t?.alertsalu_alerta_salud));
+            const prod = (productos || []).find(p => String(p?.produ_producto) === String(t?.produ_producto));
+            return {
+                ...t,
+                alerta_nom: alerta ? `Alerta #${alerta.alertsalud_id} (Árbol ${alerta.arb_arbol})` : t?.alertsalu_alerta_salud,
+                produ_producto_nom: prod ? prod.produ_nombre : t?.produ_producto
+            };
         });
-        setFormError("");
-        setModal(true);
-    };
+    }, [tratamientos, busqueda, alertas, productos]);
 
+    const abrirCrear = () => { setForm(TRATAMIENTO_FORM_INICIAL as Record<string, unknown>); setFormError(""); setModal(true); };
     const cerrarModal = () => setModal(false);
 
     const handleGuardar = async () => {
-        if (!String(form.trata_fecha_inicio).trim()) {
-            setFormError("La fecha de inicio es requerida");
-            return;
-        }
-
-        if (!String(form.trata_estado).trim()) {
-            setFormError("El estado es requerido");
-            return;
-        }
-
-        if (!Number(form.alertsalu_alerta_salud)) {
-            setFormError("La alerta de salud es requerida");
-            return;
-        }
-
-        if (!Number(form.produ_producto)) {
-            setFormError("El producto es requerido");
-            return;
-        }
-
         try {
             setGuardando(true);
             setFormError("");
-
-            const payload = {
-                trata_fecha_inicio: form.trata_fecha_inicio,
-                trata_fecha_fin: form.trata_fecha_fin || "",
-                trata_estado: form.trata_estado,
-                trata_dosis: form.trata_dosis || "",
-                trata_observaciones: form.trata_observaciones || "",
+            await createTratamiento({
                 alertsalu_alerta_salud: Number(form.alertsalu_alerta_salud),
                 produ_producto: Number(form.produ_producto),
-            };
-
-            console.log("PAYLOAD TRATAMIENTO:", payload);
-
-            if (editando) {
-                await updateTratamiento(editando.trata_tratamientos, payload);
-                toast.success("Tratamiento actualizado correctamente");
-            } else {
-                await createTratamiento(payload);
-                toast.success("Tratamiento creado correctamente");
-            }
-
+                trata_cantidad: Number(form.trata_cantidad),
+                trata_dosis: String(form.trata_dosis || ""),
+                trata_fecha_inicio: String(form.trata_fecha_inicio || ""),
+                trata_fecha_fin: String(form.trata_fecha_fin || ""),
+                trata_observaciones: String(form.trata_observaciones || "")
+            });
+            toast.success("Prescripción creada y stock descontado.");
             setModal(false);
-            await cargarTratamientos();
-        } catch (err: any) {
-            console.error("ERROR REAL TRATAMIENTO:", err);
-            setFormError(err?.message || "Error al guardar tratamiento");
-            toast.error(err?.message || "Error al guardar tratamiento");
+            cargarDatos();
+        } catch (error: any) {
+            setFormError(error.response?.data?.message || "Error al crear tratamiento. Revisa el stock.");
         } finally {
             setGuardando(false);
         }
     };
 
-    const handleEliminar = (t: Tratamiento) => {
-        toast.warning("¿Eliminar tratamiento?", {
-            action: {
-                label: "Eliminar",
-                onClick: async () => {
-                    try {
-                        await deleteTratamiento(t.trata_tratamientos);
-                        await cargarTratamientos();
-                        toast.success("Tratamiento eliminado correctamente");
-                    } catch (err: any) {
-                        toast.error(err?.message || "Error al eliminar");
-                    }
-                }
-            },
-            cancel: { label: "Cancelar", onClick: () => {} },
-        });
+    const onFinalizarClick = async (item: any) => {
+        if (item.trata_estado === "Finalizado") {
+            toast.info("Este tratamiento ya está finalizado.");
+            return;
+        }
+        if (window.confirm(`¿Finalizar tratamiento? Esto creará un historial.`)) {
+            try {
+                await finalizarTratamiento(item.trata_tratamientos);
+                toast.success("Tratamiento finalizado exitosamente.");
+                cargarDatos();
+            } catch (error) {
+                toast.error("Error al finalizar el tratamiento.");
+            }
+        }
     };
 
     return {
-        tratamientos,
-        tratamientosFiltrados,
-        loading,
-        error,
-        busqueda,
-        setBusqueda,
-        modal,
-        editando,
-        form,
-        setForm,
-        guardando,
-        formError,
-        abrirCrear,
-        abrirEditar,
-        cerrarModal,
-        handleGuardar,
-        handleEliminar,
-        opcionesAlertas,
-        opcionesProductos,
+        tratamientos: filtrados, productos, alertas, loading, error, busqueda, setBusqueda,
+        modal, form, setForm, guardando, formError,
+        abrirCrear, cerrarModal, handleGuardar, onFinalizarClick
     };
 };

@@ -80,12 +80,12 @@ export const useAgroAlertaSalud = () => {
 
             setAlertas(Array.isArray(alertasData) ? alertasData : []);
             setAnalisis(Array.isArray(analisisData) ? analisisData : []);
-            setArboles(arbolesData || []);
-            setSurcos(surcosData || []);
-            setSecciones(seccionesResp.data.secciones || []);
-            setFincas(fincasResp.data.fincas || []);
-            setUsuarios(usuariosResp.data.usuarios || []);
-            setRoles(Array.isArray(rolesData) ? rolesData : []);
+            setArboles(Array.isArray(arbolesData) ? arbolesData : (arbolesData?.arboles || []));
+            setSurcos(Array.isArray(surcosData) ? surcosData : (surcosData?.surcos || []));
+            setSecciones(Array.isArray(seccionesResp) ? seccionesResp : (seccionesResp?.secciones || []));
+            setFincas(Array.isArray(fincasResp?.data) ? fincasResp.data : (fincasResp?.data?.fincas || []));
+            setUsuarios(Array.isArray(usuariosResp?.data) ? usuariosResp.data : (usuariosResp?.data?.usuarios || []));
+            setRoles(Array.isArray(rolesData) ? rolesData : (rolesData?.roles || []));
 
         } catch (err: unknown) {
             const mensaje = err instanceof Error ? err.message : "Error al cargar los datos";

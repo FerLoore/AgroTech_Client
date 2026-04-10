@@ -1,7 +1,26 @@
 import axios from './Axios';
 
-export const getAgroSecciones = () => axios.get('/agro-seccion');
-export const getAgroSeccionById = (id: number) => axios.get(`/agro-seccion/${id}`);
-export const createAgroSeccion = (data: any) => axios.post('/agro-seccion', data);
-export const updateAgroSeccion = (id: number, data: any) => axios.put(`/agro-seccion/${id}`, data);
-export const deleteAgroSeccion = (id: number) => axios.delete(`/agro-seccion/${id}`);
+export const getAgroSecciones = async () => {
+    const response = await axios.get('/agro-seccion');
+    return response.data;
+};
+
+export const getAgroSeccionById = async (id: number) => {
+    const response = await axios.get(`/agro-seccion/${id}`);
+    return response.data;
+};
+
+export const createAgroSeccion = async (data: any) => {
+    const response = await axios.post('/agro-seccion', data);
+    return response.data;
+};
+
+export const updateAgroSeccion = async (id: number, data: any) => {
+    const response = await axios.put(`/agro-seccion/${id}`, data);
+    return response.data;
+};
+
+export const deleteAgroSeccion = async (id: number) => {
+    const response = await axios.delete(`/agro-seccion/${id}`);
+    return response.data;
+};

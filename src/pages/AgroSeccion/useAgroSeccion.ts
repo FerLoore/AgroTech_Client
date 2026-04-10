@@ -19,8 +19,7 @@ export const useAgroSeccion = () => {
         setLoading(true);
         try {
             const response = await getAgroSecciones();
-            // Asumiendo que tu backend devuelve un objeto con "secciones: [...]"
-            setSecciones(response.data.secciones || []);
+            setSecciones(Array.isArray(response) ? response : (response?.secciones || []));
         } catch (err: any) {
             setError(err.message || "Error al obtener las secciones");
         } finally {

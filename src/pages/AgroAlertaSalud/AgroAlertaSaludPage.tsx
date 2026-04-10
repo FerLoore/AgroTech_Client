@@ -288,7 +288,7 @@ const AgroAlertaSaludPage = () => {
                             {CAMPOS.map(campo => (
                                 <div key={campo.key}>
                                     <label className={LABEL_CLS}>
-                                        {campo.label}{campo.requerido ? " *" : ""}
+                                        {campo.label}{"requerido" in campo && campo.requerido ? " *" : ""}
                                     </label>
 
                                     {"opciones" in campo ? (
