@@ -1,9 +1,9 @@
 import api from "./Axios";
 
 // GET todos
-export const getArboles = async () => {
-    const res = await api.get("/agro-arboles");
-    return res.data.arboles;
+export const getArboles = async (page: number = 1, limit: number = 100) => {
+    const res = await api.get(`/agro-arboles?page=${page}&limit=${limit}`);
+    return res.data; // { ok, arboles, totalPages, total, page, limit }
 };
 
 // GET por ID

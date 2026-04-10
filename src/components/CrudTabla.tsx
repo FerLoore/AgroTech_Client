@@ -101,7 +101,11 @@ interface CrudTablaProps<T extends Record<string, unknown>> {
     onHistorial?: (item: T) => void;
     onTrazabilidad?: (item: T) => void;        // click en botón "Historial" de una fila
     labelEliminar?: string;
-    // "Desactivar" por defecto, "Eliminar" para borrado físico
+    // Paginación opcional
+    page?: number;
+    totalPages?: number;
+    onNextPage?: () => void;
+    onPrevPage?: () => void;
 }
 
 // ============================================================
@@ -124,6 +128,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
     busqueda, setBusqueda,
     modal, editando, form, setForm, guardando, formError,
     onNuevo, onEditar, onEliminar, onGuardar, onCerrar, onHistorial, onTrazabilidad, labelEliminar = "Desactivar",
+    page, totalPages, onNextPage, onPrevPage
 }: CrudTablaProps<T>) => {
 
     // Estado local — solo afecta el hover visual de las filas
@@ -344,6 +349,35 @@ const CrudTabla = <T extends Record<string, unknown>>({
                         </tbody>
                     </table>
                 </div>
+                {page !== undefined && totalPages !== undefined && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16 }}>
+                        <p style={{ color: "#7a9a7a", fontSize: 14 }}>Página {page} de {totalPages}</p>
+                        <div style={{ display: "flex", gap: 10 }}>
+                            <button
+                                onClick={onPrevPage}
+                                disabled={page <= 1}
+                                style={{
+                                    padding: "8px 16px", borderRadius: 8, border: "1px solid #c8d8c0",
+                                    background: page <= 1 ? "#f9f6f0" : "#fff", color: page <= 1 ? "#aaa" : "#4a7c59",
+                                    cursor: page <= 1 ? "not-allowed" : "pointer"
+                                }}
+                            >
+                                Anterior
+                            </button>
+                            <button
+                                onClick={onNextPage}
+                                disabled={page >= totalPages}
+                                style={{
+                                    padding: "8px 16px", borderRadius: 8, border: "1px solid #c8d8c0",
+                                    background: page >= totalPages ? "#f9f6f0" : "#fff", color: page >= totalPages ? "#aaa" : "#4a7c59",
+                                    cursor: page >= totalPages ? "not-allowed" : "pointer"
+                                }}
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* ── Modal crear/editar ────────────────────────────────

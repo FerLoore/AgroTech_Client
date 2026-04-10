@@ -29,6 +29,9 @@ export const useAgroArbol = () => {
     const [filtroFinca, setFiltroFinca] = useState(""); // 👈 NUEVO
     const [seccionForm, setSeccionForm] = useState("");
 
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+
     const [modal, setModal] = useState(false);
     const [editando, setEditando] = useState<Arbol | null>(null);
     const [form, setForm] = useState<ArbolFormData>(ARBOL_FORM_INICIAL);
@@ -48,11 +51,17 @@ export const useAgroArbol = () => {
         catch { return ""; }
     };
 
-    const cargar = async () => {
+    const cargar = async (currentPage = page) => {
         try {
             setLoading(true);
-            const data = await getArboles();
-            setArboles(data.map((a: Arbol) => ({ ...a, arb_estado: String(a.arb_estado) })));
+            const data = await getArboles(currentPage, 100);
+            // normalizamos arb_estado a mayúsculas para que coincida con TipoArbol
+            const normalizados = data.arboles.map((a: Arbol) => ({
+                ...a,
+                arb_estado: String(a.arb_estado)
+            }));
+            setArboles(normalizados);
+            setTotalPages(data.totalPages || 1);
             setError("");
         } catch {
             setError("Error al cargar árboles");
@@ -60,6 +69,11 @@ export const useAgroArbol = () => {
             setLoading(false);
         }
     };
+
+    // Recargar cuando cambie la página
+    useEffect(() => {
+        cargar(page);
+    }, [page]);
 
     useEffect(() => {
         const init = async () => {
@@ -299,6 +313,9 @@ export const useAgroArbol = () => {
         loadingHistorial,
         abrirHistorial,
         arbolSeleccionado,
-        cerrarHistorial: () => setModalHistorial(false)
+        cerrarHistorial: () => setModalHistorial(false),
+        page,
+        setPage,
+        totalPages
     };
 };

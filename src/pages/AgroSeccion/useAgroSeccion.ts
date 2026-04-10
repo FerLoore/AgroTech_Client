@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getAgroSecciones, createAgroSeccion, updateAgroSeccion, deleteAgroSeccion } from '../../api/AgroSeccion.api';
 import type { AgroSeccion } from './AgroSeccion.types';
+import { toast } from 'sonner';
 
 export const useAgroSeccion = () => {
     const [secciones, setSecciones] = useState<AgroSeccion[]>([]);
@@ -19,7 +20,6 @@ export const useAgroSeccion = () => {
         setLoading(true);
         try {
             const response = await getAgroSecciones();
-            // Asumiendo que tu backend devuelve un objeto con "secciones: [...]"
             setSecciones(response.data.secciones || []);
         } catch (err: any) {
             setError(err.message || "Error al obtener las secciones");
@@ -63,27 +63,38 @@ export const useAgroSeccion = () => {
         try {
             if (editando) {
                 await updateAgroSeccion(editando.secc_seccion, form);
+                toast.success("Sección actualizada correctamente");
             } else {
                 await createAgroSeccion(form);
+                toast.success("Sección creada exitosamente");
             }
             await fetchSecciones();
             setModal(false);
         } catch (err: any) {
-            setFormError(err.response?.data?.message || "Error al guardar la sección");
+            const msg = err.response?.data?.message || "Error al guardar la sección";
+            setFormError(msg);
+            toast.error(msg);
         } finally {
             setGuardando(false);
         }
     };
 
-    const onEliminar = async (item: AgroSeccion) => {
-        if (window.confirm(`¿Estás seguro de desactivar la sección: ${item.secc_nombre}?`)) {
-            try {
-                await deleteAgroSeccion(item.secc_seccion);
-                await fetchSecciones();
-            } catch (err: any) {
-                alert("Error al eliminar la sección");
-            }
-        }
+    const onEliminar = (item: AgroSeccion) => {
+        toast.warning(`¿Estás seguro de desactivar la sección: ${item.secc_nombre}?`, {
+            action: {
+                label: "Desactivar",
+                onClick: async () => {
+                    try {
+                        await deleteAgroSeccion(item.secc_seccion);
+                        await fetchSecciones();
+                        toast.success("Sección desactivada correctamente");
+                    } catch (err: any) {
+                        toast.error("Error al eliminar la sección");
+                    }
+                }
+            },
+            cancel: { label: "Cancelar", onClick: () => {} }
+        });
     };
 
     return {

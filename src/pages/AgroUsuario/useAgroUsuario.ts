@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getAgroUsuarios, createAgroUsuario, updateAgroUsuario, deleteAgroUsuario } from '../../api/AgroUsuario.api';
 import type { AgroUsuario } from './AgroUsuario.types';
+import { toast } from 'sonner';
 
 export const useAgroUsuario = () => {
     const [usuarios, setUsuarios] = useState<AgroUsuario[]>([]);
@@ -62,27 +63,38 @@ export const useAgroUsuario = () => {
         try {
             if (editando) {
                 await updateAgroUsuario(editando.usu_usuario, form);
+                toast.success("Usuario actualizado correctamente");
             } else {
                 await createAgroUsuario(form);
+                toast.success("Usuario creado exitosamente");
             }
             await fetchUsuarios();
             setModal(false);
         } catch (err: any) {
-            setFormError(err.response?.data?.message || "Error al guardar el usuario");
+            const msg = err.response?.data?.message || "Error al guardar el usuario";
+            setFormError(msg);
+            toast.error(msg);
         } finally {
             setGuardando(false);
         }
     };
 
-    const onEliminar = async (item: AgroUsuario) => {
-        if (window.confirm(`¿Estás seguro de desactivar al usuario: ${item.usu_nombre}?`)) {
-            try {
-                await deleteAgroUsuario(item.usu_usuario);
-                await fetchUsuarios();
-            } catch (err: any) {
-                alert("Error al eliminar el usuario");
-            }
-        }
+    const onEliminar = (item: AgroUsuario) => {
+        toast.warning(`¿Estás seguro de desactivar al usuario: ${item.usu_nombre}?`, {
+            action: {
+                label: "Desactivar",
+                onClick: async () => {
+                    try {
+                        await deleteAgroUsuario(item.usu_usuario);
+                        await fetchUsuarios();
+                        toast.success("Usuario desactivado correctamente");
+                    } catch (err: any) {
+                        toast.error("Error al eliminar el usuario");
+                    }
+                }
+            },
+            cancel: { label: "Cancelar", onClick: () => {} }
+        });
     };
 
     return {

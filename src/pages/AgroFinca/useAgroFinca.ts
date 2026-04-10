@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getAgroFincas, createAgroFinca, updateAgroFinca, deleteAgroFinca } from '../../api/AgroFinca.api';
 import type { AgroFinca } from './AgroFinca.types';
+import { toast } from 'sonner';
 
 export const useAgroFinca = () => {
     const [fincas, setFincas] = useState<AgroFinca[]>([]);
@@ -19,7 +20,6 @@ export const useAgroFinca = () => {
         setLoading(true);
         try {
             const response = await getAgroFincas();
-            // Asumiendo que tu backend devuelve un objeto con "fincas: [...]"
             setFincas(response.data.fincas || []);
         } catch (err: any) {
             setError(err.message || "Error al obtener las fincas");
@@ -63,27 +63,38 @@ export const useAgroFinca = () => {
         try {
             if (editando) {
                 await updateAgroFinca(editando.fin_finca, form);
+                toast.success("Finca actualizada correctamente");
             } else {
                 await createAgroFinca(form);
+                toast.success("Finca creada exitosamente");
             }
             await fetchFincas();
             setModal(false);
         } catch (err: any) {
-            setFormError(err.response?.data?.message || "Error al guardar la finca");
+            const msg = err.response?.data?.message || "Error al guardar la finca";
+            setFormError(msg);
+            toast.error(msg);
         } finally {
             setGuardando(false);
         }
     };
 
-    const onEliminar = async (item: AgroFinca) => {
-        if (window.confirm(`¿Estás seguro de desactivar la finca: ${item.fin_nombre}?`)) {
-            try {
-                await deleteAgroFinca(item.fin_finca);
-                await fetchFincas();
-            } catch (err: any) {
-                alert("Error al eliminar la finca");
-            }
-        }
+    const onEliminar = (item: AgroFinca) => {
+        toast.warning(`¿Estás seguro de desactivar la finca: ${item.fin_nombre}?`, {
+            action: {
+                label: "Desactivar",
+                onClick: async () => {
+                    try {
+                        await deleteAgroFinca(item.fin_finca);
+                        await fetchFincas();
+                        toast.success("Finca desactivada correctamente");
+                    } catch (err: any) {
+                        toast.error("Error al eliminar la finca");
+                    }
+                }
+            },
+            cancel: { label: "Cancelar", onClick: () => {} }
+        });
     };
 
     return {

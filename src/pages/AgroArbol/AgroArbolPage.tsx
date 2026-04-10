@@ -63,6 +63,9 @@ const AgroArbolPage = () => {
         modalHistorial, historialArbol, loadingHistorial,
         abrirHistorial, cerrarHistorial, arbolSeleccionado,
         opcionesSecciones, opcionesSurcos, setSeccionForm
+        page,
+        setPage,
+        totalPages
     } = useAgroArbol();
 
     const COLUMNAS: ColumnaConfig[] = [
@@ -254,6 +257,10 @@ const AgroArbolPage = () => {
                 onCerrar={cerrarModal}
                 onHistorial={abrirHistorial}
                 onTrazabilidad={(arbol) => navigate(`/trazabilidad/${arbol.arb_arbol}`)}
+                page={page}
+                totalPages={totalPages}
+                onNextPage={() => setPage(page + 1)}
+                onPrevPage={() => setPage(page - 1)}
             />
 
             {/* Modal historial */}

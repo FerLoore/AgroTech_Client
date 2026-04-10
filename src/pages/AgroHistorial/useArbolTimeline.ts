@@ -69,7 +69,7 @@ export const useArbolTimeline = () => {
     // ── Cargar lista de árboles al montar ─────────────────────
     useEffect(() => {
         getArboles()
-            .then(data => setArboles(Array.isArray(data) ? data : []))
+            .then(data => setArboles(Array.isArray(data) ? data : (data?.arboles || [])))
             .catch(() => setError("Error al cargar los árboles"))
             .finally(() => setLoadingInit(false));
     }, []);

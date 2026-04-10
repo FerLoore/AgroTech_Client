@@ -76,8 +76,8 @@ const AgroAlertaSaludPage = () => {
     // Campos del formulario modal
     const CAMPOS = [
         { key: "alertsalud_fecha_deteccion",     label: "Fecha de detección",  tipo: "date",   requerido: true  },
-        { key: "alertsalud_descripcion_sintoma",  label: "Descripción síntoma", tipo: "text",   placeholder: "Ej: Hojas con manchas" },
-        { key: "alertsalud_foto",                label: "Foto",                 tipo: "text",   placeholder: "Ej: foto.jpg" },
+        { key: "alertsalud_descripcion_sintoma",  label: "Descripción síntoma", tipo: "text",   placeholder: "Ej: Hojas con manchas", requerido: false },
+        { key: "alertsalud_foto",                label: "Foto",                 tipo: "text",   placeholder: "Ej: foto.jpg", requerido: false },
         { key: "arb_arbol",   label: "Árbol",   tipo: "select", requerido: true, opciones: opcionesArboles  },
         { key: "usu_usuario", label: "Usuario", tipo: "select", requerido: true, opciones: opcionesUsuarios },
     ] as const;

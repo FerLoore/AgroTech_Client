@@ -18,6 +18,9 @@ export const useAgroSurco = () => {
     const [error, setError] = useState("");
     const [busqueda, setBusqueda] = useState("");
 
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+
     const [modal, setModal] = useState(false);
     const [editando, setEditando] = useState<Surco | null>(null);
     const [form, setForm] = useState<SurcoFormData>(SURCO_FORM_INICIAL);
@@ -28,11 +31,14 @@ export const useAgroSurco = () => {
     // CARGA DE DATOS
     // =============================
 
-    const cargar = async () => {
+    const cargar = async (currentPage = page) => {
         try {
             setLoading(true);
-            const res = await getSurcos();
-            setSurcos(res);
+            setError("");
+            const data = await getSurcos(currentPage, 100);
+
+            setSurcos(Array.isArray(data) ? data : (data?.surcos || []));
+            setTotalPages(data?.totalPages || 1);
         } catch {
             setError("Error al cargar surcos");
         } finally {
@@ -50,11 +56,8 @@ export const useAgroSurco = () => {
     };
 
     useEffect(() => {
-        const init = async () => {
-            await Promise.all([cargar(), cargarSecciones()]);
-        };
-        init();
-    }, []);
+        cargar(page);
+    }, [page]);
 
     // =============================
     // FILTRO + JOIN CON SECCIONES
@@ -134,8 +137,8 @@ export const useAgroSurco = () => {
                 toast.success("Surco creado");
             }
 
-            cerrarModal();
-            cargar();
+            setModal(false);
+            cargar(page);
 
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "Error al guardar";
@@ -156,7 +159,7 @@ export const useAgroSurco = () => {
                 label: "Desactivar",
                 onClick: async () => {
                     await deleteSurco(s.sur_surco);
-                    cargar();
+                    cargar(page);
                     toast.success("Surco desactivado");
                 }
             }
@@ -180,6 +183,9 @@ export const useAgroSurco = () => {
         cerrarModal,
         handleGuardar,
         handleEliminar,
-        opcionesSecciones
+        opcionesSecciones,
+        page,
+        setPage,
+        totalPages
     };
 };

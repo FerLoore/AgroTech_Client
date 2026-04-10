@@ -35,8 +35,9 @@ const MENU = [
             { label: "Surcos", ruta: "/agro-surcos", icono: GitBranch },
             { label: "Árboles", ruta: "/agro-arboles", icono: Leaf },
             { label: "Historial", ruta: "/agro-historial", icono: ClipboardList },
-            { label: "Auditoría", ruta: "/agro-auditoria", icono: ShieldCheck }
-            // { label: "Mapa de Finca", ruta: "/agro-mapa", icono: MapIcon },
+            { label: "Auditoría", ruta: "/agro-auditoria", icono: ShieldCheck },
+            { label: "Mapa de Finca", ruta: "/agro-mapa", icono: MapPin },
+
         ]
     },
     {

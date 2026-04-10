@@ -31,21 +31,24 @@ const AgroSurcoPage = () => {
         cerrarModal,
         handleGuardar,
         handleEliminar,
-        opcionesSecciones
+        opcionesSecciones,
+        page,
+        setPage,
+        totalPages
     } = useAgroSurco();
 
-const CAMPOS: CampoFormulario[] = [
-    { key: "sur_numero_surco", label: "Número", tipo: "number", requerido: true },
-    { key: "sur_orientacion", label: "Orientación", tipo: "text" },
-    { key: "sur_espaciamiento", label: "Espaciamiento", tipo: "number", requerido: true },
-    {
-        key: "secc_secciones",
-        label: "Sección",
-        tipo: "select",
-        requerido: true,
-        opciones: opcionesSecciones 
-    }
-];
+    const CAMPOS: CampoFormulario[] = [
+        { key: "sur_numero_surco", label: "Número", tipo: "number", requerido: true },
+        { key: "sur_orientacion", label: "Orientación", tipo: "text" },
+        { key: "sur_espaciamiento", label: "Espaciamiento", tipo: "number", requerido: true },
+        {
+            key: "secc_secciones",
+            label: "Sección",
+            tipo: "select",
+            requerido: true,
+            opciones: opcionesSecciones
+        }
+    ];
 
 
     return (
@@ -72,6 +75,10 @@ const CAMPOS: CampoFormulario[] = [
             onEliminar={handleEliminar}
             onGuardar={handleGuardar}
             onCerrar={cerrarModal}
+            page={page}
+            totalPages={totalPages}
+            onNextPage={() => setPage(page + 1)}
+            onPrevPage={() => setPage(page - 1)}
         />
     );
 };
