@@ -6,7 +6,7 @@ import {
     updateAlerta,
     deleteAlerta
 } from "../../api/AgroAlertaSalud.api";
-import { getArboles } from "../../api/AgroArbol.api";
+import { getArboles, getArbolById } from "../../api/AgroArbol.api";
 import { getSurcos } from "../../api/AgroSurco.api";
 import { getAgroSecciones } from "../../api/AgroSeccion.api";
 import { getAgroFincas } from "../../api/AgroFinca.api";
@@ -82,23 +82,48 @@ export const useAgroAlertaSalud = () => {
 
             setAlertas(Array.isArray(alertasData) ? alertasData : []);
             setAnalisis(Array.isArray(analisisData) ? analisisData : []);
-            setArboles(Array.isArray(arbolesData) ? arbolesData : (arbolesData?.arboles || []));
-            setSurcos(Array.isArray(surcosData) ? surcosData : (surcosData?.surcos || []));
-            setSecciones(seccionesResp.data.secciones || []);
-            setFincas(fincasResp.data.fincas || []);
-            setUsuarios(usuariosResp.data.usuarios || []);
-            setRoles(Array.isArray(rolesData) ? rolesData : []);
-
             const arrParam = searchParams.get("nuevoArbol");
             if (arrParam) {
+                setSurcos(Array.isArray(surcosData) ? surcosData : (surcosData?.surcos || []));
+                setSecciones(seccionesResp.data.secciones || []);
+                setFincas(fincasResp.data.fincas || []);
+                setUsuarios(usuariosResp.data.usuarios || []);
+                setRoles(Array.isArray(rolesData) ? rolesData : []);
+
+                const treeId = Number(arrParam);
+                
+                // 1. Verificar si el árbol ya está en la lista (generalmente solo vienen 100)
+                let listaArboles = Array.isArray(arbolesData) ? arbolesData : (arbolesData?.arboles || []);
+                const existe = listaArboles.some((a: any) => Number(a.arb_arbol) === treeId);
+
+                // 2. Si no existe, traerlo individualmente
+                if (!existe) {
+                    try {
+                        const arbolIndividual = await getArbolById(treeId);
+                        if (arbolIndividual) {
+                            listaArboles = [...listaArboles, arbolIndividual];
+                        }
+                    } catch (e) {
+                        console.error("Error cargando árbol individual para pre-llenado", e);
+                    }
+                }
+
+                setArboles(listaArboles);
                 setEditando(null);
                 setFormError("");
                 setForm({
                     ...ALERTA_SALUD_FORM_INICIAL,
-                    arb_arbol: Number(arrParam),
+                    arb_arbol: treeId,
                 });
                 setModal(true);
                 setSearchParams({});
+            } else {
+                setArboles(Array.isArray(arbolesData) ? arbolesData : (arbolesData?.arboles || []));
+                setSurcos(Array.isArray(surcosData) ? surcosData : (surcosData?.surcos || []));
+                setSecciones(seccionesResp.data.secciones || []);
+                setFincas(fincasResp.data.fincas || []);
+                setUsuarios(usuariosResp.data.usuarios || []);
+                setRoles(Array.isArray(rolesData) ? rolesData : []);
             }
 
         } catch (err: unknown) {

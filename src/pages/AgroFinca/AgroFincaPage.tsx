@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Map } from 'lucide-react'; 
 import CrudTabla, { type ColumnaConfig, type CampoFormulario } from '../../components/CrudTabla';
 import { useAgroFinca } from './useAgroFinca';
