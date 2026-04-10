@@ -23,7 +23,10 @@ const AgroHistorialPage = () => {
         loading,
         error,
         busqueda,
-        setBusqueda
+        setBusqueda,
+        page,
+        setPage,
+        totalPages
     } = useAgroHistorial();
 
     // Formatear la fecha antes de enviarla a CrudTabla
@@ -59,6 +62,10 @@ const AgroHistorialPage = () => {
             setForm={() => {}}
             guardando={false}
             formError=""
+            page={page}
+            totalPages={totalPages}
+            onNextPage={() => setPage(page + 1)}
+            onPrevPage={() => setPage(page - 1)}
         />
     );
 };

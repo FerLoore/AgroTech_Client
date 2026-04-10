@@ -14,6 +14,9 @@ export const useAgroArbol = () => {
     const [error, setError] = useState("");
     const [busqueda, setBusqueda] = useState("");
 
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+
     const [modal, setModal] = useState(false);
     const [editando, setEditando] = useState<Arbol | null>(null);
     const [form, setForm] = useState<ArbolFormData>(ARBOL_FORM_INICIAL);
@@ -33,16 +36,17 @@ export const useAgroArbol = () => {
         }
     };
 
-    const cargar = async () => {
+    const cargar = async (currentPage = page) => {
         try {
             setLoading(true);
-            const data = await getArboles();
+            const data = await getArboles(currentPage, 100);
             // normalizamos arb_estado a mayúsculas para que coincida con TipoArbol
-            const normalizados = data.map((a: Arbol) => ({
+            const normalizados = data.arboles.map((a: Arbol) => ({
                 ...a,
                 arb_estado: String(a.arb_estado)
             }));
             setArboles(normalizados);
+            setTotalPages(data.totalPages || 1);
             setError("");
         } catch {
             setError("Error al cargar árboles");
@@ -51,9 +55,14 @@ export const useAgroArbol = () => {
         }
     };
 
+    // Recargar cuando cambie la página
+    useEffect(() => {
+        cargar(page);
+    }, [page]);
+
     useEffect(() => {
         const init = async () => {
-            await cargar();        // 👈 ESTO FALTABA
+            // Ya cargamos con el otro useEffect(..., [page]), pero cargamos aquí por si acaso, o los tipos.
             try {
                 const data = await getTipoArboles();
                 setTiposArbol(data);
@@ -202,6 +211,9 @@ const handleEliminar = (a: Arbol) => {
         abrirHistorial,
         arbolSeleccionado,
         cerrarHistorial: () => setModalHistorial(false),
-        TIPOS_ARBOL_DINAMICO
+        TIPOS_ARBOL_DINAMICO,
+        page,
+        setPage,
+        totalPages
     };
 };

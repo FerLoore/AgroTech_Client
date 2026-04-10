@@ -17,6 +17,7 @@ import AgroSurcoPage from "../pages/AgroSurco/AgroSurcoPage";
 import AgroHistorialPage from "../pages/AgroHistorial/AgroHistorialPage";
 import ArbolTimelinePage from "../pages/AgroHistorial/ArbolTimelinePage";
 
+import AgroMapaPage from "../pages/AgroMapa/AgroMapaPage";
 
 const AppRouter = () => {
     return (
@@ -38,6 +39,7 @@ const AppRouter = () => {
                     <Route path="/agro-arboles" element={<AgroArbolPage />} />
                     <Route path="/agro-surcos" element={<AgroSurcoPage />} />
                     <Route path="/agro-historial" element={<AgroHistorialPage />} />
+                    <Route path="/agro-mapa" element={<AgroMapaPage />} />
                     <Route path="/agro-arbol-timeline" element={<ArbolTimelinePage />} />
                 </Routes>
             </Layout>

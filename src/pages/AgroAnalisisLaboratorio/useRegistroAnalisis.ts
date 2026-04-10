@@ -93,8 +93,8 @@ export const useRegistroAnalisis = () => {
             setAlertas(Array.isArray(alertasData)  ? alertasData  : []);
             setAnalisis(Array.isArray(analisisData) ? analisisData : []);
             setPatogenos(Array.isArray(patogenosData) ? patogenosData : []);
-            setArboles(arbolesData || []);
-            setSurcos(surcosData || []);
+            setArboles(Array.isArray(arbolesData) ? arbolesData : (arbolesData?.arboles || []));
+            setSurcos(Array.isArray(surcosData) ? surcosData : (surcosData?.surcos || []));
             setSecciones(seccionesResp.data.secciones || []);
             setFincas(fincasResp.data.fincas || []);
 
