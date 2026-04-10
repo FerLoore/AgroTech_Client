@@ -5,7 +5,7 @@ import {
     Users, MapPin, Layers, CloudRain,
     GitBranch, Leaf, ClipboardList,
     AlertTriangle, FlaskConical, Syringe,
-    ChevronLeft, ChevronRight, Menu, History
+    ChevronLeft, ChevronRight, History
     // Map as MapIcon
 } from "lucide-react";
 import logo from "../assets/AGROTECHLOGOsinfondo.png";
@@ -193,7 +193,6 @@ const Layout = ({ children }: LayoutProps) => {
                     position: "sticky", top: 0, zIndex: 90,
                     boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
                 }}>
-                    <Menu size={16} color="#aaa" />
                     <span style={{ fontSize: 14, color: "#7a9a7a" }}>{paginaActual}</span>
                 </header>
 

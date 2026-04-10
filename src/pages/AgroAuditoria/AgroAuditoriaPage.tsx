@@ -46,7 +46,7 @@ const AgroAuditoriaPage = () => {
                             Auditoría del sistema
                         </h1>
                         <p style={{ fontSize: 13, color: "#7a9a7a", marginTop: 2 }}>
-                            AGRO_AUDITORIA — {auditoriasFiltradas.length} registros
+                            AGRO_AUDITORIA
                         </p>
                     </div>
                 </div>

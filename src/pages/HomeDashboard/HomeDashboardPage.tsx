@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { MapContainer, TileLayer, Polygon, CircleMarker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -7,8 +7,6 @@ import { getAgroFincas } from "../../api/AgroFinca.api";
 import { getMapaFinca } from "../../api/agroFincaMapa.api";
 import { getAgroUsuarios } from "../../api/AgroUsuario.api";
 import { getHistorial } from "../../api/AgroHistorial.api";
-import { getAlertas } from "../../api/AgroAlertaSalud.api";
-import { getArboles } from "../../api/AgroArbol.api";
 import { getProductos } from "../../api/AgroProducto.api";
 
 // ─── tipos mínimos para los datos del dashboard ───────────────────────────────
@@ -16,6 +14,7 @@ interface FincaOption {
   id: number;
   nombre: string;
   color: string;
+  usu_usuario?: number;
 }
 
 
@@ -48,20 +47,19 @@ function EstadoBadge({ estado }: { estado: string | null }) {
 }
 
 // ─── preview del mapa con react-leaflet (Real) ─────────────────────────────────
-function MapaPreview({ fincaId }: { fincaId: number }) {
-  const [mapaData, setMapaData] = useState<any>(null);
-
-  useEffect(() => {
-    if (!fincaId) return;
-    getMapaFinca(fincaId)
-      .then(setMapaData)
-      .catch(() => setMapaData({ error: true }));
-  }, [fincaId]);
+function MapaPreview({ mapaData, cargandoMapa }: { mapaData: any, cargandoMapa: boolean }) {
+  if (cargandoMapa) {
+    return (
+      <div style={{ height: 220, background: "#e5e7eb", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#9ca3af" }}>
+        Cargando terreno...
+      </div>
+    );
+  }
 
   if (!mapaData || mapaData.error) {
     return (
       <div style={{ height: 220, background: "#e5e7eb", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#9ca3af" }}>
-        {mapaData?.error ? "Sin datos del mapa para esta finca" : "Cargando terreno..."}
+        {mapaData?.error ? "Sin datos del mapa para esta finca" : "Sin datos de terreno"}
       </div>
     );
   }
@@ -160,13 +158,27 @@ export default function HomeDashboardPage() {
   const [filtro, setFiltro] = useState<"todos" | "enfermo" | "produccion">("todos");
   const [saludo, setSaludo] = useState("Buen día");
   const [fechaStr, setFechaStr] = useState("");
-  const [nombreUsuario, setNombreUsuario] = useState("Cargando...");
+  const [usuariosBd, setUsuariosBd] = useState<any[]>([]);
 
   const [historialDb, setHistorialDb] = useState<any[]>([]);
-  const [alertasDb, setAlertasDb] = useState<any[]>([]);
-  const [arbolesDb, setArbolesDb] = useState<any[]>([]);
+  const alertasDb: any[] = [];
   const [productosDb, setProductosDb] = useState<any[]>([]);
   const [vistaInventario, setVistaInventario] = useState<"arboles" | "productos">("arboles");
+
+  const [mapaDataFinca, setMapaDataFinca] = useState<any>(null);
+  const [cargandoMapa, setCargandoMapa] = useState(false);
+
+  useEffect(() => {
+    if (fincaActiva?.id && fincaActiva.id !== 0) {
+      setCargandoMapa(true);
+      getMapaFinca(fincaActiva.id)
+        .then((data) => setMapaDataFinca(data))
+        .catch(() => setMapaDataFinca({ error: true }))
+        .finally(() => setCargandoMapa(false));
+    } else {
+      setMapaDataFinca(null);
+    }
+  }, [fincaActiva]);
 
   useEffect(() => {
     const cargarFincas = async () => {
@@ -177,12 +189,13 @@ export default function HomeDashboardPage() {
           const fincasDb = res.data.fincas.map((f: any, idx: number) => ({
             id: f.fin_finca,
             nombre: f.fin_nombre,
-            color: colores[idx % colores.length]
+            color: colores[idx % colores.length],
+            usu_usuario: f.fin_usu_usuario || f.usu_usuario
           }));
           setFincas(fincasDb);
           setFincaActiva(fincasDb[0]);
         } else {
-          setFincas([{ id: 0, nombre: "Sin fincas creadas", color: "#888" }]);
+          setFincas([{ id: 0, nombre: "Sin fincas creadas", color: "#888", usu_usuario: 0 }]);
         }
       } catch (error) {
         console.error("Error al cargar fincas:", error);
@@ -193,15 +206,11 @@ export default function HomeDashboardPage() {
     const cargarUsuario = async () => {
       try {
         const res = await getAgroUsuarios();
-        if (res.data && res.data.usuarios && res.data.usuarios.length > 0) {
-          // Asume el primer usuario activo de la bdd, a menos que se obtenga de un token auth
-          setNombreUsuario(res.data.usuarios[0].usu_nombre);
-        } else {
-          setNombreUsuario("Usuario");
+        if (res.data && res.data.usuarios) {
+          setUsuariosBd(res.data.usuarios);
         }
       } catch (error) {
         console.error("Error al cargar usuario:", error);
-        setNombreUsuario("Usuario");
       }
     };
     cargarUsuario();
@@ -211,16 +220,6 @@ export default function HomeDashboardPage() {
         const hist = await getHistorial();
         setHistorialDb(Array.isArray(hist) ? hist : (hist?.historiales || []));
       } catch (e) { console.error("Error historial", e); }
-
-      try {
-        const resAlertas = await getAlertas();
-        setAlertasDb(Array.isArray(resAlertas) ? resAlertas : (resAlertas?.alertas || []));
-      } catch (e) { console.error("Error alertas", e); }
-
-      try {
-        const arb = await getArboles(1, 4000); // traemos muchos para KPIS si está paginado
-        setArbolesDb(Array.isArray(arb) ? arb : (arb?.arboles || []));
-      } catch (e) { console.error("Error arboles", e); }
 
       try {
         const prod = await getProductos();
@@ -234,45 +233,58 @@ export default function HomeDashboardPage() {
     setFechaStr(new Date().toLocaleDateString("es-ES", { weekday: "short", day: "2-digit", month: "short" }));
   }, []);
 
-  const histMapeado = historialDb.map((h: any) => {
-    const rawDate = String(h.histo_fecha_cambio ?? "").split("T")[0];
-    const [y, m, d] = (rawDate || "2000-01-01").split("-");
-    return {
-      ref: `Árbol ${h.arb_arbol}`,
-      antes: h.histo_estado_anterior || null,
-      despues: h.histo_estado_nuevo,
-      tipo: h.histo_estado_nuevo?.toLowerCase().includes("producci") ? "produccion" :
-        h.histo_estado_nuevo?.toLowerCase().includes("enferm") ? "enfermo" :
-          h.histo_estado_nuevo?.toLowerCase().includes("crecimient") ? "crecimiento" : "otro",
-      cuando: `${d}/${m}/${y}`,
-      _dateMs: new Date(h.histo_fecha_cambio).getTime()
-    };
-  }).sort((a, b) => b._dateMs - a._dateMs);
+  const nombreUsuario = useMemo(() => {
+    if (!fincaActiva?.usu_usuario || usuariosBd.length === 0) return "Cargando dueño...";
+    const dueno = usuariosBd.find(u => u.usu_usuario === fincaActiva.usu_usuario);
+    return dueno ? dueno.usu_nombre : "Usuario";
+  }, [fincaActiva, usuariosBd]);
+
+  const arbolesFinca = mapaDataFinca?.arboles || [];
+  const arbolesFincaIds = new Set(arbolesFinca.map((a: any) => a.id));
+
+  const histMapeado = historialDb
+    .filter((h: any) => arbolesFincaIds.has(h.arb_arbol))
+    .map((h: any) => {
+      const rawDate = String(h.histo_fecha_cambio ?? "").split("T")[0];
+      const [y, m, d] = (rawDate || "2000-01-01").split("-");
+      return {
+        ref: `Árbol ${h.arb_arbol}`,
+        antes: h.histo_estado_anterior || null,
+        despues: h.histo_estado_nuevo,
+        tipo: h.histo_estado_nuevo?.toLowerCase().includes("producci") ? "produccion" :
+          h.histo_estado_nuevo?.toLowerCase().includes("enferm") ? "enfermo" :
+            h.histo_estado_nuevo?.toLowerCase().includes("crecimient") ? "crecimiento" : "otro",
+        cuando: `${d}/${m}/${y}`,
+        _dateMs: new Date(h.histo_fecha_cambio).getTime()
+      };
+    }).sort((a: any, b: any) => b._dateMs - a._dateMs);
 
   const histFiltrado = histMapeado.filter(
-    (r) => filtro === "todos" || r.tipo === filtro
+    (r: any) => filtro === "todos" || r.tipo === filtro
   );
 
-  const alertasMapeadas = alertasDb.map((a: any) => {
-    const rawDate = String(a.fecha_deteccion ?? "").split("T")[0];
-    const [y, m, d] = (rawDate || "2000-01-01").split("-");
-    return {
-      arbol: a.arb_arbol,
-      descripcion: a.descripcion_sintoma || "Sin descripción",
-      seccion: "General",
-      patogeno: "",
-      cuando: `${d}/${m}/${y}`,
-      severidad: "media" as string,
-      _dateMs: new Date(a.fecha_deteccion).getTime()
-    };
-  }).sort((a, b) => b._dateMs - a._dateMs);
+  const alertasMapeadas = alertasDb
+    .filter((a: any) => arbolesFincaIds.has(a.arb_arbol))
+    .map((a: any) => {
+      const rawDate = String(a.fecha_deteccion ?? "").split("T")[0];
+      const [y, m, d] = (rawDate || "2000-01-01").split("-");
+      return {
+        arbol: a.arb_arbol,
+        descripcion: a.descripcion_sintoma || "Sin descripción",
+        seccion: "General",
+        patogeno: "",
+        cuando: `${d}/${m}/${y}`,
+        severidad: "media" as string,
+        _dateMs: new Date(a.fecha_deteccion).getTime()
+      };
+    }).sort((a: any, b: any) => b._dateMs - a._dateMs);
 
-  const totArb = arbolesDb.length;
-  const prodArb = arbolesDb.filter(a => a.arb_estado?.toLowerCase().includes("producci")).length;
-  const creArb = arbolesDb.filter(a => a.arb_estado?.toLowerCase().includes("crecimient")).length;
-  const enfArb = arbolesDb.filter(a => a.arb_estado?.toLowerCase().includes("enferm")).length;
-  const muerArb = arbolesDb.filter(a => a.arb_estado?.toLowerCase().includes("muert")).length;
-  const totalAlert = alertasDb.length;
+  const totArb = arbolesFinca.length;
+  const prodArb = arbolesFinca.filter((a: any) => a.estado?.toLowerCase().includes("producci")).length;
+  const creArb = arbolesFinca.filter((a: any) => a.estado?.toLowerCase().includes("crecimient")).length;
+  const enfArb = arbolesFinca.filter((a: any) => a.estado?.toLowerCase().includes("enferm")).length;
+  const muerArb = arbolesFinca.filter((a: any) => a.estado?.toLowerCase().includes("muert")).length;
+  const totalAlert = alertasMapeadas.length;
 
   const kpisData = [
     { label: "Total árboles", value: totArb, color: "#2d4a2d", sub: "activos en finca", trend: "", up: null as null | boolean, mod: "arboles" },
@@ -283,18 +295,32 @@ export default function HomeDashboardPage() {
   ];
 
   const totProd = productosDb.length;
-  // Calculamos insumos por estado. Si no tienen estado, asumimos genéricamente
-  const actProd = productosDb.filter(p => !p.produ_estado || p.produ_estado === "D" || p.produ_estado === "Activo" || p.produ_estado === "Disponible" || true).length; // todo es disponible temporalmente
-  // TODO: Refinar lógica de activos en AgroProducto
+  // Agrupar insumos dinámicamente por tipo
+  const tiposAgrupados = productosDb.reduce((acc: any, p: any) => {
+    const tipo = p.produ_tipo ? String(p.produ_tipo).trim() : "Otros";
+    acc[tipo] = (acc[tipo] || 0) + 1;
+    return acc;
+  }, {});
+
+  const prodPropsDinamic = Object.entries(tiposAgrupados)
+    .sort((a: any, b: any) => b[1] - a[1]) // Mostrar los tipos con más productos primero
+    .slice(0, 4) // Top 4 tipos
+    .map(([tipo, count]: any, i) => {
+      const coloresProd = ["#185FA5", "#4a7c59", "#854F0B", "#E24B4A"];
+      return {
+        label: tipo,
+        count: count,
+        pct: totProd ? Math.round((count / totProd) * 100) : 0,
+        color: coloresProd[i % coloresProd.length]
+      };
+    });
 
   const inventarioProps = vistaInventario === "arboles" ? [
     { label: "Producción", count: prodArb, pct: totArb ? Math.round((prodArb / totArb) * 100) : 0, color: "#185FA5" },
     { label: "Crecimiento", count: creArb, pct: totArb ? Math.round((creArb / totArb) * 100) : 0, color: "#4a7c59" },
     { label: "Enfermo", count: enfArb, pct: totArb ? Math.round((enfArb / totArb) * 100) : 0, color: "#E24B4A" },
     { label: "Muerto", count: muerArb, pct: totArb ? Math.round((muerArb / totArb) * 100) : 0, color: "#888" },
-  ] : [
-    { label: "Suficientes", count: actProd, pct: totProd ? Math.round((actProd / totProd) * 100) : 0, color: "#185FA5" }
-  ];
+  ] : (prodPropsDinamic.length > 0 ? prodPropsDinamic : [{ label: "Sin inventario", count: 0, pct: 0, color: "#888" }]);
 
   // ─── estilos inline compartidos ─────────────────────────────────────────────
   const S = {
@@ -391,7 +417,7 @@ export default function HomeDashboardPage() {
           </div>
 
           {/* mapa real leaflet */}
-          <MapaPreview fincaId={fincaActiva?.id} />
+          <MapaPreview mapaData={mapaDataFinca} cargandoMapa={cargandoMapa} />
 
           {/* ── BOTÓN "ABRIR MAPA COMPLETO" dentro del card, bajo el mapa ── */}
           <div style={{ marginTop: 12 }}>
@@ -420,7 +446,7 @@ export default function HomeDashboardPage() {
           <div style={S.cardHd}>
             <span style={S.cardTitle}>Estado del inventario</span>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <select 
+              <select
                 value={vistaInventario}
                 onChange={e => setVistaInventario(e.target.value as any)}
                 style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, border: "1px solid #d4c9b0", background: "#f5f0e8", color: "#2d4a2d", outline: "none", cursor: "pointer" }}
@@ -452,10 +478,10 @@ export default function HomeDashboardPage() {
             <div style={{ fontSize: 10, color: "#9aaa9a", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 10 }}>Accesos rápidos</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {[
-                { label: "+ Nueva sección", mod: "mapa", neutral: false },
-                { label: "Trazabilidad", mod: "arbol-timeline", neutral: true },
-                { label: "Auditoría", mod: "auditoria", neutral: true },
-                { label: "Ver historial", mod: "historial", neutral: true },
+                { label: "+ Nuevo Tratamiento", mod: "tratamientos", neutral: false },
+                { label: "Análisis Laboratorio", mod: "analisis-laboratorio", neutral: true },
+                { label: "Clima Local", mod: "clima", neutral: true },
+                { label: "Catálogo Patógenos", mod: "catalogo-patogeno", neutral: true },
               ].map((a) => (
                 <button
                   key={a.label}

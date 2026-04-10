@@ -233,7 +233,7 @@ const AgroArbolPage = () => {
 
             <CrudTabla
                 titulo="Gestión de Árboles"
-                subtitulo="AGRO_ARBOL"
+                subtitulo=""
                 icono={TreePine}
                 columnas={COLUMNAS}
                 datos={arbolesFiltrados}

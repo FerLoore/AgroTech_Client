@@ -6,7 +6,7 @@ import { getTipoArboles } from "../../api/AgroTipoArbol.api";
 import { getHistorialByArbol } from "../../api/AgroHistorial.api";
 import { getSurcos } from "../../api/AgroSurco.api";
 import { getAgroSecciones } from "../../api/AgroSeccion.api";
-import { getAgroFincas } from "../../api/AgroFinca.api"; // 👈 NUEVO
+import { getAgroFincas } from "../../api/AgroFinca.api";
 import type { Historial } from "../AgroHistorial/agroHistorial.types";
 import { toast } from "sonner";
 
@@ -19,7 +19,7 @@ export const calcularEdad = (fecha: string): number => {
 export const useAgroArbol = () => {
 
     const [arboles, setArboles] = useState<Arbol[]>([]);
-    const [kpiResumen, setKpiResumen] = useState({ total: 0, produccion: 0, crecimiento: 0, enfermo: 0 });
+    const [todosLosArboles, setTodosLosArboles] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [busqueda, setBusqueda] = useState("");
@@ -27,7 +27,7 @@ export const useAgroArbol = () => {
     const [filtroSurco, setFiltroSurco] = useState("");
     const [filtroSeccion, setFiltroSeccion] = useState("");
     const [filtroTipo, setFiltroTipo] = useState("");
-    const [filtroFinca, setFiltroFinca] = useState(""); // 👈 NUEVO
+    const [filtroFinca, setFiltroFinca] = useState("");
     const [seccionForm, setSeccionForm] = useState("");
 
     const [page, setPage] = useState(1);
@@ -45,7 +45,7 @@ export const useAgroArbol = () => {
     const [tiposArbol, setTiposArbol] = useState<any[]>([]);
     const [surcos, setSurcos] = useState<any[]>([]);
     const [secciones, setSecciones] = useState<any[]>([]);
-    const [fincas, setFincas] = useState<any[]>([]); // 👈 NUEVO
+    const [fincas, setFincas] = useState<any[]>([]);
 
     const formatFecha = (fecha: string) => {
         try { return new Date(fecha).toISOString().split("T")[0]; }
@@ -93,15 +93,7 @@ export const useAgroArbol = () => {
                 setFincas(fincaData);
 
                 if (kpisDataFull?.arboles) {
-                    const stats = kpisDataFull.arboles.reduce((acc: any, a: any) => {
-                        acc.total++;
-                        const est = String(a.arb_estado || "Crecimiento").toLowerCase();
-                        if (est === "produccion") acc.produccion++;
-                        else if (est === "enfermo") acc.enfermo++;
-                        else acc.crecimiento++;
-                        return acc;
-                    }, { total: 0, produccion: 0, crecimiento: 0, enfermo: 0 });
-                    setKpiResumen(stats);
+                    setTodosLosArboles(kpisDataFull.arboles);
                 }
             } catch {
                 console.error("Error cargando catálogos");
@@ -178,36 +170,78 @@ export const useAgroArbol = () => {
         label: `Surco ${s.sur_numero_surco}`
     }));
 
-    // Filtros combinados incluyendo finca
-    const arbolesFiltrados = useMemo(() => {
-        // IDs de secciones que pertenecen a la finca seleccionada
+    const arbolesFiltradosCompletos = useMemo(() => {
         const seccionIdsDeFinca = filtroFinca
             ? seccionesFiltradas.map(s => String(s.secc_seccion))
             : null;
 
-        // IDs de surcos que pertenecen a esas secciones
         const surcoIdsDeFinca = seccionIdsDeFinca
             ? surcos
                 .filter(s => seccionIdsDeFinca.includes(String(s.secc_secciones)))
                 .map(s => String(s.sur_surco))
             : null;
 
-        return arbolesEnriquecidos.filter(a => {
+        return todosLosArboles.filter(a => {
+            const surco = surcos.find(s => s.sur_surco === a.sur_surcos);
+            const secc_id = surco?.secc_secciones ?? null;
+            const referencia = surco
+                ? `S${surco.sur_numero_surco}-P${a.arb_posicion_surco}`
+                : `P${a.arb_posicion_surco}`;
+
             const matchBusqueda = busqueda
-                ? String(a.arb_referencia).toLowerCase().includes(busqueda.toLowerCase()) ||
+                ? String(referencia).toLowerCase().includes(busqueda.toLowerCase()) ||
                 String(a.arb_estado).toLowerCase().includes(busqueda.toLowerCase()) ||
                 String(a.arb_arbol).includes(busqueda)
                 : true;
             const matchEstado = filtroEstado ? a.arb_estado === filtroEstado : true;
             const matchSurco = filtroSurco ? String(a.sur_surcos) === filtroSurco : true;
             const matchTipo = filtroTipo ? String(a.tipar_tipo_arbol) === filtroTipo : true;
-            const matchSeccion = filtroSeccion ? String(a.secc_id) === filtroSeccion : true;
+            const matchSeccion = filtroSeccion ? String(secc_id) === filtroSeccion : true;
             const matchFinca = surcoIdsDeFinca
                 ? surcoIdsDeFinca.includes(String(a.sur_surcos))
                 : true;
             return matchBusqueda && matchEstado && matchSurco && matchTipo && matchSeccion && matchFinca;
+        }).map(a => {
+            const surco = surcos.find(s => s.sur_surco === a.sur_surcos);
+            return {
+                ...a,
+                arb_edad: calcularEdad(a.arb_fecha_siembra),
+                arb_referencia: surco ? `S${surco.sur_numero_surco}-P${a.arb_posicion_surco}` : `P${a.arb_posicion_surco}`,
+                sur_numero: surco?.sur_numero_surco ?? a.sur_surcos,
+                secc_id: surco?.secc_secciones ?? null
+            };
         });
-    }, [arbolesEnriquecidos, busqueda, filtroEstado, filtroSurco, filtroTipo, filtroSeccion, filtroFinca, seccionesFiltradas, surcos]);
+    }, [todosLosArboles, busqueda, filtroEstado, filtroSurco, filtroTipo, filtroSeccion, filtroFinca, surcos, seccionesFiltradas]);
+
+    const hayFiltrosActivos = busqueda || filtroEstado || filtroSurco || filtroTipo || filtroSeccion || filtroFinca;
+
+    const arbolesFiltradosPaginados = useMemo(() => {
+        if (hayFiltrosActivos) {
+            return arbolesFiltradosCompletos.slice((page - 1) * 100, page * 100);
+        }
+        return arbolesEnriquecidos;
+    }, [arbolesFiltradosCompletos, arbolesEnriquecidos, page, hayFiltrosActivos]);
+
+    const finalTotalPages = hayFiltrosActivos
+        ? (Math.ceil(arbolesFiltradosCompletos.length / 100) || 1)
+        : totalPages;
+
+    // KPIs en tiempo real basados en la compilacion ya filtrada
+    const kpiResumen = useMemo(() => {
+        return arbolesFiltradosCompletos.reduce((acc: any, a: any) => {
+            acc.total++;
+            const est = String(a.arb_estado || "Crecimiento").toLowerCase();
+            if (est.includes("producci")) acc.produccion++;
+            else if (est.includes("enferm")) acc.enfermo++;
+            else acc.crecimiento++;
+            return acc;
+        }, { total: 0, produccion: 0, crecimiento: 0, enfermo: 0 });
+    }, [arbolesFiltradosCompletos]);
+
+    // Resetear a página 1 cuando cambian los filtros
+    useEffect(() => {
+        setPage(1);
+    }, [busqueda, filtroEstado, filtroSurco, filtroTipo, filtroSeccion, filtroFinca]);
 
     const abrirCrear = () => {
         setEditando(null);
@@ -237,22 +271,33 @@ export const useAgroArbol = () => {
         try {
             setGuardando(true);
             if (editando) {
-                await updateArbol(editando.arb_arbol, {
+                const newData = {
                     arb_posicion_surco: Number(form.arb_posicion_surco),
                     arb_fecha_siembra: form.arb_fecha_siembra,
                     tipar_tipo_arbol: Number(form.tipar_tipo_arbol),
                     arb_estado: form.arb_estado,
                     sur_surcos: Number(form.sur_surcos)
-                });
+                };
+                await updateArbol(editando.arb_arbol, newData);
+
+                // Actualización en tiempo real manual para el dashboard global
+                setTodosLosArboles(prev => prev.map(a =>
+                    a.arb_arbol === editando.arb_arbol ? { ...a, ...newData } : a
+                ));
                 toast.success("Actualizado");
             } else {
-                await createArbol({
+                const newData = {
                     arb_posicion_surco: Number(form.arb_posicion_surco),
                     arb_fecha_siembra: form.arb_fecha_siembra,
                     tipar_tipo_arbol: Number(form.tipar_tipo_arbol),
                     arb_estado: form.arb_estado,
                     sur_surcos: Number(form.sur_surcos)
-                });
+                };
+                const res = await createArbol(newData);
+
+                if (res && res.arbol) {
+                    setTodosLosArboles(prev => [res.arbol, ...prev]);
+                }
                 toast.success("Creado");
             }
             setModal(false);
@@ -270,6 +315,7 @@ export const useAgroArbol = () => {
                 label: "Desactivar",
                 onClick: async () => {
                     await deleteArbol(a.arb_arbol);
+                    setTodosLosArboles(prev => prev.filter(t => t.arb_arbol !== a.arb_arbol));
                     cargar();
                     toast.success("Árbol desactivado");
                 }
@@ -292,7 +338,7 @@ export const useAgroArbol = () => {
     };
 
     return {
-        arbolesFiltrados,
+        arbolesFiltrados: arbolesFiltradosPaginados,
         kpiResumen,
         loading,
         error,
@@ -301,12 +347,12 @@ export const useAgroArbol = () => {
         filtroSurco, setFiltroSurco,
         filtroSeccion, setFiltroSeccion,
         filtroTipo, setFiltroTipo,
-        filtroFinca, setFiltroFinca, // 👈 NUEVO
+        filtroFinca, setFiltroFinca,
         surcos,
-        surcosFiltrados, // 👈 NUEVO — surcos ya filtrados por finca/sección para los selects
+        surcosFiltrados,
         secciones,
-        seccionesFiltradas, // 👈 NUEVO — secciones ya filtradas por finca para el select
-        fincas, // 👈 NUEVO
+        seccionesFiltradas,
+        fincas,
         tiposArbol,
         modal,
         editando,
@@ -331,6 +377,6 @@ export const useAgroArbol = () => {
         cerrarHistorial: () => setModalHistorial(false),
         page,
         setPage,
-        totalPages
+        totalPages: finalTotalPages
     };
 };

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getSurcos, createSurco, updateSurco, deleteSurco } from "../../api/AgroSurco.api";
 import { getAgroSecciones } from "../../api/AgroSeccion.api";
+import { getAgroFincas } from "../../api/AgroFinca.api";
 import type { Surco, SurcoFormData } from "./agroSurco.types";
 import { SURCO_FORM_INICIAL } from "./agroSurco.types";
 import { toast } from "sonner";
@@ -8,15 +9,20 @@ import { toast } from "sonner";
 type Seccion = {
     secc_seccion: number;
     secc_nombre: string;
+    fin_finca?: number;
 };
 
 export const useAgroSurco = () => {
 
     const [surcos, setSurcos] = useState<Surco[]>([]);
     const [secciones, setSecciones] = useState<Seccion[]>([]);
+    const [fincas, setFincas] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [busqueda, setBusqueda] = useState("");
+
+    const [filtroFinca, setFiltroFinca] = useState("");
+    const [filtroSeccion, setFiltroSeccion] = useState("");
 
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -55,32 +61,50 @@ export const useAgroSurco = () => {
         }
     };
 
+    const cargarFincas = async () => {
+        try {
+            const res = await getAgroFincas();
+            setFincas(res.data?.fincas ?? res.data ?? res);
+        } catch {
+            console.error("Error al cargar fincas");
+        }
+    };
+
     useEffect(() => {
         cargar(page);
         cargarSecciones();
+        cargarFincas();
     }, [page]);
 
     // =============================
     // FILTRO + JOIN CON SECCIONES
     // =============================
 
-    const surcosFiltrados = surcos
-        .filter(s =>
-            String(s.sur_numero_surco ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
-            String(s.sur_orientacion ?? "").toLowerCase().includes(busqueda.toLowerCase())
-        )
-        .map(s => ({
+    const surcosEnriquecidos = surcos.map(s => {
+        const sec = secciones.find(sec => sec.secc_seccion === s.secc_secciones);
+        return {
             ...s,
-            secc_nombre:
-                secciones.find(sec => sec.secc_seccion === s.secc_secciones)?.secc_nombre
-                ?? `ID: ${s.secc_secciones}`
-        }));
+            secc_nombre: sec?.secc_nombre ?? `ID: ${s.secc_secciones}`,
+            fin_finca: sec?.fin_finca
+        };
+    });
+
+    const surcosFiltrados = surcosEnriquecidos.filter(s => {
+        if (filtroFinca && String(s.fin_finca) !== filtroFinca) return false;
+        if (filtroSeccion && String(s.secc_secciones) !== filtroSeccion) return false;
+        if (busqueda && !String(s.sur_numero_surco ?? "").toLowerCase().includes(busqueda.toLowerCase()) && !String(s.sur_orientacion ?? "").toLowerCase().includes(busqueda.toLowerCase())) return false;
+        return true;
+    });
+
+    const seccionesFiltradas = filtroFinca 
+        ? secciones.filter(s => String(s.fin_finca) === filtroFinca)
+        : secciones;
 
     // =============================
     // OPCIONES PARA SELECT
     // =============================
 
-    const opcionesSecciones = secciones.map(s => ({
+    const opcionesSecciones = seccionesFiltradas.map(s => ({
         valor: String(s.secc_seccion),
         label: s.secc_nombre
     }));
@@ -173,6 +197,10 @@ export const useAgroSurco = () => {
         error,
         busqueda,
         setBusqueda,
+        filtroFinca, setFiltroFinca,
+        filtroSeccion, setFiltroSeccion,
+        fincas,
+        seccionesFiltradas,
         modal,
         editando,
         form,

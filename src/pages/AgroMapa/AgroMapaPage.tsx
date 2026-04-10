@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ import type { LatLng } from "leaflet";
 import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMapa.api";
 import type { Finca, ArbolMapa, PuntoPerimetro } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
+import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine } from "lucide-react";
 
 const { BaseLayer } = LayersControl;
 
@@ -96,7 +98,7 @@ const MedidasPoligono = ({ puntos, color = "#4a7c59", cerrar = true }: { puntos:
     if (puntos.length < 2) return null;
     const segmentos = [];
     for (let i = 0; i < puntos.length - 1; i++) {
-        segmentos.push({ p1: puntos[i], p2: puntos[i+1] });
+        segmentos.push({ p1: puntos[i], p2: puntos[i + 1] });
     }
     if (cerrar && puntos.length > 2) {
         segmentos.push({ p1: puntos[puntos.length - 1], p2: puntos[0] });
@@ -105,15 +107,15 @@ const MedidasPoligono = ({ puntos, color = "#4a7c59", cerrar = true }: { puntos:
     return (
         <>
             {segmentos.map((seg, i) => (
-                <CircleMarker 
-                    key={`seg-${i}`} 
-                    center={getMidpoint(seg.p1, seg.p2)} 
-                    radius={0} 
+                <CircleMarker
+                    key={`seg-${i}`}
+                    center={getMidpoint(seg.p1, seg.p2)}
+                    radius={0}
                     pathOptions={{ fillOpacity: 0, stroke: false }}
                 >
                     <Tooltip permanent direction="center" className="distancia-tooltip">
-                        <span style={{ 
-                            fontSize: 10, fontWeight: 800, color: "#fff", 
+                        <span style={{
+                            fontSize: 10, fontWeight: 800, color: "#fff",
                             background: color, padding: "2px 6px", borderRadius: 4,
                             boxShadow: "0 1px 4px rgba(0,0,0,0.3)", border: "1px solid #fff"
                         }}>
@@ -135,6 +137,17 @@ const ControlMapa = ({ activo, onPunto }: { activo: boolean; onPunto: (ll: LatLn
         return () => { map.dragging.enable(); map.getContainer().style.cursor = ""; };
     }, [activo, map]);
     useMapEvents({ click(e) { if (activo) onPunto(e.latlng); } });
+    return null;
+};
+
+// ─── Control Origen ───────────────────────────────────────────
+const ControlOrigen = ({ activo, onPunto }: { activo: boolean; onPunto: (ll: LatLng) => void }) => {
+    useMapEvents({ click(e) { if (activo) onPunto(e.latlng); } });
+    const map = useMap();
+    useEffect(() => {
+        if (activo) { map.getContainer().style.cursor = "crosshair"; }
+        else { map.getContainer().style.cursor = ""; }
+    }, [activo, map]);
     return null;
 };
 
@@ -239,7 +252,6 @@ const AgroMapaPage = () => {
     const [puntosNuevos, setPuntosNuevos] = useState<{ lat: number; lng: number }[]>([]);
     const [arbolesPreview, setArbolesPreview] = useState<ArbolPreview[]>([]);
     const [progreso, setProgreso] = useState(0);
-    const [msgWizard, setMsgWizard] = useState("");
 
     // ── Paso 1: coordenadas ──────────────────────────────────
     const [coordsForm, setCoordsForm] = useState({ lat: "", lng: "" });
@@ -264,7 +276,6 @@ const AgroMapaPage = () => {
         setPaso("idle");
         setPuntosNuevos([]);
         setArbolesPreview([]);
-        setMsgWizard("");
         setProgreso(0);
         setSeccionForm({ secc_nombre: "", secc_tipo_suelo: "Franco" });
         setSeccionSeleccionada(null);
@@ -329,7 +340,6 @@ const AgroMapaPage = () => {
     // ─── Carga secciones y tipos de árbol desde BD ───────────
     const cargarConfiguracion = async (id: number) => {
         setCargandoConfig(true);
-        setMsgWizard("");
         try {
             const { default: api } = await import("../../api/Axios");
             const [resSec, resTipos] = await Promise.all([
@@ -360,7 +370,6 @@ const AgroMapaPage = () => {
     // ─── Confirmar configuración y generar grilla ────────────
     const confirmarConfiguracion = () => {
         if (!seccionSeleccionada || !tipoArbolSeleccionado) return;
-        setMsgWizard("");
         const preview = generarGrilla(
             puntosNuevos,
             espaciadoSeleccionado,
@@ -420,7 +429,6 @@ const AgroMapaPage = () => {
     // ─── Paso 2: Ir a configuración (sin guardar en BD aún) ──
     const irAConfigurar = async () => {
         if (!fincaId || puntosNuevos.length < 3) return;
-        setMsgWizard("");
         try {
             // Ya no guardamos el perímetro aquí para no sobreescribir el de la finca
             // Se guardará al final asociado a la sección elegida
@@ -434,7 +442,6 @@ const AgroMapaPage = () => {
     const crearSeccionYContinuar = async () => {
         if (!fincaId || !seccionForm.secc_nombre.trim()) return;
         setGuardandoSeccion(true);
-        setMsgWizard("");
         try {
             const { default: api } = await import("../../api/Axios");
             await api.post("/agro-seccion", {
@@ -552,7 +559,7 @@ const AgroMapaPage = () => {
                     }
                 }
             },
-            cancel: { label: "Cancelar", onClick: () => {} },
+            cancel: { label: "Cancelar", onClick: () => { } },
             duration: 8000
         });
     };
@@ -656,6 +663,7 @@ const AgroMapaPage = () => {
                         </button>
                     )}
 
+
                     {paso === "idle" && (
                         <button onClick={() => {
                             if (!finca?.fin_latitud_origen) { setPaso("coords"); }
@@ -678,7 +686,7 @@ const AgroMapaPage = () => {
             {paso === "coords" && (
                 <WizardPanel paso={1} totalPasos={4} color="#b45309"
                     titulo="Paso 1 — Configurá el punto de origen de la finca"
-                    descripcion="Ingresá las coordenadas de la esquina noroeste (NW) del terreno. Podés obtenerlas haciendo click derecho en Google Maps.">
+                    descripcion="Hacé click en el mapa inferior para ubicar el origen, o ingresá las coordenadas de la esquina noroeste (NW) del terreno manualmente.">
                     <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
                         <div>
                             <label style={labelStyle}>Latitud</label>
@@ -717,7 +725,7 @@ const AgroMapaPage = () => {
                         </span>
                         {perimetroTotal > 0 && (
                             <span style={{ fontSize: 13, fontWeight: 700, color: "#185FA5", background: "#f0f7ff", padding: "4px 12px", borderRadius: 8 }}>
-                                📏 Perímetro: {perimetroTotal < 1000 ? `${perimetroTotal.toFixed(1)}m` : `${(perimetroTotal/1000).toFixed(2)}km`}
+                                📏 Perímetro: {perimetroTotal < 1000 ? `${perimetroTotal.toFixed(1)}m` : `${(perimetroTotal / 1000).toFixed(2)}km`}
                             </span>
                         )}
                         <button onClick={() => setPuntosNuevos(p => p.slice(0, -1))}
@@ -806,7 +814,7 @@ const AgroMapaPage = () => {
                     </div>
 
                     <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                        <button onClick={() => { setPaso("dibujando"); setMsgWizard(""); }} style={btnSecondary}>
+                        <button onClick={() => { setPaso("dibujando"); }} style={btnSecondary}>
                             ← Redibujar
                         </button>
                         <button
@@ -859,7 +867,7 @@ const AgroMapaPage = () => {
                             </select>
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
-                            <button onClick={() => { setPaso("dibujando"); setMsgWizard(""); }} style={btnSecondary}>
+                            <button onClick={() => { setPaso("dibujando"); }} style={btnSecondary}>
                                 ← Volver
                             </button>
                             <button
@@ -880,24 +888,25 @@ const AgroMapaPage = () => {
                     <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                             {[
-                                { icon: "🌱", label: "Árboles", val: arbolesPreview.length.toLocaleString() },
-                                { icon: "🌾", label: "Surcos", val: String(new Set(arbolesPreview.map(a => a.surco)).size) },
-                                { icon: "📏", label: "Perímetro", val: perimetroTotal < 1000 ? `${perimetroTotal.toFixed(1)}m` : `${(perimetroTotal/1000).toFixed(2)}km` },
-                                { icon: "↔", label: "Espaciado", val: `${espaciadoSeleccionado}m` },
+                                { icon: <Leaf size={22} color="#2d4a2d" strokeWidth={2}/>, label: "Árboles", val: arbolesPreview.length.toLocaleString() },
+                                { icon: <Layers size={22} color="#b45309" strokeWidth={2}/>, label: "Surcos", val: String(new Set(arbolesPreview.map(a => a.surco)).size) },
+                                { icon: <Ruler size={22} color="#185FA5" strokeWidth={2}/>, label: "Perímetro", val: perimetroTotal < 1000 ? `${perimetroTotal.toFixed(1)}m` : `${(perimetroTotal / 1000).toFixed(2)}km` },
+                                { icon: <Expand size={22} color="#4a7c59" strokeWidth={2}/>, label: "Espaciado", val: `${espaciadoSeleccionado}m` },
                                 {
-                                    icon: "🗂️", label: "Sección",
+                                    icon: <FolderTree size={22} color="#7a5a00" strokeWidth={2}/>, label: "Sección",
                                     val: seccionesFinca.find(s => s.secc_seccion === seccionSeleccionada)?.secc_nombre ?? "—"
                                 },
                                 {
-                                    icon: "🌳", label: "Tipo",
+                                    icon: <TreePine size={22} color="#2d6a2d" strokeWidth={2}/>, label: "Tipo",
                                     val: tiposArbol.find(t => t.tipar_tipo_arbol === tipoArbolSeleccionado)?.tipar_nombre_comun ?? "—"
                                 },
                             ].map(item => (
                                 <div key={item.label} style={{
                                     background: "#f0f7f0", borderRadius: 10,
-                                    padding: "8px 14px", textAlign: "center", minWidth: 70,
+                                    padding: "10px 14px", textAlign: "center", minWidth: 70,
+                                    display: "flex", flexDirection: "column", alignItems: "center"
                                 }}>
-                                    <div style={{ fontSize: 16 }}>{item.icon}</div>
+                                    <div style={{ marginBottom: 4 }}>{item.icon}</div>
                                     <div style={{ fontSize: 14, fontWeight: 700, color: "#2d4a2d" }}>{item.val}</div>
                                     <div style={{ fontSize: 10, color: "#7a9a7a" }}>{item.label}</div>
                                 </div>
@@ -982,6 +991,17 @@ const AgroMapaPage = () => {
                         activo={paso === "dibujando"}
                         onPunto={ll => setPuntosNuevos(prev => [...prev, { lat: ll.lat, lng: ll.lng }])}
                     />
+                    <ControlOrigen 
+                        activo={paso === "coords"} 
+                        onPunto={ll => setCoordsForm({ lat: String(ll.lat), lng: String(ll.lng) })} 
+                    />
+                    {paso === "coords" && coordsForm.lat && coordsForm.lng && !isNaN(Number(coordsForm.lat)) && !isNaN(Number(coordsForm.lng)) && (
+                        <Marker position={[Number(coordsForm.lat), Number(coordsForm.lng)]}>
+                            <Tooltip permanent direction="top" offset={[0, -32]}>
+                                <span style={{ fontWeight: "bold", color: "#b45309" }}>Punto de Origen</span>
+                            </Tooltip>
+                        </Marker>
+                    )}
                     <LayersControl position="topright">
                         <BaseLayer checked name="Mapa de calles">
                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -995,12 +1015,12 @@ const AgroMapaPage = () => {
 
                     {renderPoligonos.map(poly => (
                         <Polygon key={`poly-${poly.seccionId}`} positions={poly.puntos}
-                            pathOptions={{ 
-                                color: filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc", 
-                                fillColor: filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc", 
-                                fillOpacity: (filtroSeccion === poly.nombre) ? 0.2 : 0.05, 
+                            pathOptions={{
+                                color: filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc",
+                                fillColor: filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc",
+                                fillOpacity: (filtroSeccion === poly.nombre) ? 0.2 : 0.05,
                                 weight: (filtroSeccion === poly.nombre) ? 3 : 1.5,
-                                dashArray: (filtroSeccion === poly.nombre) ? "0" : "6 4" 
+                                dashArray: (filtroSeccion === poly.nombre) ? "0" : "6 4"
                             }}>
                             <Tooltip sticky>{poly.nombre}</Tooltip>
                             <MedidasPoligono puntos={poly.puntos.map(p => ({ lat: p[0], lng: p[1] }))} color="#4a7c59" />
@@ -1014,9 +1034,9 @@ const AgroMapaPage = () => {
                         </>
                     )}
                     {paso === "dibujando" && puntosNuevos.map((p, i) => (
-                        <Marker 
-                            key={`np-${i}`} 
-                            position={[p.lat, p.lng]} 
+                        <Marker
+                            key={`np-${i}`}
+                            position={[p.lat, p.lng]}
                             draggable={true}
                             icon={vertexIcon(i)}
                             eventHandlers={{
