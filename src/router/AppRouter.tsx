@@ -17,14 +17,15 @@ import AgroSurcoPage from "../pages/AgroSurco/AgroSurcoPage";
 import AgroHistorialPage from "../pages/AgroHistorial/AgroHistorialPage";
 import AgroAuditoriaPage from "../pages/AgroAuditoria/AgroAuditoriaPage";
 import ArbolTimelinePage from "../pages/AgroHistorial/ArbolTimelinePage";
-
+import HomeDashboardPage from "../pages/HomeDashboard/HomeDashboardPage";
+import AgroTrazabilidadPage from "../pages/AgroTrazabilidad/AgroTrazabilidadPage";
 
 const AppRouter = () => {
     return (
         <BrowserRouter>
             <Layout>
                 <Routes>
-                    <Route path="/" element={<h1 style={{ padding: 40, color: "#2d4a2d" }}>Bienvenido a AgroTech 🌱</h1>} />
+                    <Route path="/" element={<HomeDashboardPage />} />
                     <Route path="/agro-roles" element={<AgroRolPage />} />
                     <Route path="/agro-tipo-arbol" element={<AgroTipoArbolPage />} />
                     <Route path="/agro-catalogo-patogeno" element={<AgroCatalogoPatogenoPage />} />
@@ -41,6 +42,8 @@ const AppRouter = () => {
                     <Route path="/agro-historial" element={<AgroHistorialPage />} />
                     <Route path="/agro-auditoria" element={<AgroAuditoriaPage />} />
                     <Route path="/agro-arbol-timeline" element={<ArbolTimelinePage />} />
+                    <Route path="/home-dashboard" element={<HomeDashboardPage />} />
+                    <Route path="/trazabilidad/:id" element={<AgroTrazabilidadPage />} />
                 </Routes>
             </Layout>
         </BrowserRouter>

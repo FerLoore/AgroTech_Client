@@ -3,6 +3,8 @@ import { useAgroArbol } from "./useAgroArbol";
 import CrudTabla from "../../components/CrudTabla";
 import type { ColumnaConfig, CampoFormulario } from "../../components/CrudTabla";
 import { TipoArbol, type ArbolFormData } from "./agroArbol.types";
+import { useNavigate } from "react-router-dom";
+
 
 const CAMPOS = (opcionesTipoArbol: any[], opcionesSecciones: any[], opcionesSurcos: any[]): CampoFormulario[] => [
     { key: "arb_posicion_surco", label: "Posición", tipo: "number", requerido: true },
@@ -48,7 +50,11 @@ const AgroArbolPage = () => {
         filtroSurco, setFiltroSurco,
         filtroSeccion, setFiltroSeccion,
         filtroTipo, setFiltroTipo,
-        surcos, secciones, tiposArbol,
+        filtroFinca, setFiltroFinca,   // 👈 NUEVO
+        fincas,                         // 👈 NUEVO
+        surcosFiltrados,                // 👈 NUEVO
+        seccionesFiltradas,             // 👈 NUEVO
+        tiposArbol,
         modal, editando, form, setForm,
         guardando, formError,
         abrirCrear, abrirEditar,
@@ -70,41 +76,134 @@ const AgroArbolPage = () => {
     ];
 
     const handleSetForm = (nuevoForm: Record<string, unknown>) => {
-    const nuevaSeccion = String(nuevoForm.secc_form ?? "");
-    const seccionActual = String((form as any).secc_form ?? "");
+        const nuevaSeccion = String(nuevoForm.secc_form ?? "");
+        const seccionActual = String((form as any).secc_form ?? "");
 
-    if (nuevaSeccion !== seccionActual) {
-        setSeccionForm(nuevaSeccion);
+        if (nuevaSeccion !== seccionActual) {
+            setSeccionForm(nuevaSeccion);
+            setForm(prev => ({
+                ...prev,
+                ...nuevoForm,
+                sur_surcos: ""
+            } as ArbolFormData));
+            return;
+        }
 
         setForm(prev => ({
             ...prev,
-            ...nuevoForm,
-            sur_surcos: ""
-        } as ArbolFormData)); // 👈 CAST AQUÍ
+            ...nuevoForm
+        } as ArbolFormData));
+    };
 
-        return;
-    }
+    const hayFiltrosActivos = filtroEstado || filtroTipo || filtroSurco || filtroSeccion || filtroFinca;
 
-    setForm(prev => ({
-        ...prev,
-        ...nuevoForm
-    } as ArbolFormData)); // 👈 Y AQUÍ
-};
+    const limpiarFiltros = () => {
+        setFiltroEstado("");
+        setFiltroTipo("");
+        setFiltroSurco("");
+        setFiltroSeccion("");
+        setFiltroFinca("");
+    };
+    const navigate = useNavigate();
 
     return (
         <>
             <div style={{ padding: "32px 32px 0" }}>
                 <div style={{ maxWidth: 960, margin: "0 auto" }}>
 
-                    {/* Filtros */}
+                    {/* Tarjetas resumen */}
+                    <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+                        {[
+                            { label: "Total árboles", value: arbolesFiltrados.length, color: "#2d4a2d", bg: "#f5f0e8", border: "#d4c9b0" },
+                            { label: "En producción", value: arbolesFiltrados.filter(a => a.arb_estado === "Produccion").length, color: "#1a6b3a", bg: "#e8f5ec", border: "#b0d4bc" },
+                            { label: "En crecimiento", value: arbolesFiltrados.filter(a => a.arb_estado === "Crecimiento").length, color: "#7a5a00", bg: "#fdf6e0", border: "#e0d080" },
+                            { label: "Enfermos", value: arbolesFiltrados.filter(a => a.arb_estado === "Enfermo").length, color: "#8b1a1a", bg: "#fdeaea", border: "#e0b0b0" },
+                        ].map(s => (
+                            <div key={s.label} style={{
+                                flex: "1 1 160px", background: s.bg,
+                                border: `1.5px solid ${s.border}`,
+                                borderRadius: 14, padding: "16px 20px"
+                            }}>
+                                <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "#7a9a7a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                    {s.label}
+                                </p>
+                                <p style={{ margin: "6px 0 0", fontSize: 28, fontWeight: 700, color: s.color }}>
+                                    {s.value}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Filtros — orden: Finca → Sección → Surco → Estado → Tipo */}
                     <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-                        <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={selectStyle}>
+
+                        {/* 1. Finca */}
+                        <select
+                            value={filtroFinca}
+                            onChange={e => {
+                                setFiltroFinca(e.target.value);
+                                setFiltroSeccion(""); // reset sección al cambiar finca
+                                setFiltroSurco("");   // reset surco al cambiar finca
+                            }}
+                            style={selectStyle}
+                        >
+                            <option value="">Todas las fincas</option>
+                            {fincas.map(f => (
+                                <option key={f.fin_finca} value={String(f.fin_finca)}>
+                                    {f.fin_nombre}
+                                </option>
+                            ))}
+                        </select>
+
+                        {/* 2. Sección — muestra solo las de la finca seleccionada */}
+                        <select
+                            value={filtroSeccion}
+                            onChange={e => {
+                                setFiltroSeccion(e.target.value);
+                                setFiltroSurco(""); // reset surco al cambiar sección
+                            }}
+                            style={selectStyle}
+                        >
+                            <option value="">Todas las secciones</option>
+                            {seccionesFiltradas.map(s => (
+                                <option key={s.secc_seccion} value={String(s.secc_seccion)}>
+                                    {s.secc_nombre}
+                                </option>
+                            ))}
+                        </select>
+
+                        {/* 3. Surco — muestra solo los de la sección/finca seleccionada */}
+                        <select
+                            value={filtroSurco}
+                            onChange={e => setFiltroSurco(e.target.value)}
+                            style={selectStyle}
+                        >
+                            <option value="">Todos los surcos</option>
+                            {surcosFiltrados.map(s => (
+                                <option key={s.sur_surco} value={String(s.sur_surco)}>
+                                    Surco {s.sur_numero_surco}
+                                </option>
+                            ))}
+                        </select>
+
+                        {/* 4. Estado */}
+                        <select
+                            value={filtroEstado}
+                            onChange={e => setFiltroEstado(e.target.value)}
+                            style={selectStyle}
+                        >
                             <option value="">Todos los estados</option>
                             {Object.entries(TipoArbol).map(([k, v]) => (
                                 <option key={k} value={k}>{v.label}</option>
                             ))}
                         </select>
-                        <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} style={selectStyle}>
+
+                        {/* 5. Tipo */}
+                        <select
+                            value={filtroTipo}
+                            onChange={e => setFiltroTipo(e.target.value)}
+                            style={selectStyle}
+                        >
                             <option value="">Todos los tipos</option>
                             {tiposArbol.map(t => (
                                 <option key={t.tipar_tipo_arbol} value={String(t.tipar_tipo_arbol)}>
@@ -112,30 +211,11 @@ const AgroArbolPage = () => {
                                 </option>
                             ))}
                         </select>
-                        <select value={filtroSurco} onChange={e => setFiltroSurco(e.target.value)} style={selectStyle}>
-                            <option value="">Todos los surcos</option>
-                            {surcos.map(s => (
-                                <option key={s.sur_surco} value={String(s.sur_surco)}>
-                                    Surco {s.sur_numero_surco}
-                                </option>
-                            ))}
-                        </select>
-                        <select value={filtroSeccion} onChange={e => setFiltroSeccion(e.target.value)} style={selectStyle}>
-                            <option value="">Todas las secciones</option>
-                            {secciones.map(s => (
-                                <option key={s.secc_seccion} value={String(s.secc_secciones ?? s.secc_seccion)}>
-                                    {s.secc_nombre}
-                                </option>
-                            ))}
-                        </select>
-                        {(filtroEstado || filtroTipo || filtroSurco || filtroSeccion) && (
+
+                        {/* Limpiar — solo aparece si hay algún filtro activo */}
+                        {hayFiltrosActivos && (
                             <button
-                                onClick={() => {
-                                    setFiltroEstado("");
-                                    setFiltroTipo("");
-                                    setFiltroSurco("");
-                                    setFiltroSeccion("");
-                                }}
+                                onClick={limpiarFiltros}
                                 style={{
                                     padding: "9px 14px", fontSize: 12, cursor: "pointer",
                                     background: "#fde8e0", color: "#a03020",
@@ -173,6 +253,7 @@ const AgroArbolPage = () => {
                 onGuardar={handleGuardar}
                 onCerrar={cerrarModal}
                 onHistorial={abrirHistorial}
+                onTrazabilidad={(arbol) => navigate(`/trazabilidad/${arbol.arb_arbol}`)}
             />
 
             {/* Modal historial */}

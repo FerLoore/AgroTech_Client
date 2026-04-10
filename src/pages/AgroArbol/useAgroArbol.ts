@@ -6,10 +6,10 @@ import { getTipoArboles } from "../../api/AgroTipoArbol.api";
 import { getHistorialByArbol } from "../../api/AgroHistorial.api";
 import { getSurcos } from "../../api/AgroSurco.api";
 import { getAgroSecciones } from "../../api/AgroSeccion.api";
+import { getAgroFincas } from "../../api/AgroFinca.api"; // 👈 NUEVO
 import type { Historial } from "../AgroHistorial/agroHistorial.types";
 import { toast } from "sonner";
 
-// Calcula edad en años desde fecha de siembra
 const calcularEdad = (fecha: string): number => {
     return Math.floor(
         (Date.now() - new Date(fecha).getTime()) / (365.25 * 24 * 3600 * 1000)
@@ -26,6 +26,7 @@ export const useAgroArbol = () => {
     const [filtroSurco, setFiltroSurco] = useState("");
     const [filtroSeccion, setFiltroSeccion] = useState("");
     const [filtroTipo, setFiltroTipo] = useState("");
+    const [filtroFinca, setFiltroFinca] = useState(""); // 👈 NUEVO
     const [seccionForm, setSeccionForm] = useState("");
 
     const [modal, setModal] = useState(false);
@@ -40,6 +41,7 @@ export const useAgroArbol = () => {
     const [tiposArbol, setTiposArbol] = useState<any[]>([]);
     const [surcos, setSurcos] = useState<any[]>([]);
     const [secciones, setSecciones] = useState<any[]>([]);
+    const [fincas, setFincas] = useState<any[]>([]); // 👈 NUEVO
 
     const formatFecha = (fecha: string) => {
         try { return new Date(fecha).toISOString().split("T")[0]; }
@@ -63,14 +65,16 @@ export const useAgroArbol = () => {
         const init = async () => {
             await cargar();
             try {
-                const [tipos, surcoData, seccionData] = await Promise.all([
+                const [tipos, surcoData, seccionData, fincaData] = await Promise.all([
                     getTipoArboles(),
                     getSurcos(),
-                    getAgroSecciones().then(r => r.data.secciones ?? r.data)
+                    getAgroSecciones().then(r => r.data.secciones ?? r.data),
+                    getAgroFincas().then(r => r.data.fincas ?? r.data) // 👈 NUEVO
                 ]);
                 setTiposArbol(tipos);
                 setSurcos(surcoData);
                 setSecciones(seccionData);
+                setFincas(fincaData); // 👈 NUEVO
             } catch {
                 console.error("Error cargando catálogos");
             }
@@ -102,7 +106,6 @@ export const useAgroArbol = () => {
         }, {} as Record<number, { label: string; bg: string; text: string }>);
     }, [tiposArbol]);
 
-    // Enriquecer árboles con edad y referencia
     const arbolesEnriquecidos = useMemo(() => {
         return arboles.map(a => {
             const surco = surcos.find(s => s.sur_surco === a.sur_surcos);
@@ -121,11 +124,21 @@ export const useAgroArbol = () => {
 
     const surcosPorSeccion = useMemo(() => {
         if (!seccionForm) return surcos;
-
-        return surcos.filter(
-            s => String(s.secc_secciones) === seccionForm
-        );
+        return surcos.filter(s => String(s.secc_secciones) === seccionForm);
     }, [surcos, seccionForm]);
+
+    // Secciones filtradas según finca seleccionada en los filtros
+    const seccionesFiltradas = useMemo(() => {
+        if (!filtroFinca) return secciones;
+        return secciones.filter(s => String(s.fin_finca) === filtroFinca);
+    }, [secciones, filtroFinca]);
+
+    // Surcos filtrados según sección filtrada
+    const surcosFiltrados = useMemo(() => {
+        if (!filtroFinca && !filtroSeccion) return surcos;
+        const seccionIds = seccionesFiltradas.map(s => String(s.secc_seccion));
+        return surcos.filter(s => seccionIds.includes(String(s.secc_secciones)));
+    }, [surcos, seccionesFiltradas, filtroFinca, filtroSeccion]);
 
     const opcionesSecciones = secciones.map(s => ({
         valor: String(s.secc_seccion),
@@ -137,8 +150,20 @@ export const useAgroArbol = () => {
         label: `Surco ${s.sur_numero_surco}`
     }));
 
-    // Filtros combinados
+    // Filtros combinados incluyendo finca
     const arbolesFiltrados = useMemo(() => {
+        // IDs de secciones que pertenecen a la finca seleccionada
+        const seccionIdsDeFinca = filtroFinca
+            ? seccionesFiltradas.map(s => String(s.secc_seccion))
+            : null;
+
+        // IDs de surcos que pertenecen a esas secciones
+        const surcoIdsDeFinca = seccionIdsDeFinca
+            ? surcos
+                .filter(s => seccionIdsDeFinca.includes(String(s.secc_secciones)))
+                .map(s => String(s.sur_surco))
+            : null;
+
         return arbolesEnriquecidos.filter(a => {
             const matchBusqueda = busqueda
                 ? String(a.arb_referencia).toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -149,9 +174,12 @@ export const useAgroArbol = () => {
             const matchSurco = filtroSurco ? String(a.sur_surcos) === filtroSurco : true;
             const matchTipo = filtroTipo ? String(a.tipar_tipo_arbol) === filtroTipo : true;
             const matchSeccion = filtroSeccion ? String(a.secc_id) === filtroSeccion : true;
-            return matchBusqueda && matchEstado && matchSurco && matchTipo && matchSeccion;
+            const matchFinca = surcoIdsDeFinca
+                ? surcoIdsDeFinca.includes(String(a.sur_surcos))
+                : true;
+            return matchBusqueda && matchEstado && matchSurco && matchTipo && matchSeccion && matchFinca;
         });
-    }, [arbolesEnriquecidos, busqueda, filtroEstado, filtroSurco, filtroTipo, filtroSeccion]);
+    }, [arbolesEnriquecidos, busqueda, filtroEstado, filtroSurco, filtroTipo, filtroSeccion, filtroFinca, seccionesFiltradas, surcos]);
 
     const abrirCrear = () => {
         setEditando(null);
@@ -239,19 +267,21 @@ export const useAgroArbol = () => {
         arbolesFiltrados,
         loading,
         error,
-        busqueda,
-        setBusqueda,
+        busqueda, setBusqueda,
         filtroEstado, setFiltroEstado,
         filtroSurco, setFiltroSurco,
         filtroSeccion, setFiltroSeccion,
         filtroTipo, setFiltroTipo,
+        filtroFinca, setFiltroFinca, // 👈 NUEVO
         surcos,
+        surcosFiltrados, // 👈 NUEVO — surcos ya filtrados por finca/sección para los selects
         secciones,
+        seccionesFiltradas, // 👈 NUEVO — secciones ya filtradas por finca para el select
+        fincas, // 👈 NUEVO
         tiposArbol,
         modal,
         editando,
-        form,
-        setForm,
+        form, setForm,
         guardando,
         formError,
         abrirCrear,
@@ -262,8 +292,7 @@ export const useAgroArbol = () => {
         opcionesTipoArbol,
         opcionesSecciones,
         opcionesSurcos,
-        seccionForm,
-        setSeccionForm,
+        seccionForm, setSeccionForm,
         TIPOS_ARBOL_DINAMICO,
         modalHistorial,
         historialArbol,

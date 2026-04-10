@@ -15,7 +15,7 @@
 // ============================================================
 
 import { useState } from "react";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, GitBranch } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 // ============================================================
@@ -98,7 +98,8 @@ interface CrudTablaProps<T extends Record<string, unknown>> {
     onEliminar?: (item: T) => void;  // click en botón "Desactivar" de una fila
     onGuardar?: () => void;         // click en botón "Guardar/Actualizar" del modal
     onCerrar?: () => void;         // click en "Cancelar" o fuera del modal
-    onHistorial?: (item: T) => void;          // click en botón "Historial" de una fila
+    onHistorial?: (item: T) => void;
+    onTrazabilidad?: (item: T) => void;        // click en botón "Historial" de una fila
     labelEliminar?: string;
     // "Desactivar" por defecto, "Eliminar" para borrado físico
 }
@@ -122,7 +123,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
     loading, error,
     busqueda, setBusqueda,
     modal, editando, form, setForm, guardando, formError,
-    onNuevo, onEditar, onEliminar, onGuardar, onCerrar, onHistorial, labelEliminar = "Desactivar",
+    onNuevo, onEditar, onEliminar, onGuardar, onCerrar, onHistorial, onTrazabilidad, labelEliminar = "Desactivar",
 }: CrudTablaProps<T>) => {
 
     // Estado local — solo afecta el hover visual de las filas
@@ -319,6 +320,19 @@ const CrudTabla = <T extends Record<string, unknown>>({
                                                         display: "flex", alignItems: "center", gap: 5
                                                     }}>
                                                         <Trash2 size={12} /> {labelEliminar}
+                                                    </button>
+                                                )}
+                                                {onTrazabilidad && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onTrazabilidad(item); }}
+                                                        title="Ver trazabilidad"
+                                                        style={{
+                                                            background: "#e0f0ff", color: "#1d4ed8", border: "none",
+                                                            padding: "6px 8px", borderRadius: 8,
+                                                            cursor: "pointer", display: "flex", alignItems: "center"
+                                                        }}
+                                                    >
+                                                        <GitBranch size={13} />
                                                     </button>
                                                 )}
 

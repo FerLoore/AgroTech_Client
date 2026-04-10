@@ -70,7 +70,7 @@ const Layout = ({ children }: LayoutProps) => {
         <div style={{ display: "flex", minHeight: "100vh", background: "#f5f0e8" }}>
 
             <aside style={{
-                width: sw, minHeight: "100vh", background: "#2d4a2d",
+                width: sw, height: "100dvh", background: "#2d4a2d",
                 display: "flex", flexDirection: "column",
                 transition: "width 0.22s ease", overflow: "hidden",
                 position: "fixed", top: 0, left: 0, zIndex: 100,
@@ -78,12 +78,14 @@ const Layout = ({ children }: LayoutProps) => {
             }}>
 
                 {/* Logo */}
-                <div style={{
-                    height: NAVBAR_H, display: "flex", alignItems: "center",
-                    padding: collapsed ? "0 14px" : "0 18px", gap: 10,
-                    borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0,
-                    background: "#f5f0e8"
-                }}>
+                <div
+                    onClick={() => navigate("/")}
+                    style={{
+                        height: NAVBAR_H, display: "flex", alignItems: "center",
+                        padding: collapsed ? "0 14px" : "0 18px", gap: 10,
+                        borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0,
+                        background: "#f5f0e8", cursor: "pointer"
+                    }}>
                     <img src={logo} alt="AgroTech"
                         style={{ width: 34, height: 34, objectFit: "contain", flexShrink: 0 }} />
                     {!collapsed && (
@@ -94,7 +96,12 @@ const Layout = ({ children }: LayoutProps) => {
                 </div>
 
                 {/* Nav */}
-                <nav style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+                <nav className="hide-scroll" style={{ flex: 1, overflowY: "auto", padding: "8px 0", scrollbarWidth: "none", msOverflowStyle: "none" }}>
+                    <style>{`
+                        .hide-scroll::-webkit-scrollbar {
+                            display: none;
+                        }
+                    `}</style>
                     {MENU.map(grupo => (
                         <div key={grupo.grupo} style={{ marginBottom: 4 }}>
                             {!collapsed && (

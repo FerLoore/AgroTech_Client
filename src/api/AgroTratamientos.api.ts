@@ -6,6 +6,12 @@ export const getTratamientos = async () => {
     return res.data;
 };
 
+// GET por árbol
+export const getTratamientosByArbol = async (id: number) => {
+    const res = await api.get(`/agro-tratamientos/arbol/${id}`);
+    return res.data;
+};
+
 // POST
 export const createTratamiento = async (data: {
     trata_fecha_inicio: string;
