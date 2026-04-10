@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import L from "leaflet";
 import {
-    MapContainer, TileLayer, CircleMarker, Polygon,
+    MapContainer, TileLayer, CircleMarker, Polygon, Marker,
     Popup, Circle, Tooltip, LayersControl, useMapEvents, useMap,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -73,6 +74,57 @@ function generarGrilla(poly: { lat: number; lng: number }[], espaciado = 2, latO
     }
     return arboles;
 }
+
+// ─── Utilidades Geográficas ──────────────────────────────────
+const vertexIcon = (index: number) => L.divIcon({
+    html: `<div style="background:#185FA5; color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; border:2px solid #fff; font-size:11px; font-weight:800; box-shadow:0 2px 6px rgba(0,0,0,0.3)">${index + 1}</div>`,
+    className: '',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11]
+});
+
+function getDistancia(p1: { lat: number; lng: number }, p2: { lat: number; lng: number }): string {
+    const d = L.latLng(p1.lat, p1.lng).distanceTo(L.latLng(p2.lat, p2.lng));
+    return d < 1000 ? `${d.toFixed(1)}m` : `${(d / 1000).toFixed(2)}km`;
+}
+
+function getMidpoint(p1: { lat: number; lng: number }, p2: { lat: number; lng: number }): [number, number] {
+    return [(p1.lat + p2.lat) / 2, (p1.lng + p2.lng) / 2];
+}
+
+const MedidasPoligono = ({ puntos, color = "#4a7c59", cerrar = true }: { puntos: { lat: number; lng: number }[], color?: string, cerrar?: boolean }) => {
+    if (puntos.length < 2) return null;
+    const segmentos = [];
+    for (let i = 0; i < puntos.length - 1; i++) {
+        segmentos.push({ p1: puntos[i], p2: puntos[i+1] });
+    }
+    if (cerrar && puntos.length > 2) {
+        segmentos.push({ p1: puntos[puntos.length - 1], p2: puntos[0] });
+    }
+
+    return (
+        <>
+            {segmentos.map((seg, i) => (
+                <CircleMarker 
+                    key={`seg-${i}`} 
+                    center={getMidpoint(seg.p1, seg.p2)} 
+                    radius={0} 
+                    pathOptions={{ fillOpacity: 0, stroke: false }}
+                >
+                    <Tooltip permanent direction="center" className="distancia-tooltip">
+                        <span style={{ 
+                            fontSize: 10, fontWeight: 800, color: "#fff", 
+                            background: color, padding: "2px 6px", borderRadius: 4,
+                            boxShadow: "0 1px 4px rgba(0,0,0,0.3)", border: "1px solid #fff"
+                        }}>
+                            {getDistancia(seg.p1, seg.p2)}
+                        </span>
+                    </Tooltip>
+                </CircleMarker>
+            ))}
+        </>
+    );
+};
 
 // ─── Control crosshair ───────────────────────────────────────
 const ControlMapa = ({ activo, onPunto }: { activo: boolean; onPunto: (ll: LatLng) => void }) => {
@@ -543,6 +595,18 @@ const AgroMapaPage = () => {
 
     const estaEnWizard = paso !== "idle" && paso !== "listo";
 
+    const perimetroTotal = useMemo(() => {
+        if (puntosNuevos.length < 2) return 0;
+        let sum = 0;
+        for (let i = 0; i < puntosNuevos.length - 1; i++) {
+            sum += L.latLng(puntosNuevos[i]).distanceTo(L.latLng(puntosNuevos[i + 1]));
+        }
+        if (puntosNuevos.length > 2) {
+            sum += L.latLng(puntosNuevos[puntosNuevos.length - 1]).distanceTo(L.latLng(puntosNuevos[0]));
+        }
+        return sum;
+    }, [puntosNuevos]);
+
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 24, gap: 12 }}>
 
@@ -651,6 +715,11 @@ const AgroMapaPage = () => {
                             {puntosNuevos.length} punto{puntosNuevos.length !== 1 ? "s" : ""}
                             {puntosNuevos.length < 3 ? " (mínimo 3)" : " ✓"}
                         </span>
+                        {perimetroTotal > 0 && (
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#185FA5", background: "#f0f7ff", padding: "4px 12px", borderRadius: 8 }}>
+                                📏 Perímetro: {perimetroTotal < 1000 ? `${perimetroTotal.toFixed(1)}m` : `${(perimetroTotal/1000).toFixed(2)}km`}
+                            </span>
+                        )}
                         <button onClick={() => setPuntosNuevos(p => p.slice(0, -1))}
                             disabled={puntosNuevos.length === 0}
                             style={{ ...btnSecondary, opacity: puntosNuevos.length === 0 ? 0.4 : 1 }}>
@@ -813,7 +882,8 @@ const AgroMapaPage = () => {
                             {[
                                 { icon: "🌱", label: "Árboles", val: arbolesPreview.length.toLocaleString() },
                                 { icon: "🌾", label: "Surcos", val: String(new Set(arbolesPreview.map(a => a.surco)).size) },
-                                { icon: "📏", label: "Espaciado", val: `${espaciadoSeleccionado}m` },
+                                { icon: "📏", label: "Perímetro", val: perimetroTotal < 1000 ? `${perimetroTotal.toFixed(1)}m` : `${(perimetroTotal/1000).toFixed(2)}km` },
+                                { icon: "↔", label: "Espaciado", val: `${espaciadoSeleccionado}m` },
                                 {
                                     icon: "🗂️", label: "Sección",
                                     val: seccionesFinca.find(s => s.secc_seccion === seccionSeleccionada)?.secc_nombre ?? "—"
@@ -933,19 +1003,33 @@ const AgroMapaPage = () => {
                                 dashArray: (filtroSeccion === poly.nombre) ? "0" : "6 4" 
                             }}>
                             <Tooltip sticky>{poly.nombre}</Tooltip>
+                            <MedidasPoligono puntos={poly.puntos.map(p => ({ lat: p[0], lng: p[1] }))} color="#4a7c59" />
                         </Polygon>
                     ))}
                     {paso === "dibujando" && poligonoEnDibujo.length >= 2 && (
-                        <Polygon positions={poligonoEnDibujo}
-                            pathOptions={{ color: "#185FA5", fillColor: "#185FA5", fillOpacity: 0.10, weight: 2, dashArray: "4 3" }} />
+                        <>
+                            <Polygon positions={poligonoEnDibujo}
+                                pathOptions={{ color: "#185FA5", fillColor: "#185FA5", fillOpacity: 0.10, weight: 2, dashArray: "4 3" }} />
+                            <MedidasPoligono puntos={puntosNuevos} color="#185FA5" />
+                        </>
                     )}
                     {paso === "dibujando" && puntosNuevos.map((p, i) => (
-                        <CircleMarker key={`np-${i}`} center={[p.lat, p.lng]} radius={7}
-                            pathOptions={{ fillColor: "#185FA5", color: "#fff", fillOpacity: 1, weight: 2 }}>
-                            <Tooltip permanent direction="top" offset={[0, -8]}>
-                                <span style={{ fontSize: 11, fontWeight: 700 }}>{i + 1}</span>
-                            </Tooltip>
-                        </CircleMarker>
+                        <Marker 
+                            key={`np-${i}`} 
+                            position={[p.lat, p.lng]} 
+                            draggable={true}
+                            icon={vertexIcon(i)}
+                            eventHandlers={{
+                                drag: (e) => {
+                                    const { lat, lng } = e.target.getLatLng();
+                                    setPuntosNuevos(prev => {
+                                        const copy = [...prev];
+                                        copy[i] = { lat, lng };
+                                        return copy;
+                                    });
+                                }
+                            }}
+                        />
                     ))}
                     {arbolesPreview.map((a, i) => (
                         <CircleMarker key={`prev-${i}`} center={[a.lat, a.lng]} radius={4}
