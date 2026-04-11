@@ -17,6 +17,22 @@ import "./TrackingCalendar.css";
 
 const WEEKDAYS = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
 
+// Helpers para manejo seguro de fechas (evita desfase de zona horaria)
+const stringToLocalDate = (dateStr: string) => {
+    if (!dateStr) return null;
+    const [year, month, day] = dateStr.split("-").map(Number);
+    // Usamos el mediodía (12:00) para evitar que cambios de horario (DST) muevan la fecha
+    return new Date(year, month - 1, day, 12, 0, 0);
+};
+
+const localDateToString = (date: Date) => {
+    if (!date) return "";
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+};
+
 const AgroTratamientoTracking = () => {
     // Selección
     const [fincas, setFincas] = useState<any[]>([]);
@@ -56,7 +72,7 @@ const AgroTratamientoTracking = () => {
         dosis: "",
         unidad: "ml",
         num_aplicaciones: 1,
-        fecha_inicio: new Date().toISOString().split("T")[0],
+        fecha_inicio: localDateToString(new Date()),
         fecha_fin: "",
         notas: ""
     });
@@ -80,7 +96,7 @@ const AgroTratamientoTracking = () => {
         dosis: "",
         unidad: "ml",
         num_aplicaciones: 1,
-        fecha_inicio: new Date().toISOString().split("T")[0],
+        fecha_inicio: localDateToString(new Date()),
         fecha_fin: "",
         notas: ""
     };
@@ -256,9 +272,8 @@ const AgroTratamientoTracking = () => {
                                 // Seleccionar el día para que los detalles se vean
                                 const fecha = anas.analab_fecha_resultado || anas.analab_fecha_envio;
                                 if (fecha) {
-                                    const dateObj = new Date(fecha);
-                                    dateObj.setHours(12, 0, 0, 0); // Evitar desfase
-                                    setSelectedDay(dateObj);
+                                    const dateObj = stringToLocalDate(fecha);
+                                    if (dateObj) setSelectedDay(dateObj);
                                 }
                                 
                                 // Iniciar flujo de receta (Paso 2 si ya es positivo)
@@ -290,12 +305,13 @@ const AgroTratamientoTracking = () => {
     const aplicacionesProyectadas = useMemo(() => {
         if (!recipeForm.fecha_inicio || recipeStep !== 2) return [];
 
-        const start = new Date(recipeForm.fecha_inicio + "T12:00:00");
-        const dates = [start.toISOString().split("T")[0]];
+        const start = stringToLocalDate(recipeForm.fecha_inicio);
+        if (!start) return [];
+        const dates = [localDateToString(start)];
         
         if (recipeForm.frecuencia === "una vez") return dates;
 
-        const end = recipeForm.fecha_fin ? new Date(recipeForm.fecha_fin + "T12:00:00") : null;
+        const end = recipeForm.fecha_fin ? stringToLocalDate(recipeForm.fecha_fin) : null;
         if (!end) return dates;
 
         let interval = 0;
@@ -314,7 +330,7 @@ const AgroTratamientoTracking = () => {
         while (true) {
             current.setDate(current.getDate() + interval);
             if (current > end) break;
-            dates.push(current.toISOString().split("T")[0]);
+            dates.push(localDateToString(current));
             if (dates.length > 100) break; // Límite
         }
 
@@ -364,6 +380,7 @@ const AgroTratamientoTracking = () => {
         const startOffset = firstDayOfMonth(currentDate);
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
+        const hoyStr = localDateToString(new Date());
 
         const cells = [];
         // Celdas vacías al inicio
@@ -373,6 +390,8 @@ const AgroTratamientoTracking = () => {
         // Días del mes
         for (let d = 1; d <= totalDays; d++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+            const isToday = dateStr === hoyStr;
+            const cellDate = new Date(year, month, d, 12, 0, 0);
 
             // Buscar eventos
             const dayEvents = [];
@@ -428,9 +447,10 @@ const AgroTratamientoTracking = () => {
 
             cells.push({
                 day: d,
-                date: new Date(year, month, d),
+                date: cellDate,
                 events: dayEvents,
-                isClosingDay
+                isClosingDay,
+                isToday
             });
         }
         return cells;
@@ -605,8 +625,8 @@ const AgroTratamientoTracking = () => {
             );
         }
 
-        const dateStr = selectedDay.toISOString().split("T")[0];
-        const dayCell = monthData.find(c => c.day && c.date?.toISOString().split("T")[0] === dateStr);
+        const dateStr = localDateToString(selectedDay);
+        const dayCell = monthData.find(c => c.day && c.date && localDateToString(c.date) === dateStr);
         const events = dayCell?.events || [];
         const isClosingDate = dayCell?.isClosingDay;
 
@@ -630,11 +650,31 @@ const AgroTratamientoTracking = () => {
                                             <Info size={16} color="#d97706" />}
                                     <span style={{ fontWeight: 600, fontSize: "14px" }}>{ev.label}</span>
                                 </div>
-                                <p style={{ fontSize: "13px", color: "#4b5563", marginTop: "4px" }}>
-                                    {ev.type === "pending" && `ID: ${ev.data.trata_tratamientos} - ${ev.data.trata_estado}`}
+                                <div style={{ fontSize: "13px", color: "#4b5563", marginTop: "4px" }}>
+                                    {ev.type === "pending" && (
+                                        <>
+                                            <div style={{ fontWeight: 600, color: "#92400e", marginBottom: "4px" }}>
+                                                ID: {ev.data.trata_tratamientos} - {ev.data.trata_estado}
+                                            </div>
+                                            {(() => {
+                                                const prod = productos.find(p => String(p.produ_producto) === String(ev.data.produ_producto));
+                                                return (
+                                                    <div style={{ background: "rgba(255,255,255,0.5)", padding: "6px", borderRadius: "4px", border: "1px solid #fef3c7" }}>
+                                                        <p style={{ margin: "2px 0" }}><strong>Producto:</strong> {prod?.produ_nombre || "---"}</p>
+                                                        <p style={{ margin: "2px 0" }}><strong>Dosis:</strong> {ev.data.trata_dosis}</p>
+                                                        {ev.data.trata_observaciones && (
+                                                            <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "#6b7280", fontStyle: "italic", lineHeight: "1.3" }}>
+                                                                {ev.data.trata_observaciones.replace("RECETA GENERADA: ", "")}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
+                                        </>
+                                    )}
                                     {ev.type === "critical" && `ID: ${ev.data.alertsalud_id} - ${ev.data.descripcion_sintoma || "Alerta detectada"}`}
                                     {ev.type === "revision" && `${ev.data.analab_laboratorio_nombre} - ${ev.data.analab_resultado_tipo || "Pendiente"}`}
-                                </p>
+                                </div>
                                 {ev.type === "revision" && (
                                     (() => {
                                         // Verificar si ya existe un tratamiento para esta alerta
@@ -696,10 +736,10 @@ const AgroTratamientoTracking = () => {
                                         onChange={e => setDictamenForm({ ...dictamenForm, estado: e.target.value })}
                                     >
                                         <option value="">Seleccione...</option>
-                                        <option value="Sigue enfermo">Sigue enfermo</option>
-                                        <option value="En observación">En observación</option>
-                                        <option value="Pasa a crecimiento">Pasa a crecimiento</option>
-                                        <option value="Pasa a producción">Pasa a producción</option>
+                                        <option value="Crecimiento">Crecimiento</option>
+                                        <option value="Produccion">Producción</option>
+                                        <option value="Enfermo">Enfermo</option>
+                                        <option value="Muerto">Muerto</option>
                                     </select>
                                 </div>
                                 <div className="form-group">
@@ -965,12 +1005,17 @@ const AgroTratamientoTracking = () => {
                                 {monthData.map((cell, idx) => (
                                     <div
                                         key={idx}
-                                        className={`calendar-day ${!cell.day ? "empty" : ""} ${cell.isClosingDay ? "closing-day" : ""} ${selectedDay && cell.date && selectedDay.getTime() === cell.date.getTime() ? "selected" : ""} ${cell.date && recipeForm.fecha_inicio && recipeForm.fecha_fin && cell.date.toISOString().split("T")[0] >= recipeForm.fecha_inicio && cell.date.toISOString().split("T")[0] <= recipeForm.fecha_fin ? "projected" : ""} ${cell.date && aplicacionesProyectadas.includes(cell.date.toISOString().split("T")[0]) ? "is-application" : ""}`}
+                                        className={`calendar-day ${!cell.day ? "empty" : ""} ${cell.isClosingDay ? "closing-day" : ""} ${selectedDay && cell.date && localDateToString(selectedDay) === localDateToString(cell.date) ? "selected" : ""} ${cell.date && recipeForm.fecha_inicio && recipeForm.fecha_fin && localDateToString(cell.date) >= recipeForm.fecha_inicio && localDateToString(cell.date) <= recipeForm.fecha_fin ? "projected" : ""} ${cell.date && aplicacionesProyectadas.includes(localDateToString(cell.date)) ? "is-application" : ""} ${cell.isToday ? "today" : ""}`}
                                         onClick={() => cell.date && setSelectedDay(cell.date)}
                                     >
                                         {cell.day && (
                                             <>
-                                                <span className="day-number">{cell.day}</span>
+                                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                                    <span className="day-number">{cell.day}</span>
+                                                    {cell.isToday && (
+                                                        <span className="today-badge">HOY</span>
+                                                    )}
+                                                </div>
                                                 <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px" }}>
                                                     {cell.events.map((ev, i) => (
                                                         <div key={i} className={`pill pill-${ev.type}`} title={ev.label}>
