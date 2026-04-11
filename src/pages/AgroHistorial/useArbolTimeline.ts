@@ -17,6 +17,9 @@ import { getArboles } from "../../api/AgroArbol.api";
 import { getAlertas } from "../../api/AgroAlertaSalud.api";
 import { getAnalisisLaboratorio } from "../../api/agroAnalisisLaboratorio.api";
 import { getHistorialByArbol } from "../../api/AgroHistorial.api";
+import { getSurcos } from "../../api/AgroSurco.api";
+import { getAgroSecciones } from "../../api/AgroSeccion.api";
+import { getAgroFincas } from "../../api/AgroFinca.api";
 
 // ── Tipos ────────────────────────────────────────────────────
 
@@ -62,6 +65,9 @@ export const useArbolTimeline = () => {
 
     const location = useLocation();
     const [arboles,      setArboles]      = useState<any[]>([]);
+    const [surcos,       setSurcos]       = useState<any[]>([]);
+    const [secciones,    setSecciones]    = useState<any[]>([]);
+    const [fincas,       setFincas]       = useState<any[]>([]);
     const [arbolId,      setArbolId]      = useState<string>(location.state?.arbolId ?? "");
     const [eventos,      setEventos]      = useState<EventoTimeline[]>([]);
     const [loadingInit,  setLoadingInit]  = useState(true);
@@ -70,8 +76,13 @@ export const useArbolTimeline = () => {
 
     // ── Cargar lista de árboles al montar ─────────────────────
     useEffect(() => {
-        getArboles()
-            .then(data => setArboles(Array.isArray(data) ? data : (data?.arboles || [])))
+        Promise.all([getArboles(), getSurcos(), getAgroSecciones(), getAgroFincas()])
+            .then(([arbolesData, surcosData, seccionesResp, fincasResp]) => {
+                setArboles(Array.isArray(arbolesData) ? arbolesData : (arbolesData?.arboles || []));
+                setSurcos(Array.isArray(surcosData) ? surcosData : (surcosData?.surcos || []));
+                setSecciones(seccionesResp.data.secciones || []);
+                setFincas(fincasResp.data.fincas || []);
+            })
             .catch(() => setError("Error al cargar los árboles"))
             .finally(() => setLoadingInit(false));
     }, []);
@@ -179,10 +190,16 @@ export const useArbolTimeline = () => {
     }, [arbolId, arboles]);
 
     // ── Opciones del select ───────────────────────────────────
-    const opcionesArboles = arboles.map(a => ({
-        valor: String(a.arb_arbol),
-        label: `Árbol #${a.arb_arbol}  —  ${a.arb_estado ?? "Sin estado"}`,
-    }));
+    const opcionesArboles = arboles.map(a => {
+        const surco   = surcos.find(s => Number(s.sur_surco) === Number(a.sur_surcos));
+        const seccion = surco ? secciones.find(s => Number(s.secc_seccion) === Number(surco.secc_secciones)) : null;
+        const finca   = seccion ? fincas.find(f => Number(f.fin_finca) === Number(seccion.fin_finca)) : null;
+        return {
+            valor: String(a.arb_arbol),
+            label: `Árbol #${a.arb_arbol}  —  ${a.arb_estado ?? "Sin estado"}`,
+            finca: finca?.fin_nombre ?? "",
+        };
+    });
 
     const arbolSeleccionado = arboles.find(a => Number(a.arb_arbol) === Number(arbolId)) ?? null;
 
@@ -191,6 +208,7 @@ export const useArbolTimeline = () => {
         setArbolId,
         arbolSeleccionado,
         opcionesArboles,
+        fincas,
         eventos,
         loadingInit,
         loadingData,
