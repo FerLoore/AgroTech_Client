@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FlaskConical, ClipboardCheck, TreePine, AlertCircle, Database, Pencil, Filter, Trash2 } from "lucide-react";
 import { useRegistroAnalisis } from "./useRegistroAnalisis";
 
@@ -18,6 +19,7 @@ const RESULTADO_BADGE: Record<string, string> = {
 };
 
 const AgroAnalisisLaboratorioPage = () => {
+    const navigate = useNavigate();
     const {
         alertasActivas,
         analisis,
@@ -341,8 +343,30 @@ const AgroAnalisisLaboratorioPage = () => {
                                         <p className="text-red-600 text-xs mt-3">{formError}</p>
                                     )}
 
-                                    {/* Botón guardar */}
-                                    <div className="flex justify-end mt-6">
+                                    {/* Botones de acción */}
+                                    <div className="flex justify-end mt-6 gap-3">
+                                        {form.analab_resultado_tipo === "Positivo" && (
+                                            <button
+                                                onClick={async () => {
+                                                    const res = await handleGuardar(usarPatogenoCustom ? patogenoCustom : undefined, usarPatogenoCustom ? patogenoTipo : undefined);
+                                                    if (res && res.resultado === "Positivo") {
+                                                        // Guardar intención para la página de tratamientos
+                                                        localStorage.setItem("agro_pending_recipe", JSON.stringify({
+                                                            arbolId: res.arbolId,
+                                                            alertaId: res.alertaId,
+                                                            timestamp: Date.now()
+                                                        }));
+                                                        navigate("/agro-tratamientos");
+                                                    }
+                                                }}
+                                                disabled={guardando}
+                                                className="flex items-center gap-2 bg-[#d97706] text-white text-sm font-semibold px-6 py-2.5 rounded-[10px] border-none cursor-pointer hover:bg-[#b45309] transition-colors disabled:opacity-60 shadow-sm"
+                                            >
+                                                <ClipboardCheck size={15} />
+                                                {guardando ? "Guardando..." : "Guardar y Recetar"}
+                                            </button>
+                                        )}
+                                        
                                         <button
                                             onClick={() => handleGuardar(usarPatogenoCustom ? patogenoCustom : undefined, usarPatogenoCustom ? patogenoTipo : undefined)}
                                             disabled={guardando}

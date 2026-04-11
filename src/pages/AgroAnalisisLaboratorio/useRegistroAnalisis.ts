@@ -312,9 +312,19 @@ export const useRegistroAnalisis = () => {
 
             // Recargar datos y limpiar selección
             await cargarTodo();
+            
+            // Retornar datos para navegación si es necesario
+            const result = {
+                arbolId: alertaSeleccionada.arb_arbol,
+                alertaId: alertaSeleccionada.alertsalud_id,
+                resultado: form.analab_resultado_tipo
+            };
+
             setAlertaSeleccionada(null);
             setAnalisisEditandoId(null);
             setForm({ ...FORM_INICIAL, analab_fecha_envio: hoy() });
+
+            return result;
 
         } catch (err: any) {
             const mensaje = err?.message || "Error al guardar el análisis";

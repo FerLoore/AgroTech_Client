@@ -1,8 +1,9 @@
-import React from "react";
-import { ClipboardList, Filter } from "lucide-react";
+import React, { useState } from "react";
+import { ClipboardList, Filter, LayoutGrid, Table as TableIcon } from "lucide-react";
 import { useAgroTratamientos } from "./UseAgroTratamientos";
 import CrudTabla from "../../components/CrudTabla";
 import type { ColumnaConfig, CampoFormulario } from "../../components/CrudTabla";
+import AgroTratamientoTracking from "./AgroTratamientoTracking";
 
 const COLUMNAS: ColumnaConfig[] = [
     { header: "ID", key: "trata_tratamientos" },
@@ -10,31 +11,23 @@ const COLUMNAS: ColumnaConfig[] = [
         header: "Tipo", 
         key: "trata_tipo",
         badge: {
-            "Curativo":   { label: "Curativo",   bg: "#dbeafe", text: "#1d4ed8" },
+            "Curativo":   { label: "Curativo",   bg: "#e0f2fe", text: "#0369a1" },
             "Preventivo": { label: "Preventivo", bg: "#f3e8ff", text: "#7e22ce" }
         }
     },
-    { header: "Fecha inicio", key: "trata_fecha_inicio" },
-    { header: "Estado", key: "trata_estado" },
-    { header: "Dosis", key: "trata_dosis" },
+    { header: "Objetivo", key: "ui_arbol_id" },
+    { header: "Inicio", key: "trata_fecha_inicio" },
     { 
-        header: "Alerta/Sección", 
-        key: "alertsalu_alerta_salud", 
-        render: (val: any, item: any) => {
-            const esCurativo = item.trata_tipo === "Curativo";
-            return (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
-                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#4b5563" }}>
-                        {esCurativo ? `Alerta #${val || '—'}` : `Sección #${item.secc_seccion || '—'}`}
-                    </span>
-                    <span style={{ fontSize: "10px", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                        {esCurativo ? "Diagnóstico" : "Preventivo"}
-                    </span>
-                </div>
-            );
+        header: "Estado", 
+        key: "trata_estado",
+        badge: {
+            "En curso":   { label: "En curso",   bg: "#fef3c7", text: "#92400e" },
+            "Finalizado": { label: "Finalizado", bg: "#dcfce7", text: "#166534" },
+            "Cancelado":  { label: "Cancelado",  bg: "#fee2e2", text: "#991b1b" }
         }
     },
-    { header: "Producto", key: "produ_producto" },
+    { header: "Dosis", key: "trata_dosis" },
+    { header: "Producto", key: "ui_producto_nombre" },
 ];
 
 const CAMPOS = (
@@ -118,6 +111,16 @@ const CAMPOS = (
 ];
 
 const AgroTratamientosPage = () => {
+    const [view, setView] = useState<"table" | "tracking">("table");
+
+    // Detectar intención de receta desde Laboratorio
+    React.useEffect(() => {
+        const pending = localStorage.getItem("agro_pending_recipe");
+        if (pending) {
+            setView("tracking");
+        }
+    }, []);
+
     const {
         tratamientosFiltrados,
         loading,
@@ -127,6 +130,7 @@ const AgroTratamientosPage = () => {
         filtroProducto, setFiltroProducto,
         filtroFechaDesde, setFiltroFechaDesde,
         filtroFechaHasta, setFiltroFechaHasta,
+        filtroFincaTabla, setFiltroFincaTabla,
         filtroFincaForm, setFiltroFincaForm,
         modal,
         editando,
@@ -156,43 +160,100 @@ const AgroTratamientosPage = () => {
     };
 
     const extraFilters = (
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <Filter size={14} color="#4a7c59" />
-            <select 
-                value={filtroEstado} 
-                onChange={e => setFiltroEstado(e.target.value)}
-                style={selectStyle}
-            >
-                <option value="">Estado...</option>
-                <option value="En curso">En curso</option>
-                <option value="Finalizado">Finalizado</option>
-                <option value="Cancelado">Cancelado</option>
-            </select>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <div style={{ display: "flex", background: "#f3f4f6", padding: "4px", borderRadius: "8px", border: "1px solid #e5e7eb" }}>
+                <button 
+                    onClick={() => setView("table")}
+                    style={{
+                        padding: "6px 12px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        borderRadius: "6px",
+                        border: "none",
+                        cursor: "pointer",
+                        background: view === "table" ? "#fff" : "transparent",
+                        color: view === "table" ? "#2d6a4f" : "#6b7280",
+                        boxShadow: view === "table" ? "0 1px 2px rgba(0,0,0,0.05)" : "none"
+                    }}
+                >
+                    <TableIcon size={14} /> Tabla
+                </button>
+                <button 
+                    onClick={() => setView("tracking")}
+                    style={{
+                        padding: "6px 12px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        borderRadius: "6px",
+                        border: "none",
+                        cursor: "pointer",
+                        background: view === "tracking" ? "#fff" : "transparent",
+                        color: view === "tracking" ? "#2d6a4f" : "#6b7280",
+                        boxShadow: view === "tracking" ? "0 1px 2px rgba(0,0,0,0.05)" : "none"
+                    }}
+                >
+                    <LayoutGrid size={14} /> Seguimiento
+                </button>
+            </div>
 
-            <select 
-                value={filtroProducto} 
-                onChange={e => setFiltroProducto(e.target.value)}
-                style={selectStyle}
-            >
-                <option value="">Producto...</option>
-                {opcionesProductos.map(p => (
-                    <option key={p.valor} value={p.valor}>{p.label}</option>
-                ))}
-            </select>
+            {view === "table" && (
+                <>
+                    <div style={{ width: "1px", height: "24px", background: "#e5e7eb" }}></div>
+                    <Filter size={14} color="#4a7c59" />
+                    <select 
+                        value={filtroEstado} 
+                        onChange={e => setFiltroEstado(e.target.value)}
+                        style={selectStyle}
+                    >
+                        <option value="">Estado...</option>
+                        <option value="En curso">En curso</option>
+                        <option value="Finalizado">Finalizado</option>
+                        <option value="Cancelado">Cancelado</option>
+                    </select>
 
-            <input 
-                type="date" 
-                value={filtroFechaDesde} 
-                onChange={e => setFiltroFechaDesde(e.target.value)}
-                style={selectStyle}
-            />
-            <span style={{ color: "#7a9a7a", fontSize: "12px" }}>—</span>
-            <input 
-                type="date" 
-                value={filtroFechaHasta} 
-                onChange={e => setFiltroFechaHasta(e.target.value)}
-                style={selectStyle}
-            />
+                    <select 
+                        value={filtroProducto} 
+                        onChange={e => setFiltroProducto(e.target.value)}
+                        style={selectStyle}
+                    >
+                        <option value="">Producto...</option>
+                        {opcionesProductos.map(p => (
+                            <option key={p.valor} value={p.valor}>{p.label}</option>
+                        ))}
+                    </select>
+
+                    <select 
+                        value={filtroFincaTabla} 
+                        onChange={e => setFiltroFincaTabla(e.target.value)}
+                        style={selectStyle}
+                    >
+                        <option value="">Finca...</option>
+                        {opcionesFincas.map(f => (
+                            <option key={f.valor} value={f.valor}>{f.label}</option>
+                        ))}
+                    </select>
+
+                    <input 
+                        type="date" 
+                        value={filtroFechaDesde} 
+                        onChange={e => setFiltroFechaDesde(e.target.value)}
+                        style={selectStyle}
+                    />
+                    <span style={{ color: "#7a9a7a", fontSize: "12px" }}>—</span>
+                    <input 
+                        type="date" 
+                        value={filtroFechaHasta} 
+                        onChange={e => setFiltroFechaHasta(e.target.value)}
+                        style={selectStyle}
+                    />
+                </>
+            )}
         </div>
     );
 
@@ -205,33 +266,48 @@ const AgroTratamientosPage = () => {
     };
 
     return (
-        <CrudTabla
-            titulo="Tratamientos y Fitociclo"
-            subtitulo="Gestión de prescripciones y aplicaciones fitosanitarias"
-            icono={ClipboardList}
-            columnas={COLUMNAS}
-            datos={tratamientosFiltrados}
-            idKey="trata_tratamientos"
-            campos={CAMPOS(opcionesAlertas, opcionesProductos, opcionesSecciones, opcionesFincas, String(form.trata_tipo), filtroFincaForm, setFiltroFincaForm)}
-            loading={loading}
-            error={error}
-            busqueda={busqueda}
-            setBusqueda={setBusqueda}
-            extraFilters={extraFilters}
-            modal={modal}
-            editando={editando}
-            form={form}
-            setForm={handleSetForm}
-            guardando={guardando}
-            formError={formError}
-            onNuevo={abrirCrear}
-            onEditar={abrirEditar}
-            onEliminar={handleEliminar}
-            onGuardar={handleGuardar}
-            onCerrar={cerrarModal}
-            labelEliminar="Eliminar"
-        />
+        <div style={{ height: "100%", width: "100%" }}>
+            {view === "tracking" ? (
+                <div style={{ padding: "0 20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", marginTop: "24px" }}>
+                        <div>
+                            <h1 style={{ fontSize: "24px", color: "#111827", fontWeight: 700 }}>Seguimiento por Árbol</h1>
+                            <p style={{ color: "#6b7280", fontSize: "14px" }}>Visualiza el fitociclo y la evolución de tratamientos individuales</p>
+                        </div>
+                        {extraFilters}
+                    </div>
+                    <AgroTratamientoTracking />
+                </div>
+            ) : (
+                <CrudTabla
+                    titulo="Tratamientos y Fitociclo"
+                    subtitulo="Gestión de prescripciones y aplicaciones fitosanitarias"
+                    icono={ClipboardList}
+                    columnas={COLUMNAS}
+                    datos={tratamientosFiltrados}
+                    idKey="trata_tratamientos"
+                    campos={CAMPOS(opcionesAlertas, opcionesProductos, opcionesSecciones, opcionesFincas, String(form.trata_tipo), filtroFincaForm, setFiltroFincaForm)}
+                    loading={loading}
+                    error={error}
+                    busqueda={busqueda}
+                    setBusqueda={setBusqueda}
+                    extraFilters={extraFilters}
+                    modal={modal}
+                    editando={editando}
+                    form={form}
+                    setForm={handleSetForm}
+                    guardando={guardando}
+                    formError={formError}
+                    onNuevo={abrirCrear}
+                    onEditar={abrirEditar}
+                    onEliminar={handleEliminar}
+                    onGuardar={handleGuardar}
+                    onCerrar={cerrarModal}
+                    labelEliminar="Eliminar"
+                />
+            )}
+        </div>
     );
 };
 
-export default AgroTratamientosPage;
+export default AgroTratamientosPage;
