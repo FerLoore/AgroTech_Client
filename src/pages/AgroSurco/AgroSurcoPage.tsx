@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Ruler } from "lucide-react";
 import { useAgroSurco } from "./useAgroSurco";
 import CrudTabla from "../../components/CrudTabla";
@@ -36,10 +37,15 @@ const AgroSurcoPage = () => {
         handleGuardar,
         handleEliminar,
         opcionesSecciones,
-        page,
-        setPage,
-        totalPages
     } = useAgroSurco();
+
+    const [pagina, setPagina] = useState(1);
+    const POR_PAGINA = 10;
+    const totalPaginas  = Math.max(1, Math.ceil(surcosFiltrados.length / POR_PAGINA));
+    const paginaActual  = Math.min(pagina, totalPaginas);
+    const desde         = (paginaActual - 1) * POR_PAGINA;
+    const surcosPagina  = surcosFiltrados.slice(desde, desde + POR_PAGINA);
+    const mostrando     = surcosFiltrados.length === 0 ? "0" : `${desde + 1}–${Math.min(desde + POR_PAGINA, surcosFiltrados.length)}`;
 
     const CAMPOS: CampoFormulario[] = [
         { key: "sur_numero_surco", label: "Número", tipo: "number", requerido: true },
@@ -66,6 +72,7 @@ const AgroSurcoPage = () => {
         setFiltroSeccion("");
         setFiltroFinca("");
         setBusqueda("");
+        setPagina(1);
     };
 
     return (
@@ -126,16 +133,16 @@ const AgroSurcoPage = () => {
 
         <CrudTabla
             titulo="Gestión de Surcos"
-            subtitulo="AGRO_SURCO"
+            subtitulo={`AGRO_SURCO — Mostrando ${mostrando} de ${surcosFiltrados.length}`}
             icono={Ruler}
             columnas={COLUMNAS}
-            datos={surcosFiltrados}
+            datos={surcosPagina}
             idKey="sur_surco"
             campos={CAMPOS}
             loading={loading}
             error={error}
             busqueda={busqueda}
-            setBusqueda={setBusqueda}
+            setBusqueda={e => { setBusqueda(e); setPagina(1); }}
             modal={modal}
             editando={editando}
             form={form}
@@ -147,11 +154,41 @@ const AgroSurcoPage = () => {
             onEliminar={handleEliminar}
             onGuardar={handleGuardar}
             onCerrar={cerrarModal}
-            page={page}
-            totalPages={totalPages}
-            onNextPage={() => setPage(page + 1)}
-            onPrevPage={() => setPage(page - 1)}
         />
+
+        {/* Paginación estilo AlertaSalud */}
+        {totalPaginas > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 16, paddingBottom: 32 }}>
+                <button
+                    onClick={() => setPagina(p => Math.max(1, p - 1))}
+                    disabled={paginaActual === 1}
+                    style={{
+                        padding: "6px 14px", fontSize: 13, fontWeight: 600, borderRadius: 8,
+                        border: "none", cursor: paginaActual === 1 ? "default" : "pointer",
+                        background: "#e8f0e0", color: "#4a7c59",
+                        opacity: paginaActual === 1 ? 0.4 : 1
+                    }}
+                >Anterior</button>
+                {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(n => (
+                    <button key={n} onClick={() => setPagina(n)} style={{
+                        padding: "6px 12px", fontSize: 13, fontWeight: 600, borderRadius: 8,
+                        border: "none", cursor: "pointer",
+                        background: n === paginaActual ? "#4a7c59" : "#e8f0e0",
+                        color: n === paginaActual ? "#fff" : "#4a7c59"
+                    }}>{n}</button>
+                ))}
+                <button
+                    onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                    disabled={paginaActual === totalPaginas}
+                    style={{
+                        padding: "6px 14px", fontSize: 13, fontWeight: 600, borderRadius: 8,
+                        border: "none", cursor: paginaActual === totalPaginas ? "default" : "pointer",
+                        background: "#e8f0e0", color: "#4a7c59",
+                        opacity: paginaActual === totalPaginas ? 0.4 : 1
+                    }}
+                >Siguiente</button>
+            </div>
+        )}
         </>
     );
 };

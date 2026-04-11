@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { useAgroAuditoria } from "./UseAgroAuditoria";
 import { ACCION_BADGE } from "./AgroAuditoria.types";
@@ -16,6 +17,15 @@ const AgroAuditoriaPage = () => {
         setFiltroAccion,
         tablas
     } = useAgroAuditoria();
+
+    const [pagina, setPagina] = useState(1);
+    const POR_PAGINA = 10;
+
+    const totalPaginas   = Math.max(1, Math.ceil(auditoriasFiltradas.length / POR_PAGINA));
+    const paginaActual   = Math.min(pagina, totalPaginas);
+    const desde          = (paginaActual - 1) * POR_PAGINA;
+    const auditoriasPagina = auditoriasFiltradas.slice(desde, desde + POR_PAGINA);
+    const mostrando      = auditoriasFiltradas.length === 0 ? "0" : `${desde + 1}–${Math.min(desde + POR_PAGINA, auditoriasFiltradas.length)}`;
 
     if (loading) return (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300 }}>
@@ -57,7 +67,7 @@ const AgroAuditoriaPage = () => {
                         type="text"
                         placeholder="Buscar..."
                         value={busqueda}
-                        onChange={e => setBusqueda(e.target.value)}
+                        onChange={e => { setBusqueda(e.target.value); setPagina(1); }}
                         style={{
                             flex: 1, minWidth: 200, padding: "10px 16px", fontSize: 14,
                             border: "1.5px solid #c8d8c0", borderRadius: 10,
@@ -66,7 +76,7 @@ const AgroAuditoriaPage = () => {
                     />
                     <select
                         value={filtroTabla}
-                        onChange={e => setFiltroTabla(e.target.value)}
+                        onChange={e => { setFiltroTabla(e.target.value); setPagina(1); }}
                         style={{
                             padding: "10px 14px", fontSize: 14,
                             border: "1.5px solid #c8d8c0", borderRadius: 10,
@@ -80,7 +90,7 @@ const AgroAuditoriaPage = () => {
                     </select>
                     <select
                         value={filtroAccion}
-                        onChange={e => setFiltroAccion(e.target.value)}
+                        onChange={e => { setFiltroAccion(e.target.value); setPagina(1); }}
                         style={{
                             padding: "10px 14px", fontSize: 14,
                             border: "1.5px solid #c8d8c0", borderRadius: 10,
@@ -99,6 +109,17 @@ const AgroAuditoriaPage = () => {
                     background: "#fff", borderRadius: 16, overflow: "hidden",
                     boxShadow: "0 2px 16px rgba(74,124,89,0.08)"
                 }}>
+                    <div style={{
+                        background: "#e8f0e0", padding: "10px 16px",
+                        display: "flex", justifyContent: "space-between", alignItems: "center"
+                    }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#4a7c59", textTransform: "uppercase", letterSpacing: 1 }}>
+                            Auditoría — {auditoriasFiltradas.length} registros
+                        </span>
+                        <span style={{ fontSize: 11, color: "#6b8c6b" }}>
+                            Mostrando {mostrando} de {auditoriasFiltradas.length}
+                        </span>
+                    </div>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                         <thead>
                             <tr style={{ background: "#e8f0e0" }}>
@@ -118,7 +139,7 @@ const AgroAuditoriaPage = () => {
                                         No se encontraron registros
                                     </td>
                                 </tr>
-                            ) : auditoriasFiltradas.map((a, i) => {
+                            ) : auditoriasPagina.map((a, i) => {
                                 const badge = ACCION_BADGE[a.audi_accion as keyof typeof ACCION_BADGE];
                                 return (
                                     <tr key={a.audi_auditoria} style={{
@@ -163,6 +184,51 @@ const AgroAuditoriaPage = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Paginación */}
+                {totalPaginas > 1 && (
+                    <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 16 }}>
+                        <button
+                            onClick={() => setPagina(p => Math.max(1, p - 1))}
+                            disabled={paginaActual === 1}
+                            style={{
+                                padding: "6px 14px", fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: "none", cursor: paginaActual === 1 ? "default" : "pointer",
+                                background: "#e8f0e0", color: "#4a7c59",
+                                opacity: paginaActual === 1 ? 0.4 : 1
+                            }}
+                        >
+                            Anterior
+                        </button>
+                        {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(n => (
+                            <button
+                                key={n}
+                                onClick={() => setPagina(n)}
+                                style={{
+                                    padding: "6px 12px", fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                    border: "none", cursor: "pointer",
+                                    background: n === paginaActual ? "#4a7c59" : "#e8f0e0",
+                                    color: n === paginaActual ? "#fff" : "#4a7c59"
+                                }}
+                            >
+                                {n}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                            disabled={paginaActual === totalPaginas}
+                            style={{
+                                padding: "6px 14px", fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: "none", cursor: paginaActual === totalPaginas ? "default" : "pointer",
+                                background: "#e8f0e0", color: "#4a7c59",
+                                opacity: paginaActual === totalPaginas ? 0.4 : 1
+                            }}
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                )}
+
             </div>
         </div>
     );

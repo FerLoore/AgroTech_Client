@@ -44,6 +44,8 @@ const AgroAlertaSaludPage = () => {
 
     const [hoveredRow,    setHoveredRow]    = useState<number | null>(null);
     const [enviando,      setEnviando]      = useState<number | null>(null);
+    const [pagina,        setPagina]        = useState(1);
+    const POR_PAGINA = 10;
 
     const hoy = () => new Date().toISOString().split("T")[0];
 
@@ -71,7 +73,15 @@ const AgroAlertaSaludPage = () => {
         setFiltroFechaDesde("");
         setFiltroFechaHasta("");
         setFiltroFinca("");
+        setPagina(1);
     };
+
+    // ── Paginación ────────────────────────────────────────────
+    const totalPaginas  = Math.max(1, Math.ceil(alertasFiltradas.length / POR_PAGINA));
+    const paginaActual  = Math.min(pagina, totalPaginas);
+    const desde         = (paginaActual - 1) * POR_PAGINA;
+    const alertasPagina = alertasFiltradas.slice(desde, desde + POR_PAGINA);
+    const mostrando     = alertasFiltradas.length === 0 ? "0" : `${desde + 1}–${Math.min(desde + POR_PAGINA, alertasFiltradas.length)}`;
 
     // Campos del formulario modal
     const CAMPOS = [
@@ -110,6 +120,9 @@ const AgroAlertaSaludPage = () => {
                             <p className="text-[13px] text-[#7a9a7a] mt-0.5">
                                 AGRO_ALERTA_SALUD — {alertasFiltradas.length} alertas
                             </p>
+                            <p className="text-[12px] text-[#9ab09a] mt-0">
+                                Mostrando {mostrando} de {alertasFiltradas.length}
+                            </p>
                         </div>
                     </div>
                     <button
@@ -128,7 +141,7 @@ const AgroAlertaSaludPage = () => {
                         <label className={LABEL_CLS}>Estado</label>
                         <select
                             value={filtroEstado}
-                            onChange={e => setFiltroEstado(e.target.value as EstadoAlerta | "")}
+                            onChange={e => { setFiltroEstado(e.target.value as EstadoAlerta | ""); setPagina(1); }}
                             className={`${INPUT_CLS} min-w-[160px]`}
                         >
                             <option value="">Todos</option>
@@ -144,7 +157,7 @@ const AgroAlertaSaludPage = () => {
                         <input
                             type="date"
                             value={filtroFechaDesde}
-                            onChange={e => setFiltroFechaDesde(e.target.value)}
+                            onChange={e => { setFiltroFechaDesde(e.target.value); setPagina(1); }}
                             className={INPUT_CLS}
                         />
                     </div>
@@ -155,7 +168,7 @@ const AgroAlertaSaludPage = () => {
                         <input
                             type="date"
                             value={filtroFechaHasta}
-                            onChange={e => setFiltroFechaHasta(e.target.value)}
+                            onChange={e => { setFiltroFechaHasta(e.target.value); setPagina(1); }}
                             className={INPUT_CLS}
                         />
                     </div>
@@ -165,7 +178,7 @@ const AgroAlertaSaludPage = () => {
                         <label className={LABEL_CLS}>Finca</label>
                         <select
                             value={filtroFinca}
-                            onChange={e => setFiltroFinca(e.target.value)}
+                            onChange={e => { setFiltroFinca(e.target.value); setPagina(1); }}
                             className={`${INPUT_CLS} min-w-[160px]`}
                         >
                             <option value="">Todas</option>
@@ -205,7 +218,7 @@ const AgroAlertaSaludPage = () => {
                                         No se encontraron alertas
                                     </td>
                                 </tr>
-                            ) : alertasFiltradas.map((alerta, i) => {
+                            ) : alertasPagina.map((alerta, i) => {
                                 const badge  = ESTADO_BADGE[alerta.estado];
                                 const fecha  = String((alerta as any).fecha_deteccion ?? "—").split("T")[0];
                                 const isHover = hoveredRow === alerta.alertsalud_id;
@@ -268,6 +281,42 @@ const AgroAlertaSaludPage = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* ── Paginación ──────────────────────────────────────── */}
+                {totalPaginas > 1 && (
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                        <button
+                            onClick={() => setPagina(p => Math.max(1, p - 1))}
+                            disabled={paginaActual === 1}
+                            className="px-3 py-1.5 text-sm font-semibold rounded-lg border-none cursor-pointer bg-[#e8f0e0] text-[#4a7c59] hover:bg-[#d4e6d4] disabled:opacity-40 disabled:cursor-default transition-colors"
+                        >
+                            Anterior
+                        </button>
+
+                        {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(n => (
+                            <button
+                                key={n}
+                                onClick={() => setPagina(n)}
+                                className={`px-3 py-1.5 text-sm font-semibold rounded-lg border-none cursor-pointer transition-colors ${
+                                    n === paginaActual
+                                        ? "bg-[#4a7c59] text-white"
+                                        : "bg-[#e8f0e0] text-[#4a7c59] hover:bg-[#d4e6d4]"
+                                }`}
+                            >
+                                {n}
+                            </button>
+                        ))}
+
+                        <button
+                            onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                            disabled={paginaActual === totalPaginas}
+                            className="px-3 py-1.5 text-sm font-semibold rounded-lg border-none cursor-pointer bg-[#e8f0e0] text-[#4a7c59] hover:bg-[#d4e6d4] disabled:opacity-40 disabled:cursor-default transition-colors"
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                )}
+
             </div>
 
             {/* ── Modal crear / editar ─────────────────────────────── */}
