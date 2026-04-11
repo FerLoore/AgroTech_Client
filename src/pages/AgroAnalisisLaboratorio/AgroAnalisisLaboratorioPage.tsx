@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FlaskConical, ClipboardCheck, TreePine, AlertCircle, Database, Pencil, Filter } from "lucide-react";
+import { FlaskConical, ClipboardCheck, TreePine, AlertCircle, Database, Pencil, Filter, Trash2 } from "lucide-react";
 import { useRegistroAnalisis } from "./useRegistroAnalisis";
 
 // ── Estilos compartidos ───────────────────────────────────────
@@ -37,6 +37,7 @@ const AgroAnalisisLaboratorioPage = () => {
         guardando,
         formError,
         handleGuardar,
+        handleEliminar,
         loading,
         error,
     } = useRegistroAnalisis();
@@ -44,6 +45,8 @@ const AgroAnalisisLaboratorioPage = () => {
     const [usarPatogenoCustom, setUsarPatogenoCustom] = useState(false);
     const [patogenoCustom,     setPatogenoCustom]     = useState("");
     const [patogenoTipo,       setPatogenoTipo]       = useState("Hongo");
+    const [paginaAnalisis,     setPaginaAnalisis]     = useState(1);
+    const POR_PAGINA = 10;
 
     const resetPatogenoCustom = () => { setUsarPatogenoCustom(false); setPatogenoCustom(""); setPatogenoTipo("Hongo"); };
 
@@ -83,7 +86,7 @@ const AgroAnalisisLaboratorioPage = () => {
                     <span className="text-[11px] font-bold text-[#6b8c6b] uppercase tracking-wider">Finca</span>
                     <select
                         value={filtroFinca}
-                        onChange={e => setFiltroFinca(e.target.value)}
+                        onChange={e => { setFiltroFinca(e.target.value); setPaginaAnalisis(1); }}
                         className="px-3 py-2 text-sm border-[1.5px] border-[#c8d8c0] rounded-lg bg-[#f9f6f0] text-[#2d4a2d] outline-none focus:border-[#4a7c59] transition-colors"
                     >
                         <option value="">Todas las fincas</option>
@@ -356,12 +359,23 @@ const AgroAnalisisLaboratorioPage = () => {
                     </div>
                 </div>
                 {/* ── Tabla: análisis registrados ───────────────────── */}
-                <div className="bg-white rounded-2xl shadow-[0_2px_16px_rgba(74,124,89,0.08)] overflow-hidden mt-6">
-                    <div className="bg-[#e8f0e0] px-5 py-3.5 flex items-center gap-2">
+                {(() => {
+                const totalPaginasAn  = Math.max(1, Math.ceil(analisis.length / POR_PAGINA));
+                const paginaAn        = Math.min(paginaAnalisis, totalPaginasAn);
+                const desdeAn         = (paginaAn - 1) * POR_PAGINA;
+                const analisisPagina  = analisis.slice(desdeAn, desdeAn + POR_PAGINA);
+                const mostrandoAn     = analisis.length === 0 ? "0" : `${desdeAn + 1}–${Math.min(desdeAn + POR_PAGINA, analisis.length)}`;
+                return (
+                <div className="mt-6">
+                <div className="bg-white rounded-2xl shadow-[0_2px_16px_rgba(74,124,89,0.08)] overflow-hidden">
+                    <div className="bg-[#e8f0e0] px-5 py-3.5 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
                         <Database size={15} color="#4a7c59" />
                         <span className="text-[11px] font-bold text-[#4a7c59] uppercase tracking-wider">
                             Análisis registrados — {analisis.length}{filtroFinca ? ` (${filtroFinca})` : ""}
                         </span>
+                        </div>
+                        <span className="text-[11px] text-[#6b8c6b]">Mostrando {mostrandoAn} de {analisis.length}</span>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full border-collapse text-sm">
@@ -381,7 +395,7 @@ const AgroAnalisisLaboratorioPage = () => {
                                             No hay análisis registrados
                                         </td>
                                     </tr>
-                                ) : analisis.map((an, i) => {
+                                ) : analisisPagina.map((an, i) => {
                                     const toDate = (d: string) => d ? String(d).split("T")[0] : "—";
                                     const resultadoBadge = an.analab_resultado_tipo
                                         ? RESULTADO_BADGE[an.analab_resultado_tipo] ?? "bg-[#f0ece4] text-[#6b8c6b]"
@@ -411,16 +425,24 @@ const AgroAnalisisLaboratorioPage = () => {
                                                 })()}
                                             </td>
                                             <td className="px-4 py-2.5 text-center">
-                                                <button
-                                                    onClick={() => { editarAnalisis(an); resetPatogenoCustom(); }}
-                                                    className={`flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border-none cursor-pointer transition-colors ${
-                                                        analisisEditandoId === Number(an.analab_analisis_laboratorio)
-                                                            ? "bg-[#4a7c59] text-white"
-                                                            : "bg-[#ddeedd] text-[#2d6a4f] hover:bg-[#cde2cd]"
-                                                    }`}
-                                                >
-                                                    <Pencil size={11} /> Editar
-                                                </button>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <button
+                                                        onClick={() => { editarAnalisis(an); resetPatogenoCustom(); }}
+                                                        className={`flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border-none cursor-pointer transition-colors ${
+                                                            analisisEditandoId === Number(an.analab_analisis_laboratorio)
+                                                                ? "bg-[#4a7c59] text-white"
+                                                                : "bg-[#ddeedd] text-[#2d6a4f] hover:bg-[#cde2cd]"
+                                                        }`}
+                                                    >
+                                                        <Pencil size={11} /> Editar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleEliminar(an)}
+                                                        className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border-none cursor-pointer transition-colors bg-[#fde8e0] text-[#a03020] hover:bg-[#fbd3c1]"
+                                                    >
+                                                        <Trash2 size={11} /> Eliminar
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -429,6 +451,42 @@ const AgroAnalisisLaboratorioPage = () => {
                         </table>
                     </div>
                 </div>
+
+                {/* Controles de paginación */}
+                {totalPaginasAn > 1 && (
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                        <button
+                            onClick={() => setPaginaAnalisis(p => Math.max(1, p - 1))}
+                            disabled={paginaAn === 1}
+                            className="px-3 py-1.5 text-sm font-semibold rounded-lg border-none cursor-pointer bg-[#e8f0e0] text-[#4a7c59] hover:bg-[#d4e6d4] disabled:opacity-40 disabled:cursor-default transition-colors"
+                        >
+                            Anterior
+                        </button>
+                        {Array.from({ length: totalPaginasAn }, (_, i) => i + 1).map(n => (
+                            <button
+                                key={n}
+                                onClick={() => setPaginaAnalisis(n)}
+                                className={`px-3 py-1.5 text-sm font-semibold rounded-lg border-none cursor-pointer transition-colors ${
+                                    n === paginaAn
+                                        ? "bg-[#4a7c59] text-white"
+                                        : "bg-[#e8f0e0] text-[#4a7c59] hover:bg-[#d4e6d4]"
+                                }`}
+                            >
+                                {n}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setPaginaAnalisis(p => Math.min(totalPaginasAn, p + 1))}
+                            disabled={paginaAn === totalPaginasAn}
+                            className="px-3 py-1.5 text-sm font-semibold rounded-lg border-none cursor-pointer bg-[#e8f0e0] text-[#4a7c59] hover:bg-[#d4e6d4] disabled:opacity-40 disabled:cursor-default transition-colors"
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                )}
+                </div>
+                );
+                })()}
 
             </div>
         </div>

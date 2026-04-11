@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { TreePine } from "lucide-react";
 import { useAgroArbol } from "./useAgroArbol";
 import CrudTabla from "../../components/CrudTabla";
@@ -62,10 +63,15 @@ const AgroArbolPage = () => {
         cerrarModal, handleGuardar, handleEliminar,
         opcionesTipoArbol, TIPOS_ARBOL_DINAMICO,
         opcionesSecciones, opcionesSurcos, setSeccionForm,
-        page,
-        setPage,
-        totalPages
     } = useAgroArbol();
+
+    const [pagina, setPagina] = useState(1);
+    const POR_PAGINA = 10;
+    const totalPaginas  = Math.max(1, Math.ceil(arbolesFiltrados.length / POR_PAGINA));
+    const paginaActual  = Math.min(pagina, totalPaginas);
+    const desde         = (paginaActual - 1) * POR_PAGINA;
+    const arbolesPagina = arbolesFiltrados.slice(desde, desde + POR_PAGINA);
+    const mostrando     = arbolesFiltrados.length === 0 ? "0" : `${desde + 1}–${Math.min(desde + POR_PAGINA, arbolesFiltrados.length)}`;
 
     const COLUMNAS: ColumnaConfig[] = [
         { header: "Ref", key: "arb_referencia" },
@@ -105,6 +111,7 @@ const AgroArbolPage = () => {
         setFiltroSurco("");
         setFiltroSeccion("");
         setFiltroFinca("");
+        setPagina(1);
     };
     const navigate = useNavigate();
 
@@ -233,16 +240,16 @@ const AgroArbolPage = () => {
 
             <CrudTabla
                 titulo="Gestión de Árboles"
-                subtitulo=""
+                subtitulo={`Mostrando ${mostrando} de ${arbolesFiltrados.length}`}
                 icono={TreePine}
                 columnas={COLUMNAS}
-                datos={arbolesFiltrados}
+                datos={arbolesPagina}
                 idKey="arb_arbol"
                 campos={CAMPOS(opcionesTipoArbol, opcionesSecciones, opcionesSurcos)}
                 loading={loading}
                 error={error}
                 busqueda={busqueda}
-                setBusqueda={setBusqueda}
+                setBusqueda={e => { setBusqueda(e); setPagina(1); }}
                 modal={modal}
                 editando={editando}
                 form={form}
@@ -255,11 +262,41 @@ const AgroArbolPage = () => {
                 onGuardar={handleGuardar}
                 onCerrar={cerrarModal}
                 onHistorial={(arbol) => navigate(`/agro-arbol-timeline`, { state: { arbolId: String(arbol.arb_arbol) } })}
-                page={page}
-                totalPages={totalPages}
-                onNextPage={() => setPage(page + 1)}
-                onPrevPage={() => setPage(page - 1)}
             />
+
+            {/* Paginación estilo AlertaSalud */}
+            {totalPaginas > 1 && (
+                <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 16, paddingBottom: 32 }}>
+                    <button
+                        onClick={() => setPagina(p => Math.max(1, p - 1))}
+                        disabled={paginaActual === 1}
+                        style={{
+                            padding: "6px 14px", fontSize: 13, fontWeight: 600, borderRadius: 8,
+                            border: "none", cursor: paginaActual === 1 ? "default" : "pointer",
+                            background: "#e8f0e0", color: "#4a7c59",
+                            opacity: paginaActual === 1 ? 0.4 : 1
+                        }}
+                    >Anterior</button>
+                    {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(n => (
+                        <button key={n} onClick={() => setPagina(n)} style={{
+                            padding: "6px 12px", fontSize: 13, fontWeight: 600, borderRadius: 8,
+                            border: "none", cursor: "pointer",
+                            background: n === paginaActual ? "#4a7c59" : "#e8f0e0",
+                            color: n === paginaActual ? "#fff" : "#4a7c59"
+                        }}>{n}</button>
+                    ))}
+                    <button
+                        onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                        disabled={paginaActual === totalPaginas}
+                        style={{
+                            padding: "6px 14px", fontSize: 13, fontWeight: 600, borderRadius: 8,
+                            border: "none", cursor: paginaActual === totalPaginas ? "default" : "pointer",
+                            background: "#e8f0e0", color: "#4a7c59",
+                            opacity: paginaActual === totalPaginas ? 0.4 : 1
+                        }}
+                    >Siguiente</button>
+                </div>
+            )}
         </>
     );
 };

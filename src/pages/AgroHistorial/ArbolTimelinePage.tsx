@@ -217,11 +217,20 @@ const ArbolTimelinePage = () => {
         setArbolId,
         arbolSeleccionado,
         opcionesArboles,
+        fincas,
         eventos,
         loadingInit,
         loadingData,
         error,
     } = useArbolTimeline();
+
+    const [filtroFinca, setFiltroFinca] = useState("");
+
+    const opcionesFincas = fincas.map((f: any) => f.fin_nombre as string).sort();
+
+    const opcionesFiltradas = filtroFinca
+        ? opcionesArboles.filter(op => op.finca === filtroFinca)
+        : opcionesArboles;
 
     return (
         <div className="p-8">
@@ -242,14 +251,29 @@ const ArbolTimelinePage = () => {
 
                 {/* ── Selector de árbol ──────────────────────── */}
                 <div className="bg-white rounded-2xl shadow-[0_2px_16px_rgba(74,124,89,0.08)] p-6 mb-6">
+                    {/* Select de finca */}
+                    <div className="mt-2 mb-3">
+                        <label className={LABEL_CLS}>Finca</label>
+                        <select
+                            value={filtroFinca}
+                            onChange={e => setFiltroFinca(e.target.value)}
+                            className={INPUT_CLS}
+                        >
+                            <option value="">Todas las fincas</option>
+                            {opcionesFincas.map(f => (
+                                <option key={f} value={f}>{f}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     <label className={LABEL_CLS}>Seleccionar árbol</label>
                     {loadingInit ? (
                         <p className="text-sm text-[#7a9a7a] mt-2">Cargando árboles...</p>
                     ) : (
-                        <TreeSelect 
-                            arbolId={arbolId} 
-                            setArbolId={setArbolId} 
-                            opcionesArboles={opcionesArboles} 
+                        <TreeSelect
+                            arbolId={arbolId}
+                            setArbolId={setArbolId}
+                            opcionesArboles={opcionesFiltradas}
                         />
                     )}
 
