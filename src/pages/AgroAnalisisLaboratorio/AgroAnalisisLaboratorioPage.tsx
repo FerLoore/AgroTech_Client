@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FlaskConical, ClipboardCheck, TreePine, AlertCircle, Database, Pencil, Filter } from "lucide-react";
+import { FlaskConical, ClipboardCheck, TreePine, AlertCircle, Database, Pencil, Filter, Trash2 } from "lucide-react";
 import { useRegistroAnalisis } from "./useRegistroAnalisis";
 
 // ── Estilos compartidos ───────────────────────────────────────
@@ -37,6 +37,7 @@ const AgroAnalisisLaboratorioPage = () => {
         guardando,
         formError,
         handleGuardar,
+        handleEliminar,
         loading,
         error,
     } = useRegistroAnalisis();
@@ -411,16 +412,24 @@ const AgroAnalisisLaboratorioPage = () => {
                                                 })()}
                                             </td>
                                             <td className="px-4 py-2.5 text-center">
-                                                <button
-                                                    onClick={() => { editarAnalisis(an); resetPatogenoCustom(); }}
-                                                    className={`flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border-none cursor-pointer transition-colors ${
-                                                        analisisEditandoId === Number(an.analab_analisis_laboratorio)
-                                                            ? "bg-[#4a7c59] text-white"
-                                                            : "bg-[#ddeedd] text-[#2d6a4f] hover:bg-[#cde2cd]"
-                                                    }`}
-                                                >
-                                                    <Pencil size={11} /> Editar
-                                                </button>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <button
+                                                        onClick={() => { editarAnalisis(an); resetPatogenoCustom(); }}
+                                                        className={`flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border-none cursor-pointer transition-colors ${
+                                                            analisisEditandoId === Number(an.analab_analisis_laboratorio)
+                                                                ? "bg-[#4a7c59] text-white"
+                                                                : "bg-[#ddeedd] text-[#2d6a4f] hover:bg-[#cde2cd]"
+                                                        }`}
+                                                    >
+                                                        <Pencil size={11} /> Editar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleEliminar(an)}
+                                                        className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border-none cursor-pointer transition-colors bg-[#fde8e0] text-[#a03020] hover:bg-[#fbd3c1]"
+                                                    >
+                                                        <Trash2 size={11} /> Eliminar
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );

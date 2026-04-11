@@ -5,6 +5,8 @@ export interface Producto {
     produ_tipo:         string;   // "Fungicida" | "Bactericida" | "Insecticida"
     produ_concentracion:string;
     produ_unidad:       string;
+    produ_stock_actual: number;
+    produ_stock_minimo: number;
     produ_activo:       number;
 }
 
@@ -14,6 +16,8 @@ export interface ProductoFormData {
     produ_tipo:          string;
     produ_concentracion: string;
     produ_unidad:        string;
+    produ_stock_actual:  number;
+    produ_stock_minimo:  number;
 }
 
 export const PRODUCTO_FORM_INICIAL: ProductoFormData = {
@@ -21,6 +25,8 @@ export const PRODUCTO_FORM_INICIAL: ProductoFormData = {
     produ_tipo:          "",
     produ_concentracion: "",
     produ_unidad:        "",
+    produ_stock_actual:  0,
+    produ_stock_minimo:  0,
 };
 
 export const TIPO_PRODUCTO: Record<string, { label: string; bg: string; text: string }> = {

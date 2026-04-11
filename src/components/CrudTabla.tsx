@@ -14,7 +14,7 @@
 //   3. Pasar el estado y funciones del hook
 // ============================================================
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -51,6 +51,7 @@ export interface ColumnaConfig {
     header: string;                                      // texto del encabezado
     key: string;                                      // nombre del campo en el objeto de datos
     badge?: Record<string | number, CeldaBadge>;         // opcional: si existe, la celda muestra badge
+    render?: (valor: any, item: any) => React.ReactNode; // opcional: renderizado personalizado
     // la clave es el valor del campo (ej: 1, 2, 3, 4)
 }
 
@@ -100,6 +101,7 @@ interface CrudTablaProps<T extends Record<string, unknown>> {
     onCerrar?: () => void;         // click en "Cancelar" o fuera del modal
     onHistorial?: (item: T) => void;          // click en botón "Historial" de una fila
     labelEliminar?: string;
+    extraFilters?: React.ReactNode;          // Componentes adicionales para filtrar
     // Paginación opcional
     page?: number;
     totalPages?: number;
@@ -127,6 +129,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
     busqueda, setBusqueda,
     modal, editando, form, setForm, guardando, formError,
     onNuevo, onEditar, onEliminar, onGuardar, onCerrar, onHistorial, labelEliminar = "Desactivar",
+    extraFilters,
     page, totalPages, onNextPage, onPrevPage
 }: CrudTablaProps<T>) => {
 
@@ -197,22 +200,25 @@ const CrudTabla = <T extends Record<string, unknown>>({
                     El filtrado real ocurre en el hook (rolesFiltrados),
                     este input solo dispara la actualización.
                 ─────────────────────────────────────────────────── */}
-                <div style={{ marginBottom: 16, position: "relative" }}>
-                    <Search size={15} color="#7a9a7a" style={{
-                        position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)"
-                    }} />
-                    <input
-                        type="text"
-                        placeholder="Buscar..."
-                        value={busqueda}
-                        onChange={e => setBusqueda(e.target.value)}
-                        style={{
-                            width: "100%", padding: "10px 16px 10px 40px", fontSize: 14,
-                            border: "1.5px solid #c8d8c0", borderRadius: 10,
-                            background: "#fff", color: "#2d4a2d", outline: "none",
-                            boxSizing: "border-box"
-                        }}
-                    />
+                <div style={{ marginBottom: 16, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+                        <Search size={15} color="#7a9a7a" style={{
+                            position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)"
+                        }} />
+                        <input
+                            type="text"
+                            placeholder="Buscar..."
+                            value={busqueda}
+                            onChange={e => setBusqueda(e.target.value)}
+                            style={{
+                                width: "100%", padding: "10px 16px 10px 40px", fontSize: 14,
+                                border: "1.5px solid #c8d8c0", borderRadius: 10,
+                                background: "#fff", color: "#2d4a2d", outline: "none",
+                                boxSizing: "border-box"
+                            }}
+                        />
+                    </div>
+                    {extraFilters}
                 </div>
 
                 {/* ── Tabla ────────────────────────────────────────────
@@ -280,15 +286,14 @@ const CrudTabla = <T extends Record<string, unknown>>({
 
                                         return (
                                             <td key={col.key} style={{ padding: "13px 20px", textAlign: "center", color: "#6b8c6b" }}>
-                                                {badge ? (
-                                                    // Renderiza badge de color si está configurado
+                                                {col.render ? (
+                                                    col.render(valor, item)
+                                                ) : badge ? (
                                                     <span style={{
                                                         padding: "4px 12px", borderRadius: 20, fontSize: 12,
                                                         fontWeight: 600, background: badge.bg, color: badge.text
                                                     }}>{badge.label}</span>
                                                 ) : (
-                                                    // Renderiza texto plano
-                                                    // columnas[1] = segunda columna = "nombre" → negrita
                                                     <span style={{
                                                         fontWeight: col.key === columnas[1]?.key ? 600 : 400,
                                                         color: col.key === columnas[1]?.key ? "#2d4a2d" : "#6b8c6b"
