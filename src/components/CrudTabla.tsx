@@ -99,7 +99,7 @@ interface CrudTablaProps<T extends Record<string, unknown>> {
     onEliminar?: (item: T) => void;  // click en botón "Desactivar" de una fila
     onGuardar?: () => void;         // click en botón "Guardar/Actualizar" del modal
     onCerrar?: () => void;         // click en "Cancelar" o fuera del modal
-    onHistorial?: (item: T) => void;          // click en botón "Historial" de una fila
+    onHistorial?: (item: T) => void;
     labelEliminar?: string;
     extraFilters?: React.ReactNode;          // Componentes adicionales para filtrar
     // Paginación opcional
@@ -172,12 +172,12 @@ const CrudTabla = <T extends Record<string, unknown>>({
                         <div>
                             <h1 style={{ fontSize: 24, fontWeight: 700, color: "#2d4a2d", margin: 0 }}>{titulo}</h1>
                             <p style={{ fontSize: 13, color: "#7a9a7a", marginTop: 2 }}>
-                                {subtitulo} — {datos.length} registros
-                                {/* datos.length muestra cuántos registros hay DESPUÉS del filtro */}
+
+
                             </p>
                             {onHistorial && (
-                                <p style={{ fontSize: 12, color: "#aaa", margin: "4px 0 0" }}>
-                                    Haz click en una fila para ver su historial
+                                <p style={{ fontSize: 13, color: "#575757ff", margin: "4px 0 0" }}>
+                                    Haz click en una fila para ver su TimeLine
                                 </p>
                             )}
                         </div>

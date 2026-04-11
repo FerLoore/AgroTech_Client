@@ -15,8 +15,9 @@ import AgroClimaPage from "../pages/AgroClima/AgroClimaPage";
 import AgroArbolPage from "../pages/AgroArbol/AgroArbolPage";
 import AgroSurcoPage from "../pages/AgroSurco/AgroSurcoPage";
 import AgroHistorialPage from "../pages/AgroHistorial/AgroHistorialPage";
+import AgroAuditoriaPage from "../pages/AgroAuditoria/AgroAuditoriaPage";
 import ArbolTimelinePage from "../pages/AgroHistorial/ArbolTimelinePage";
-
+import HomeDashboardPage from "../pages/HomeDashboard/HomeDashboardPage";
 import AgroMapaPage from "../pages/AgroMapa/AgroMapaPage";
 
 const AppRouter = () => {
@@ -24,7 +25,7 @@ const AppRouter = () => {
         <BrowserRouter>
             <Layout>
                 <Routes>
-                    <Route path="/" element={<h1 style={{ padding: 40, color: "#2d4a2d" }}>Bienvenido a AgroTech 🌱</h1>} />
+                    <Route path="/" element={<HomeDashboardPage />} />
                     <Route path="/agro-roles" element={<AgroRolPage />} />
                     <Route path="/agro-tipo-arbol" element={<AgroTipoArbolPage />} />
                     <Route path="/agro-catalogo-patogeno" element={<AgroCatalogoPatogenoPage />} />
@@ -39,8 +40,10 @@ const AppRouter = () => {
                     <Route path="/agro-arboles" element={<AgroArbolPage />} />
                     <Route path="/agro-surcos" element={<AgroSurcoPage />} />
                     <Route path="/agro-historial" element={<AgroHistorialPage />} />
+                    <Route path="/agro-auditoria" element={<AgroAuditoriaPage />} />
                     <Route path="/agro-mapa" element={<AgroMapaPage />} />
                     <Route path="/agro-arbol-timeline" element={<ArbolTimelinePage />} />
+                    <Route path="/home-dashboard" element={<HomeDashboardPage />} />
                 </Routes>
             </Layout>
         </BrowserRouter>

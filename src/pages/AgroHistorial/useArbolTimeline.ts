@@ -12,6 +12,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { getArboles } from "../../api/AgroArbol.api";
 import { getAlertas } from "../../api/AgroAlertaSalud.api";
 import { getAnalisisLaboratorio } from "../../api/agroAnalisisLaboratorio.api";
@@ -59,8 +60,9 @@ const sortByFecha = (a: EventoTimeline, b: EventoTimeline) => {
 
 export const useArbolTimeline = () => {
 
+    const location = useLocation();
     const [arboles,      setArboles]      = useState<any[]>([]);
-    const [arbolId,      setArbolId]      = useState<string>("");
+    const [arbolId,      setArbolId]      = useState<string>(location.state?.arbolId ?? "");
     const [eventos,      setEventos]      = useState<EventoTimeline[]>([]);
     const [loadingInit,  setLoadingInit]  = useState(true);
     const [loadingData,  setLoadingData]  = useState(false);
