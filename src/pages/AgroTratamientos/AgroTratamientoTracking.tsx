@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Calendar, Info, CheckCircle2, AlertTriangle, ClipboardEdit, TreePalm } from "lucide-react";
+import { 
+    Calendar, CheckCircle2, ChevronLeft, ChevronRight, ClipboardEdit, 
+    FlaskConical, TreePalm, AlertTriangle, 
+    ClipboardCheck, ClipboardList, Package, Info
+} from "lucide-react";
 import { getAgroFincas } from "../../api/AgroFinca.api";
 import { getArboles, updateArbol } from "../../api/AgroArbol.api";
 import { getTratamientosByArbol, createTratamiento, updateTratamiento } from "../../api/AgroTratamientos.api";
@@ -42,6 +46,8 @@ const AgroTratamientoTracking = () => {
     const [productos, setProductos] = useState<any[]>([]);
     const [recipeStep, setRecipeStep] = useState<0 | 1 | 2>(0);
     const [selectedAnas, setSelectedAnas] = useState<any>(null);
+
+
     const [recipeForm, setRecipeForm] = useState({
         resultado: "", // Positivo | Negativo
         producto: "",
@@ -55,6 +61,16 @@ const AgroTratamientoTracking = () => {
         notas: ""
     });
     const [isSavingRecipe, setIsSavingRecipe] = useState(false);
+    const [showCustomFreqInput, setShowCustomFreqInput] = useState(false);
+
+    // Selección automática de unidad según producto
+    useEffect(() => {
+        if (!recipeForm.producto) return;
+        const prod = productos.find(p => String(p.produ_producto) === String(recipeForm.producto));
+        if (prod && prod.produ_unidad) {
+            setRecipeForm(prev => ({ ...prev, unidad: prod.produ_unidad }));
+        }
+    }, [recipeForm.producto, productos]);
 
     const INITIAL_RECIPE_FORM = {
         resultado: "",
@@ -271,6 +287,78 @@ const AgroTratamientoTracking = () => {
     const daysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
     const firstDayOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
+    const aplicacionesProyectadas = useMemo(() => {
+        if (!recipeForm.fecha_inicio || recipeStep !== 2) return [];
+
+        const start = new Date(recipeForm.fecha_inicio + "T12:00:00");
+        const dates = [start.toISOString().split("T")[0]];
+        
+        if (recipeForm.frecuencia === "una vez") return dates;
+
+        const end = recipeForm.fecha_fin ? new Date(recipeForm.fecha_fin + "T12:00:00") : null;
+        if (!end) return dates;
+
+        let interval = 0;
+        if (recipeForm.frecuencia === "cada 7 días") interval = 7;
+        else if (recipeForm.frecuencia === "cada 14 días") interval = 14;
+        else if (recipeForm.frecuencia === "cada 21 días") interval = 21;
+        else if (recipeForm.frecuencia === "mensual") interval = 30;
+        else {
+            const match = recipeForm.frecuencia.match(/(\d+)/);
+            if (match) interval = parseInt(match[0]);
+        }
+
+        if (interval <= 0) return dates;
+
+        let current = new Date(start);
+        while (true) {
+            current.setDate(current.getDate() + interval);
+            if (current > end) break;
+            dates.push(current.toISOString().split("T")[0]);
+            if (dates.length > 100) break; // Límite
+        }
+
+        return dates;
+    }, [recipeForm.fecha_inicio, recipeForm.fecha_fin, recipeForm.frecuencia, recipeStep]);
+
+    // Reporte de Stock Proyectado
+    const stockReport = useMemo(() => {
+        if (!recipeForm.producto || !recipeForm.dosis || recipeStep !== 2) return null;
+        
+        const prod = productos.find(p => String(p.produ_producto) === String(recipeForm.producto));
+        if (!prod) return null;
+
+        const totalDose = Number(recipeForm.dosis) * aplicacionesProyectadas.length;
+        const stockActual = Number(prod.produ_stock_actual || 0);
+        const esSuficiente = stockActual >= totalDose;
+        const faltante = totalDose - stockActual;
+
+        return {
+            totalDose,
+            stockActual,
+            esSuficiente,
+            faltante,
+            unidad: recipeForm.unidad
+        };
+    }, [recipeForm.producto, recipeForm.dosis, recipeForm.unidad, aplicacionesProyectadas, recipeStep, productos]);
+
+    // Auxiliar para parsear frecuencia de observaciones guardadas
+    const parseIntervalFromObs = (obs: string): number | null => {
+        if (!obs) return null;
+        // Buscar patrón ", cada X días," o ", mensual," o ", una vez,"
+        const match = obs.match(/, ([^,]+), por un total de/);
+        if (!match) return null;
+
+        const freqStr = match[1].toLowerCase();
+        if (freqStr.includes("una vez")) return 9999; // Representa que solo ocurre en fecha_inicio
+        if (freqStr.includes("mensual")) return 30;
+        
+        const numMatch = freqStr.match(/(\d+)/);
+        if (numMatch) return parseInt(numMatch[0]);
+
+        return null;
+    };
+
     const monthData = useMemo(() => {
         const totalDays = daysInMonth(currentDate);
         const startOffset = firstDayOfMonth(currentDate);
@@ -291,10 +379,25 @@ const AgroTratamientoTracking = () => {
 
             // 1. Tratamientos (Amber)
             const activeTrata = tratamientos.find(t => {
-                const inicio = String(t.trata_fecha_inicio).split("T")[0];
-                const fin = t.trata_fecha_fin ? String(t.trata_fecha_fin).split("T")[0] : null;
-                if (!fin) return dateStr === inicio;
-                return dateStr >= inicio && dateStr <= fin;
+                const inicioStr = String(t.trata_fecha_inicio).split("T")[0];
+                const finStr = t.trata_fecha_fin ? String(t.trata_fecha_fin).split("T")[0] : null;
+                
+                // Rango básico
+                const inRange = finStr ? (dateStr >= inicioStr && dateStr <= finStr) : (dateStr === inicioStr);
+                if (!inRange) return false;
+
+                // Filtrar por frecuencia si existe en observaciones
+                const interval = parseIntervalFromObs(t.trata_observaciones || "");
+                if (interval === null) return true; // Si no hay freq, mostrar bloque sólido por defecto (retrocompatibilidad)
+                if (interval === 9999) return dateStr === inicioStr;
+
+                // Calcular diferencia de días desde el inicio para ver si "cae" en este intervalo
+                const startD = new Date(inicioStr + "T12:00:00");
+                const currentD = new Date(dateStr + "T12:00:00");
+                const diffTime = Math.abs(currentD.getTime() - startD.getTime());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                return diffDays % interval === 0;
             });
             if (activeTrata) {
                 dayEvents.push({ type: "pending", label: "Tratamiento", data: activeTrata });
@@ -315,6 +418,11 @@ const AgroTratamientoTracking = () => {
                 dayEvents.push({ type: "revision", label: "Análisis Lab", data: an });
             });
 
+            // 4. Proyecciones de Receta (Dashed style)
+            if (aplicacionesProyectadas.includes(dateStr)) {
+                dayEvents.push({ type: "projection", label: "Aplicación", data: null });
+            }
+
             // Día de cierre (Amber background)
             const isClosingDay = tratamientos.some(t => t.trata_fecha_fin && String(t.trata_fecha_fin).split("T")[0] === dateStr);
 
@@ -326,7 +434,7 @@ const AgroTratamientoTracking = () => {
             });
         }
         return cells;
-    }, [currentDate, tratamientos, alertas, analisis]);
+    }, [currentDate, tratamientos, alertas, analisis, aplicacionesProyectadas, recipeForm.fecha_inicio, recipeForm.fecha_fin]);
 
     const activeTreatment = useMemo(() => {
         return tratamientos.find((t: any) => t.trata_estado === "En curso");
@@ -401,6 +509,7 @@ const AgroTratamientoTracking = () => {
 
     const handleOpenResultFlow = (anas: any) => {
         setSelectedAnas(anas);
+        setShowCustomFreqInput(false);
         if (anas.analab_resultado_tipo === "Positivo") {
             setRecipeForm({ ...INITIAL_RECIPE_FORM, resultado: "Positivo" });
             setRecipeStep(2);
@@ -685,38 +794,55 @@ const AgroTratamientoTracking = () => {
                                         <label className="form-label">Dosis y Unidad</label>
                                         <div style={{ display: "flex", gap: "4px" }}>
                                             <input type="text" className="form-select" placeholder="Can." style={{ width: "60px" }} value={recipeForm.dosis} onChange={e => setRecipeForm({ ...recipeForm, dosis: e.target.value })} />
-                                            <select className="form-select" value={recipeForm.unidad} onChange={e => setRecipeForm({ ...recipeForm, unidad: e.target.value })}>
-                                                <option value="ml">ml</option>
-                                                <option value="gr">gr</option>
-                                                <option value="L">L</option>
-                                                <option value="kg">kg</option>
-                                            </select>
+                                            {recipeForm.producto ? (
+                                                <div style={{ display: "flex", alignItems: "center", padding: "0 10px", background: "#f3f4f6", borderRadius: "4px", fontSize: "14px", border: "1px solid #d1d5db", color: "#4b5563", fontWeight: 600 }}>
+                                                    {recipeForm.unidad}
+                                                </div>
+                                            ) : (
+                                                <select className="form-select" value={recipeForm.unidad} onChange={e => setRecipeForm({ ...recipeForm, unidad: e.target.value })}>
+                                                    <option value="ml">ml</option>
+                                                    <option value="gr">gr</option>
+                                                    <option value="L">L</option>
+                                                    <option value="kg">kg</option>
+                                                </select>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="form-group" style={{ marginBottom: "12px" }}>
                                     <label className="form-label">Frecuencia</label>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: showCustomFreqInput ? "8px" : "0" }}>
                                         {["cada 7 días", "cada 14 días", "cada 21 días", "mensual", "una vez"].map(f => (
                                             <button 
                                                 key={f}
-                                                onClick={() => setRecipeForm({ ...recipeForm, frecuencia: f })}
+                                                onClick={() => {
+                                                    setRecipeForm({ ...recipeForm, frecuencia: f });
+                                                    setShowCustomFreqInput(false);
+                                                }}
                                                 style={{ padding: "4px 8px", fontSize: "11px", borderRadius: "100px", border: "1px solid", cursor: "pointer", background: recipeForm.frecuencia === f ? "#2d6a4f" : "#fff", color: recipeForm.frecuencia === f ? "#fff" : "#4b5563", borderColor: recipeForm.frecuencia === f ? "#2d6a4f" : "#d1d5db" }}
                                             >
                                                 {f}
                                             </button>
                                         ))}
                                         <button 
-                                            onClick={() => {
-                                                const p = prompt("Especifique frecuencia personalizada:");
-                                                if (p) setRecipeForm({ ...recipeForm, frecuencia: p });
-                                            }}
-                                            style={{ padding: "4px 8px", fontSize: "11px", borderRadius: "100px", border: "1px dashed #d1d5db", cursor: "pointer", color: "#6b7280" }}
+                                            onClick={() => setShowCustomFreqInput(!showCustomFreqInput)}
+                                            style={{ padding: "4px 8px", fontSize: "11px", borderRadius: "100px", border: showCustomFreqInput ? "1px solid #2d6a4f" : "1px dashed #d1d5db", cursor: "pointer", color: showCustomFreqInput ? "#2d6a4f" : "#6b7280", background: "#fff" }}
                                         >
-                                            Personalizado...
+                                            {showCustomFreqInput ? "Cerrar" : "Personalizado..."}
                                         </button>
                                     </div>
+                                    {showCustomFreqInput && (
+                                        <input 
+                                            type="text" 
+                                            className="form-select" 
+                                            placeholder="Especifique frecuencia (ej: cada 3 días)"
+                                            style={{ marginTop: "4px" }}
+                                            value={recipeForm.frecuencia}
+                                            onChange={e => setRecipeForm({ ...recipeForm, frecuencia: e.target.value })}
+                                            autoFocus
+                                        />
+                                    )}
                                 </div>
 
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
@@ -731,10 +857,36 @@ const AgroTratamientoTracking = () => {
                                     <textarea className="form-textarea" style={{ minHeight: "60px" }} value={recipeForm.notas} onChange={e => setRecipeForm({ ...recipeForm, notas: e.target.value })} />
                                 </div>
 
-                                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "12px", borderRadius: "8px", marginBottom: "20px" }}>
+                                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "12px", borderRadius: "8px", marginBottom: "8px" }}>
                                     <p style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "4px" }}>Resumen de Receta</p>
                                     <p style={{ fontSize: "13px", color: "#334155", fontStyle: "italic", lineHeight: "1.4" }}>{recipeSummary}</p>
                                 </div>
+
+                                {stockReport && (
+                                    <div style={{ 
+                                        display: "flex", 
+                                        alignItems: "center", 
+                                        gap: "10px", 
+                                        padding: "10px 12px", 
+                                        borderRadius: "8px", 
+                                        marginBottom: "20px",
+                                        fontSize: "13px",
+                                        background: stockReport.esSuficiente ? "#f0fdf4" : "#fef2f2",
+                                        border: `1px solid ${stockReport.esSuficiente ? "#bbf7d0" : "#fecaca"}`,
+                                        color: stockReport.esSuficiente ? "#15803d" : "#b91c1c"
+                                    }}>
+                                        {stockReport.esSuficiente ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                                        <div style={{ flex: 1 }}>
+                                            <span style={{ fontWeight: 700 }}>{stockReport.esSuficiente ? "Stock Disponible" : "Stock Insuficiente"}</span>
+                                            <p style={{ margin: 0, fontSize: "12px", opacity: 0.9 }}>
+                                                {stockReport.esSuficiente 
+                                                    ? `Hay suficiente para las ${aplicacionesProyectadas.length} aplicaciones (${stockReport.stockActual} ${stockReport.unidad} en bodega).`
+                                                    : `Faltan ${stockReport.faltante.toFixed(1)} ${stockReport.unidad} para completar el ciclo (Stock: ${stockReport.stockActual}).`
+                                                }
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div style={{ display: "flex", gap: "8px" }}>
                                     <button className="btn-save" style={{ flex: 2 }} onClick={handleSaveRecipe} disabled={isSavingRecipe}>
@@ -813,7 +965,7 @@ const AgroTratamientoTracking = () => {
                                 {monthData.map((cell, idx) => (
                                     <div
                                         key={idx}
-                                        className={`calendar-day ${!cell.day ? "empty" : ""} ${cell.isClosingDay ? "closing-day" : ""} ${selectedDay && cell.date && selectedDay.getTime() === cell.date.getTime() ? "selected" : ""}`}
+                                        className={`calendar-day ${!cell.day ? "empty" : ""} ${cell.isClosingDay ? "closing-day" : ""} ${selectedDay && cell.date && selectedDay.getTime() === cell.date.getTime() ? "selected" : ""} ${cell.date && recipeForm.fecha_inicio && recipeForm.fecha_fin && cell.date.toISOString().split("T")[0] >= recipeForm.fecha_inicio && cell.date.toISOString().split("T")[0] <= recipeForm.fecha_fin ? "projected" : ""} ${cell.date && aplicacionesProyectadas.includes(cell.date.toISOString().split("T")[0]) ? "is-application" : ""}`}
                                         onClick={() => cell.date && setSelectedDay(cell.date)}
                                     >
                                         {cell.day && (

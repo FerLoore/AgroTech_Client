@@ -153,6 +153,16 @@
   z-index: 1;
 }
 
+.calendar-day.projected {
+  background: #f8fafc; /* Grisáceo/Azulado muy tenue para el rango */
+  border: 1px dashed #e2e8f0;
+}
+
+.calendar-day.is-application {
+  background: #e0f2fe !important; /* Azul más fuerte para el día de aplicación */
+  border: 1.5px solid #bae6fd !important;
+}
+
 .calendar-day.closing-day {
   background: var(--agro-amber-bg);
 }
@@ -177,6 +187,7 @@
 .pill-revision { background: var(--agro-light-green); color: var(--agro-dark-green); }
 .pill-pending { background: var(--agro-amber-bg); color: var(--agro-amber-text); }
 .pill-critical { background: var(--agro-red-bg); color: var(--agro-red-text); }
+.pill-projection { background: var(--agro-blue-bg); color: var(--agro-blue-text); border: 1px dashed #bfdbfe; font-style: italic; }
 
 /* Sidebar */
 .details-sidebar {
