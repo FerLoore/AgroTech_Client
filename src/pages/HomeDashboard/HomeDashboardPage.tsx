@@ -28,10 +28,11 @@ const defaultFincas: FincaOption[] = [
 
 // ─── helpers de badge ─────────────────────────────────────────────────────────
 const BADGE_STYLES: Record<string, { bg: string; color: string }> = {
-  "Crecimiento": { bg: "#EAF3DE", color: "#27500A" },
-  "Producción": { bg: "#E6F1FB", color: "#0C447C" },
-  "Enfermo": { bg: "#FAEEDA", color: "#633806" },
-  "Muerto": { bg: "#FCEBEB", color: "#791F1F" },
+  "Crecimiento": { bg: "#EAF3DE", color: "#4a7c59" },
+  "Producción": { bg: "#E6F1FB", color: "#185FA5" },
+  "Enfermo": { bg: "#FAEEDA", color: "#c0392b" },
+  "Muerto": { bg: "#FCEBEB", color: "#333333" },
+  "Cuarentena": { bg: "#FAEEDA", color: "#c0392b" },
 };
 
 function EstadoBadge({ estado }: { estado: string | null }) {
@@ -104,10 +105,11 @@ function MapaPreview({ mapaData, cargandoMapa }: { mapaData: any, cargandoMapa: 
     : [];
 
   const COLORES_ESTADO: Record<string, string> = {
-    Crecimiento: "#4a7c59", // verde mas suave
+    Crecimiento: "#4a7c59",
     Produccion: "#185FA5",
-    Enfermo: "#A32D2D",
+    Enfermo: "#c0392b",
     Muerto: "#333333",
+    Cuarentena: "#c0392b",
   };
 
   return (
@@ -295,9 +297,9 @@ export default function HomeDashboardPage() {
   const kpisData = [
     { label: "Total árboles", value: totArb, color: "#2d4a2d", sub: "activos en finca", trend: "", up: null as null | boolean, mod: "arboles" },
     { label: "En producción", value: prodArb, color: "#185FA5", sub: totArb ? `${Math.round(prodArb / totArb * 100)}% del inventario` : "0%", trend: "", up: null as null | boolean, mod: "arboles" },
-    { label: "En crecimiento", value: creArb, color: "#854F0B", sub: totArb ? `${Math.round(creArb / totArb * 100)}% del inventario` : "0%", trend: "", up: null as null | boolean, mod: "arboles" },
-    { label: "Enfermos", value: enfArb, color: "#A32D2D", sub: "requieren atención", trend: "", up: null as null | boolean, mod: "alertas" },
-    { label: "Alertas activas", value: totalAlert, color: "#E24B4A", sub: "pendientes análisis", trend: "", up: null as null | boolean, mod: "alertas" },
+    { label: "En crecimiento", value: creArb, color: "#4a7c59", sub: totArb ? `${Math.round(creArb / totArb * 100)}% del inventario` : "0%", trend: "", up: null as null | boolean, mod: "arboles" },
+    { label: "Enfermos", value: enfArb, color: "#c0392b", sub: "requieren atención", trend: "", up: null as null | boolean, mod: "alertas" },
+    { label: "Alertas activas", value: totalAlert, color: "#c0392b", sub: "pendientes análisis", trend: "", up: null as null | boolean, mod: "alertas" },
   ];
 
   const totProd = productosDb.length;
@@ -312,7 +314,7 @@ export default function HomeDashboardPage() {
     .sort((a: any, b: any) => b[1] - a[1]) // Mostrar los tipos con más productos primero
     .slice(0, 4) // Top 4 tipos
     .map(([tipo, count]: any, i) => {
-      const coloresProd = ["#185FA5", "#4a7c59", "#854F0B", "#E24B4A"];
+      const coloresProd = ["#185FA5", "#4a7c59", "#854F0B", "#c0392b"];
       return {
         label: tipo,
         count: count,
@@ -324,8 +326,8 @@ export default function HomeDashboardPage() {
   const inventarioProps = vistaInventario === "arboles" ? [
     { label: "Producción", count: prodArb, pct: totArb ? Math.round((prodArb / totArb) * 100) : 0, color: "#185FA5" },
     { label: "Crecimiento", count: creArb, pct: totArb ? Math.round((creArb / totArb) * 100) : 0, color: "#4a7c59" },
-    { label: "Enfermo", count: enfArb, pct: totArb ? Math.round((enfArb / totArb) * 100) : 0, color: "#E24B4A" },
-    { label: "Muerto", count: muerArb, pct: totArb ? Math.round((muerArb / totArb) * 100) : 0, color: "#888" },
+    { label: "Enfermo", count: enfArb, pct: totArb ? Math.round((enfArb / totArb) * 100) : 0, color: "#c0392b" },
+    { label: "Muerto", count: muerArb, pct: totArb ? Math.round((muerArb / totArb) * 100) : 0, color: "#333333" },
   ] : (prodPropsDinamic.length > 0 ? prodPropsDinamic : [{ label: "Sin inventario", count: 0, pct: 0, color: "#888" }]);
 
   // ─── estilos inline compartidos ─────────────────────────────────────────────
@@ -621,7 +623,7 @@ export default function HomeDashboardPage() {
             </div>
           ) : (
             alertasMapeadas.slice(0, 5).map((a) => {
-              const dotColor = a.severidad === "alta" ? "#A32D2D" : a.severidad === "media" ? "#854F0B" : "#888";
+              const dotColor = a.severidad === "alta" ? "#c0392b" : a.severidad === "media" ? "#4a7c59" : "#333333";
               return (
                 <div
                   key={a.arbol + a.descripcion}

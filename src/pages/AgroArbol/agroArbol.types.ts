@@ -29,9 +29,10 @@ export const ARBOL_FORM_INICIAL: ArbolFormData = {
 };
 
 export const TipoArbol = {
-    Crecimiento: { label: "Crecimiento", bg: "#e8f0e0", text: "#4a7c59" },
-    Produccion:  { label: "Producción",  bg: "#ddeef8", text: "#2563a0" },
-    Enfermo:     { label: "Enfermo",     bg: "#fef3c7", text: "#b45309" },
-    Muerto:      { label: "Muerto",      bg: "#f8d7da", text: "#721c24" }
+    Crecimiento: { label: "Crecimiento", bg: "#EAF3DE", text: "#4a7c59" },
+    Produccion:  { label: "Producción",  bg: "#E6F1FB", text: "#185FA5" },
+    Enfermo:     { label: "Enfermo",     bg: "#FAEEDA", text: "#c0392b" },
+    Muerto:      { label: "Muerto",      bg: "#FCEBEB", text: "#333333" },
+    Cuarentena:  { label: "Cuarentena",  bg: "#FAEEDA", text: "#c0392b" },
 } as const;
 

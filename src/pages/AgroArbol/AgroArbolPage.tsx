@@ -117,9 +117,9 @@ const AgroArbolPage = () => {
                     <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
                         {[
                             { label: "Total árboles", value: kpiResumen?.total || 0, color: "#2d4a2d", bg: "#f5f0e8", border: "#d4c9b0" },
-                            { label: "En producción", value: kpiResumen?.produccion || 0, color: "#1b3b81ff", bg: "#e6f0fa", border: "#aecdf6" }, // Azul
-                            { label: "En crecimiento", value: kpiResumen?.crecimiento || 0, color: "#007a1aff", bg: "#e6f7eb", border: "#93e0aa" }, // Verde
-                            { label: "Enfermos", value: kpiResumen?.enfermo || 0, color: "#8b711aff", bg: "#fef8e6", border: "#f0d888" }, // Amarillo
+                            { label: "En producción", value: kpiResumen?.produccion || 0, color: "#185FA5", bg: "#E6F1FB", border: "#aecdf6" }, // Azul
+                            { label: "En crecimiento", value: kpiResumen?.crecimiento || 0, color: "#4a7c59", bg: "#EAF3DE", border: "#93e0aa" }, // Verde
+                            { label: "Enfermos", value: kpiResumen?.enfermo || 0, color: "#c0392b", bg: "#FAEEDA", border: "#f0d888" }, // Amarillo a Rojo
                         ].map(s => (
                             <div key={s.label} style={{
                                 flex: "1 1 160px", background: s.bg,

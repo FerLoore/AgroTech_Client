@@ -41,10 +41,11 @@ export interface MapaFincaResponse {
 
 // Colores por estado — usados en CircleMarker
 export const COLORES_ESTADO: Record<string, string> = {
-    Produccion: "#4a7c59",
-    Crecimiento: "#e67e22",
+    Produccion: "#185FA5",
+    Crecimiento: "#4a7c59",
     Enfermo: "#c0392b",
-    Muerto: "#888888",
+    Muerto: "#333333",
+    Cuarentena: "#c0392b",
 };
 
 // Zoom fallback (el AutoFit lo sobreescribe automáticamente)

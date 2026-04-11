@@ -572,11 +572,27 @@ const AgroMapaPage = () => {
 
     // ─── Datos derivados ──────────────────────────────────────
     const seccionesUnicas = [...new Set(arboles.map(a => a.seccion_nombre))];
-    const arbolesFiltrados = arboles.filter(a =>
+    const arbolesEnfermosBD = arboles.filter(a => a.estado === "Enfermo");
+
+    // Lógica de Cuarentena Dinámica: todo árbol a <= 10m de un enfermo es Cuarentena (si está activado)
+    const arbolesConEstadoEfectivo = arboles.map(a => {
+        if (a.estado === "Enfermo") return a;
+        if (cuarentena) {
+            const estaEnCuarentena = arbolesEnfermosBD.some(enfermo => 
+                L.latLng(a.lat, a.lng).distanceTo(L.latLng(enfermo.lat, enfermo.lng)) <= 10
+            );
+            if (estaEnCuarentena) {
+                return { ...a, estado: "Cuarentena" as any };
+            }
+        }
+        return a;
+    });
+
+    const arbolesFiltrados = arbolesConEstadoEfectivo.filter(a =>
         (filtroEstado === "all" || a.estado === filtroEstado) &&
         (filtroSeccion === "all" || a.seccion_nombre === filtroSeccion)
     );
-    const arbolesEnfermos = arboles.filter(a => a.estado === "Enfermo");
+    const arbolesEnfermos = arbolesFiltrados.filter(a => a.estado === "Enfermo");
 
     // Agrupar perímetros por sección
     const poligonosPorSeccion = perimetro.reduce((acc, p) => {
@@ -604,6 +620,7 @@ const AgroMapaPage = () => {
         produccion: arbolesFiltrados.filter(a => a.estado === "Produccion").length,
         enfermos: arbolesFiltrados.filter(a => a.estado === "Enfermo").length,
         crecimiento: arbolesFiltrados.filter(a => a.estado === "Crecimiento").length,
+        cuarentena: arbolesFiltrados.filter(a => a.estado === "Cuarentena").length,
     };
 
     const estaEnWizard = paso !== "idle" && paso !== "listo";
@@ -956,12 +973,13 @@ const AgroMapaPage = () => {
             )}
 
             {/* ── STATS ── */}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
                 {[
                     { label: "Total", val: stats.total, color: "#2d4a2d" },
-                    { label: "Producción", val: stats.produccion, color: "#4a7c59" },
+                    { label: "Producción", val: stats.produccion, color: "#185FA5" },
                     { label: "Enfermos", val: stats.enfermos, color: "#c0392b" },
-                    { label: "Crecimiento", val: stats.crecimiento, color: "#e67e22" },
+                    { label: "Crecimiento", val: stats.crecimiento, color: "#4a7c59" },
+                    ...(cuarentena ? [{ label: "Cuarentena", val: stats.cuarentena, color: "#c0392b" }] : []),
                 ].map(s => (
                     <div key={s.label} style={{
                         background: "#fff", borderRadius: 10, padding: "8px 18px",
