@@ -8,6 +8,7 @@ import { getMapaFinca } from "../../api/agroFincaMapa.api";
 import { getAgroUsuarios } from "../../api/AgroUsuario.api";
 import { getHistorial } from "../../api/AgroHistorial.api";
 import { getProductos } from "../../api/AgroProducto.api";
+import { getAlertas } from "../../api/AgroAlertaSalud.api";
 
 // ─── tipos mínimos para los datos del dashboard ───────────────────────────────
 interface FincaOption {
@@ -161,7 +162,7 @@ export default function HomeDashboardPage() {
   const [usuariosBd, setUsuariosBd] = useState<any[]>([]);
 
   const [historialDb, setHistorialDb] = useState<any[]>([]);
-  const alertasDb: any[] = [];
+  const [alertasDb, setAlertasDb] = useState<any[]>([]);
   const [productosDb, setProductosDb] = useState<any[]>([]);
   const [vistaInventario, setVistaInventario] = useState<"arboles" | "productos">("arboles");
 
@@ -225,6 +226,11 @@ export default function HomeDashboardPage() {
         const prod = await getProductos();
         setProductosDb(Array.isArray(prod) ? prod : (prod?.productos || []));
       } catch (e) { console.error("Error productos", e); }
+
+      try {
+        const alertas = await getAlertas();
+        setAlertasDb(Array.isArray(alertas) ? alertas : (alertas?.alertas || []));
+      } catch (e) { console.error("Error alertas", e); }
     };
     cargarDashData();
 
