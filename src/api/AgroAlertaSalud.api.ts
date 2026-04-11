@@ -6,6 +6,12 @@ export const getAlertas = async () => {
     return res.data;
 };
 
+// GET por árbol
+export const getAlertasByArbol = async (id: number) => {
+    const res = await api.get(`/agro-alerta-salud/arbol/${id}`);
+    return res.data;
+};
+
 // POST
 export const createAlerta = async (data: {
     fecha_deteccion: string;
