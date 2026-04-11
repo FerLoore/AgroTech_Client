@@ -1,6 +1,6 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import L from "leaflet";
 import {
@@ -228,10 +228,11 @@ const WizardPanel = ({
 // ─────────────────────────────────────────────────────────────
 const AgroMapaPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
 
     // ── Datos generales ──────────────────────────────────────
     const [fincas, setFincas] = useState<Finca[]>([]);
-    const [fincaId, setFincaId] = useState<number | null>(null);
+    const [fincaId, setFincaId] = useState<number | null>(location.state?.fincaId || null);
     const [finca, setFinca] = useState<Finca | null>(null);
     const [arboles, setArboles] = useState<ArbolMapa[]>([]);
     const [perimetro, setPerimetro] = useState<PuntoPerimetro[]>([]);
@@ -244,7 +245,7 @@ const AgroMapaPage = () => {
 
     // ── Filtros ──────────────────────────────────────────────
     const [filtroEstado, setFiltroEstado] = useState("all");
-    const [filtroSeccion, setFiltroSeccion] = useState("all");
+    const [filtroSeccion, setFiltroSeccion] = useState(location.state?.seccionNombre || "all");
     const [cuarentena, setCuarentena] = useState(false);
 
     // ── Wizard ───────────────────────────────────────────────
@@ -388,17 +389,22 @@ const AgroMapaPage = () => {
         getFincas()
             .then((data: Finca[]) => {
                 setFincas(data);
-                if (data.length > 0) setFincaId(data[0].fin_finca);
+                if (data.length > 0 && !location.state?.fincaId) setFincaId(data[0].fin_finca);
             })
             .catch(() => setError("Error al cargar fincas"));
-    }, []);
+    }, [location.state?.fincaId]);
 
     useEffect(() => {
         if (fincaId) {
             setCentroManual(null); // Return to default finca center when switching
+            if (fincaId !== location.state?.fincaId) {
+                setFiltroSeccion("all");
+            } else {
+                setFiltroSeccion(location.state?.seccionNombre || "all");
+            }
             cargarMapa(fincaId);
         }
-    }, [fincaId]);
+    }, [fincaId, location.state?.fincaId, location.state?.seccionNombre, cargarMapa]);
 
     // ─── Paso 1: guardar coordenadas ─────────────────────────
     const guardarCoords = async () => {

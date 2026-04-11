@@ -428,7 +428,26 @@ export default function HomeDashboardPage() {
           {/* ── BOTÓN "ABRIR MAPA COMPLETO" dentro del card, bajo el mapa ── */}
           <div style={{ marginTop: 12 }}>
             <button
-              onClick={() => navigate("/agro-mapa")}
+              onClick={() => {
+                let ultimaSeccionNombre = "all";
+                if (mapaDataFinca && mapaDataFinca.perimetro) {
+                  const poligonosPorSeccion = (mapaDataFinca.perimetro || []).reduce((acc: any, p: any) => {
+                    const sid = p.seccion_id || 0;
+                    if (!acc[sid]) acc[sid] = [];
+                    acc[sid].push(p);
+                    return acc;
+                  }, {});
+                  const ultimaSeccionId = Object.keys(poligonosPorSeccion)
+                    .map(Number)
+                    .filter(id => !isNaN(id) && id > 0)
+                    .sort((a, b) => b - a)[0];
+                  if (ultimaSeccionId && mapaDataFinca.arboles) {
+                    const arbolEnSeccion = mapaDataFinca.arboles.find((a: any) => a.seccion_id === ultimaSeccionId);
+                    if (arbolEnSeccion) ultimaSeccionNombre = arbolEnSeccion.seccion_nombre;
+                  }
+                }
+                navigate("/agro-mapa", { state: { fincaId: fincaActiva.id, seccionNombre: ultimaSeccionNombre } });
+              }}
               style={{
                 width: "100%",
                 padding: "9px 0",
