@@ -1,0 +1,282 @@
+/* TrackingCalendar.css */
+
+:root {
+  --agro-dark-green: #2d6a4f;
+  --agro-light-green: #eaf3de;
+  --agro-amber-bg: #faeeda;
+  --agro-amber-text: #b45309;
+  --agro-red-bg: #fcebeb;
+  --agro-red-text: #b91c1c;
+  --agro-blue-bg: #e6f1fb;
+  --agro-blue-text: #1d4ed8;
+  --agro-border: 1px solid #e5e7eb;
+}
+
+.tracking-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #fff;
+  padding: 24px;
+  min-height: 80vh;
+}
+
+.tracking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.selector-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.tracking-select {
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  outline: none;
+  min-width: 180px;
+  background: white;
+}
+
+.tracking-select:focus {
+  border-color: var(--agro-dark-green);
+}
+
+/* Banner */
+.status-banner {
+  padding: 12px 20px;
+  background: var(--agro-amber-bg);
+  color: var(--agro-amber-text);
+  border-radius: 8px;
+  font-weight: 600;
+  border: 1px solid #fed7aa;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Calendar Grid */
+.calendar-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 24px;
+}
+
+.calendar-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: center;
+}
+
+.nav-btn {
+  padding: 6px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-btn:hover {
+  background: #f9fafb;
+}
+
+.calendar-month-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #374151;
+  text-transform: capitalize;
+  min-width: 150px;
+  text-align: center;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border: var(--agro-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.calendar-weekday {
+  background: #f9fafb;
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  border-bottom: var(--agro-border);
+  border-right: var(--agro-border);
+}
+
+.calendar-day {
+  min-height: 100px;
+  padding: 8px;
+  border-right: var(--agro-border);
+  border-bottom: var(--agro-border);
+  cursor: pointer;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: background 0.2s;
+}
+
+.calendar-day:hover {
+  background: #fcfdfc;
+}
+
+.calendar-day.empty {
+  background: #fafafa;
+  cursor: default;
+}
+
+.calendar-day.selected {
+  background: #f0fdf4;
+  border: 1px solid var(--agro-dark-green);
+  z-index: 1;
+}
+
+.calendar-day.closing-day {
+  background: var(--agro-amber-bg);
+}
+
+.day-number {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+/* Pills */
+.pill {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill-revision { background: var(--agro-light-green); color: var(--agro-dark-green); }
+.pill-pending { background: var(--agro-amber-bg); color: var(--agro-amber-text); }
+.pill-critical { background: var(--agro-red-bg); color: var(--agro-red-text); }
+
+/* Sidebar */
+.details-sidebar {
+  border: var(--agro-border);
+  border-radius: 4px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #fff;
+}
+
+.sidebar-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sidebar-date {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  color: #9ca3af;
+  text-align: center;
+  gap: 12px;
+}
+
+/* Formulario */
+.dictamen-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.form-select, .form-textarea {
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.btn-save {
+  background: var(--agro-dark-green);
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-save:hover {
+  background: #255740;
+}
+
+.confirm-card {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 16px;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-edit {
+  color: var(--agro-dark-green);
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  width: fit-content;
+  padding: 0;
+}

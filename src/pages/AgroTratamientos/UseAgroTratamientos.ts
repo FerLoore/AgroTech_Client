@@ -34,6 +34,7 @@ export const useAgroTratamientos = () => {
     const [filtroProducto, setFiltroProducto] = useState("");
     const [filtroFechaDesde, setFiltroFechaDesde] = useState("");
     const [filtroFechaHasta, setFiltroFechaHasta] = useState("");
+    const [filtroFincaTabla, setFiltroFincaTabla] = useState("");
 
     // Filtro de finca en formulario
     const [filtroFincaForm, setFiltroFincaForm] = useState("");
@@ -142,7 +143,40 @@ export const useAgroTratamientos = () => {
         const matchFecha = (!filtroFechaDesde || fechaTrata >= filtroFechaDesde) &&
                            (!filtroFechaHasta || fechaTrata <= filtroFechaHasta);
 
-        return matchBusqueda && matchEstado && matchProducto && matchFecha;
+        // Filtro por finca (Tabla)
+        let matchFinca = true;
+        if (filtroFincaTabla) {
+            let fincaId = null;
+            if (t.trata_tipo === "Curativo" && t.alertsalu_alerta_salud) {
+                const alerta = alertas.find(a => Number(a.alertsalud_id) === Number(t.alertsalu_alerta_salud));
+                const arbol = alerta ? arboles.find(a => Number(a.arb_arbol) === Number(alerta.arb_arbol)) : null;
+                const surco = arbol ? surcos.find(s => Number(s.sur_surco) === Number(arbol.sur_surcos)) : null;
+                const seccion = surco ? secciones.find(s => Number(s.secc_seccion) === Number(surco.secc_secciones)) : null;
+                fincaId = seccion ? seccion.fin_finca : null;
+            } else if (t.trata_tipo === "Preventivo" && t.secc_seccion) {
+                const seccion = secciones.find(s => Number(s.secc_seccion) === Number(t.secc_seccion));
+                fincaId = seccion ? seccion.fin_finca : null;
+            }
+            matchFinca = String(fincaId) === String(filtroFincaTabla);
+        }
+
+        return matchBusqueda && matchEstado && matchProducto && matchFecha && matchFinca;
+    }).map((t: any) => {
+        // Enriquecer con ID de árbol para la tabla
+        let ui_arbol_id = "—";
+        if (t.trata_tipo === "Curativo" && t.alertsalu_alerta_salud) {
+            const alerta = alertas.find(a => Number(a.alertsalud_id) === Number(t.alertsalu_alerta_salud));
+            ui_arbol_id = alerta ? `Árbol #${alerta.arb_arbol}` : `Alerta #${t.alertsalu_alerta_salud}`;
+        } else if (t.trata_tipo === "Preventivo" && t.secc_seccion) {
+            const seccion = secciones.find(s => Number(s.secc_seccion) === Number(t.secc_seccion));
+            ui_arbol_id = seccion ? seccion.secc_nombre : `Secc #${t.secc_seccion}`;
+        }
+
+        // Nombre del producto
+        const producto = productos.find(p => Number(p.produ_producto) === Number(t.produ_producto));
+        const ui_producto_nombre = producto ? producto.produ_nombre : `Ref #${t.produ_producto}`;
+
+        return { ...t, ui_arbol_id, ui_producto_nombre };
     });
 
     const abrirCrear = () => {
@@ -257,6 +291,7 @@ export const useAgroTratamientos = () => {
         filtroProducto, setFiltroProducto,
         filtroFechaDesde, setFiltroFechaDesde,
         filtroFechaHasta, setFiltroFechaHasta,
+        filtroFincaTabla, setFiltroFincaTabla,
         filtroFincaForm, setFiltroFincaForm,
         modal,
         editando,
