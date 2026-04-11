@@ -7,6 +7,11 @@ import {
 } from "../../api/AgroTratamientos.api";
 import { getAlertas } from "../../api/AgroAlertaSalud.api";
 import { getProductos } from "../../api/AgroProducto.api";
+import { getAnalisisLaboratorio } from "../../api/agroAnalisisLaboratorio.api";
+import { getAgroSecciones } from "../../api/AgroSeccion.api";
+import { getArboles } from "../../api/AgroArbol.api";
+import { getSurcos } from "../../api/AgroSurco.api";
+import { getAgroFincas } from "../../api/AgroFinca.api";
 import type { Tratamiento, TratamientoFormData } from "./AgroTratamientos.types";
 import { TRATAMIENTO_FORM_INICIAL } from "./AgroTratamientos.types";
 import { toast } from "sonner";
@@ -17,7 +22,22 @@ export const useAgroTratamientos = () => {
     const [error, setError] = useState("");
     const [alertas, setAlertas] = useState<any[]>([]);
     const [productos, setProductos] = useState<any[]>([]);
+    const [analisis, setAnalisis] = useState<any[]>([]);
+    const [arboles, setArboles] = useState<any[]>([]);
+    const [surcos, setSurcos] = useState<any[]>([]);
+    const [secciones, setSecciones] = useState<any[]>([]);
+    const [fincas, setFincas] = useState<any[]>([]);
+
+    // Filtros de tabla
     const [busqueda, setBusqueda] = useState("");
+    const [filtroEstado, setFiltroEstado] = useState("");
+    const [filtroProducto, setFiltroProducto] = useState("");
+    const [filtroFechaDesde, setFiltroFechaDesde] = useState("");
+    const [filtroFechaHasta, setFiltroFechaHasta] = useState("");
+
+    // Filtro de finca en formulario
+    const [filtroFincaForm, setFiltroFincaForm] = useState("");
+
     const [modal, setModal] = useState(false);
     const [editando, setEditando] = useState<Tratamiento | null>(null);
     const [form, setForm] = useState<TratamientoFormData>(TRATAMIENTO_FORM_INICIAL);
@@ -42,41 +62,93 @@ export const useAgroTratamientos = () => {
         const init = async () => {
             await cargarTratamientos();
             try {
-                const data = await getAlertas();
-                setAlertas(Array.isArray(data) ? data : []);
-            } catch {
-                console.error("Error cargando alertas para select");
-            }
-            try {
-                const data = await getProductos();
-                setProductos(Array.isArray(data) ? data : []);
-            } catch {
-                console.error("Error cargando productos para select");
+                const [resAlertas, resProductos, resAnalisis, resSecciones, resArboles, resSurcos, resFincas] = await Promise.all([
+                    getAlertas(),
+                    getProductos(),
+                    getAnalisisLaboratorio(),
+                    getAgroSecciones(),
+                    getArboles(1, 2000),
+                    getSurcos(),
+                    getAgroFincas(),
+                ]);
+                
+                setAlertas(Array.isArray(resAlertas) ? resAlertas : []);
+                setProductos(Array.isArray(resProductos) ? resProductos : []);
+                setAnalisis(Array.isArray(resAnalisis) ? resAnalisis : []);
+                setSecciones((resSecciones as any)?.data?.secciones || []);
+                setArboles(resArboles?.arboles || []);
+                setSurcos(resSurcos?.surcos || (Array.isArray(resSurcos) ? resSurcos : []));
+                setFincas(resFincas?.data?.fincas || []);
+            } catch (err) {
+                console.error("Error cargando datos maestros:", err);
             }
         };
         init();
     }, []);
 
-    const opcionesAlertas = alertas.map(a => ({
-        valor: String(a.alertsalud_id),
-        label: `Alerta #${a.alertsalud_id} - Árbol ${a.arb_arbol}`
-    }));
+    // 1. Filtrar alertas confirmadas
+    const alertasConfirmadas = alertas.filter(alerta => {
+        return analisis.some(an => 
+            Number(an.alert_alerta_salud) === Number(alerta.alertsalud_id) && 
+            an.analab_resultado_tipo === "Positivo"
+        );
+    });
+
+    // 2. Opciones de alertas filtradas por finca en formulario
+    const opcionesAlertas = alertasConfirmadas
+        .filter(alerta => {
+            if (!filtroFincaForm) return true;
+            const arbol = arboles.find(a => Number(a.arb_arbol) === Number(alerta.arb_arbol));
+            const surco = arbol ? surcos.find(s => Number(s.sur_surco) === Number(arbol.sur_surcos)) : null;
+            const seccion = surco ? secciones.find(s => Number(s.secc_seccion) === Number(surco.secc_secciones)) : null;
+            const finca = seccion ? fincas.find(f => Number(f.fin_finca) === Number(seccion.fin_finca)) : null;
+            return String(finca?.fin_finca) === String(filtroFincaForm);
+        })
+        .map(a => ({
+            valor: String(a.alertsalud_id),
+            label: `Alerta #${a.alertsalud_id} - Árbol ${a.arb_arbol}`
+        }));
 
     const opcionesProductos = productos.map(p => ({
         valor: String(p.produ_producto),
         label: p.produ_nombre
     }));
 
-    const tratamientosFiltrados = tratamientos.filter((t) =>
-        String(t.trata_estado ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
-        String(t.trata_dosis ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
-        String(t.alertsalu_alerta_salud ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
-        String(t.produ_producto ?? "").toLowerCase().includes(busqueda.toLowerCase())
-    );
+    const opcionesSecciones = secciones.map(s => ({
+        valor: String(s.secc_seccion),
+        label: s.secc_nombre
+    }));
+
+    const opcionesFincas = fincas.map(f => ({
+        valor: String(f.fin_finca),
+        label: f.fin_nombre
+    }));
+
+    // 3. Lógica de filtrado de tabla avanzada
+    const tratamientosFiltrados = tratamientos.filter((t: any) => {
+        // Filtro por búsqueda general
+        const matchBusqueda = !busqueda || 
+            String(t.trata_estado ?? "").toLowerCase().includes(busqueda.toLowerCase()) ||
+            String(t.trata_tipo ?? "").toLowerCase().includes(busqueda.toLowerCase());
+        
+        // Filtro por estado
+        const matchEstado = !filtroEstado || t.trata_estado === filtroEstado;
+        
+        // Filtro por producto
+        const matchProducto = !filtroProducto || String(t.produ_producto) === String(filtroProducto);
+        
+        // Filtro por fecha inicio
+        const fechaTrata = String(t.trata_fecha_inicio ?? "").split("T")[0];
+        const matchFecha = (!filtroFechaDesde || fechaTrata >= filtroFechaDesde) &&
+                           (!filtroFechaHasta || fechaTrata <= filtroFechaHasta);
+
+        return matchBusqueda && matchEstado && matchProducto && matchFecha;
+    });
 
     const abrirCrear = () => {
         setEditando(null);
         setForm(TRATAMIENTO_FORM_INICIAL);
+        setFiltroFincaForm("");
         setFormError("");
         setModal(true);
     };
@@ -86,12 +158,14 @@ export const useAgroTratamientos = () => {
         const toDate = (d?: string) => d ? String(d).split("T")[0] : "";
         setForm({
             trata_fecha_inicio: toDate(t.trata_fecha_inicio),
-            trata_fecha_fin: toDate(t.trata_fecha_fin),
+            trata_fecha_fin: toDate(t.trata_fecha_fin as string),
             trata_estado: t.trata_estado,
             trata_dosis: t.trata_dosis || "",
             trata_observaciones: t.trata_observaciones || "",
-            alertsalu_alerta_salud: t.alertsalu_alerta_salud,
+            alertsalu_alerta_salud: t.alertsalu_alerta_salud !== undefined ? t.alertsalu_alerta_salud : null,
             produ_producto: t.produ_producto,
+            trata_tipo: t.trata_tipo || "Curativo",
+            secc_seccion: t.secc_seccion !== undefined ? t.secc_seccion : null,
         });
         setFormError("");
         setModal(true);
@@ -105,13 +179,13 @@ export const useAgroTratamientos = () => {
             return;
         }
 
-        if (!String(form.trata_estado).trim()) {
-            setFormError("El estado es requerido");
+        if (form.trata_tipo === "Curativo" && !form.alertsalu_alerta_salud) {
+            setFormError("La alerta de salud es requerida para tratamientos curativos");
             return;
         }
 
-        if (!Number(form.alertsalu_alerta_salud)) {
-            setFormError("La alerta de salud es requerida");
+        if (form.trata_tipo === "Preventivo" && !form.secc_seccion) {
+            setFormError("La sección es requerida para tratamientos preventivos");
             return;
         }
 
@@ -125,31 +199,31 @@ export const useAgroTratamientos = () => {
             setFormError("");
 
             const payload = {
-                trata_fecha_inicio: form.trata_fecha_inicio,
-                trata_fecha_fin: form.trata_fecha_fin || "",
-                trata_estado: form.trata_estado,
-                trata_dosis: form.trata_dosis || "",
-                trata_observaciones: form.trata_observaciones || "",
-                alertsalu_alerta_salud: Number(form.alertsalu_alerta_salud),
-                produ_producto: Number(form.produ_producto),
+                ...form,
+                trata_fecha_inicio: form.trata_fecha_inicio || new Date().toISOString().split("T")[0],
+                trata_fecha_fin:    form.trata_fecha_fin    || null,
+                trata_estado:       form.trata_estado       || "En curso",
+                alertsalu_alerta_salud: form.trata_tipo === "Curativo" ? Number(form.alertsalu_alerta_salud) : null,
+                secc_seccion:           form.trata_tipo === "Preventivo" ? Number(form.secc_seccion) : null,
+                produ_producto:         Number(form.produ_producto),
+                usu_usuario:            1, // Simulamos ID de usuario
             };
 
-            console.log("PAYLOAD TRATAMIENTO:", payload);
-
             if (editando) {
-                await updateTratamiento(editando.trata_tratamientos, payload);
-                toast.success("Tratamiento actualizado correctamente");
+                await updateTratamiento(editando.trata_tratamientos, payload as any);
+                toast.success("Tratamiento actualizado");
             } else {
-                await createTratamiento(payload);
-                toast.success("Tratamiento creado correctamente");
+                await createTratamiento(payload as any);
+                toast.success("Tratamiento y prescripción generada");
             }
 
             setModal(false);
             await cargarTratamientos();
         } catch (err: any) {
-            console.error("ERROR REAL TRATAMIENTO:", err);
-            setFormError(err?.message || "Error al guardar tratamiento");
-            toast.error(err?.message || "Error al guardar tratamiento");
+            console.error("ERROR GUARDAR:", err);
+            const msg = err?.response?.data?.message || err?.message || "Error al guardar";
+            setFormError(msg);
+            toast.error(msg);
         } finally {
             setGuardando(false);
         }
@@ -163,9 +237,9 @@ export const useAgroTratamientos = () => {
                     try {
                         await deleteTratamiento(t.trata_tratamientos);
                         await cargarTratamientos();
-                        toast.success("Tratamiento eliminado correctamente");
+                        toast.success("Tratamiento eliminado");
                     } catch (err: any) {
-                        toast.error(err?.message || "Error al eliminar");
+                        toast.error("Error al eliminar");
                     }
                 }
             },
@@ -178,8 +252,12 @@ export const useAgroTratamientos = () => {
         tratamientosFiltrados,
         loading,
         error,
-        busqueda,
-        setBusqueda,
+        busqueda, setBusqueda,
+        filtroEstado, setFiltroEstado,
+        filtroProducto, setFiltroProducto,
+        filtroFechaDesde, setFiltroFechaDesde,
+        filtroFechaHasta, setFiltroFechaHasta,
+        filtroFincaForm, setFiltroFincaForm,
         modal,
         editando,
         form,
@@ -193,5 +271,7 @@ export const useAgroTratamientos = () => {
         handleEliminar,
         opcionesAlertas,
         opcionesProductos,
+        opcionesSecciones,
+        opcionesFincas
     };
 };

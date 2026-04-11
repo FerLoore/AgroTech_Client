@@ -12,6 +12,8 @@ export const createProducto = async (data: {
     produ_tipo:           string;
     produ_concentracion?: string;
     produ_unidad?:        string;
+    produ_stock_actual?:  number;
+    produ_stock_minimo?:  number;
 }) => {
     const res = await api.post("/agro-producto", data);
     return res.data.producto;
@@ -23,6 +25,8 @@ export const updateProducto = async (id: number, data: {
     produ_tipo?:          string;
     produ_concentracion?: string;
     produ_unidad?:        string;
+    produ_stock_actual?:  number;
+    produ_stock_minimo?:  number;
 }) => {
     const res = await api.put(`/agro-producto/${id}`, data);
     return res.data.producto;

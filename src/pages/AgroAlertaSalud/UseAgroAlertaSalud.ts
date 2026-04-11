@@ -72,7 +72,7 @@ export const useAgroAlertaSalud = () => {
             ] = await Promise.all([
                 getAlertas(),
                 getAnalisisLaboratorio(),
-                getArboles(),
+                getArboles(1, 2000),
                 getSurcos(),
                 getAgroSecciones(),
                 getAgroFincas(),
@@ -141,10 +141,15 @@ export const useAgroAlertaSalud = () => {
     // ── Opciones para selects del formulario ──────────────────
     const opcionesArboles = arboles
         .filter(a => {
+            // El árbol actual del formulario SIEMPRE debe estar disponible (para edición)
+            if (form.arb_arbol && Number(a.arb_arbol) === Number(form.arb_arbol)) return true;
+            
             if (!filtroFinca) return true;
+            
             const surco   = surcos.find(s => Number(s.sur_surco) === Number(a.sur_surcos));
             const seccion = surco ? secciones.find(s => Number(s.secc_seccion) === Number(surco.secc_secciones)) : null;
             const finca   = seccion ? fincas.find(f => Number(f.fin_finca) === Number(seccion.fin_finca)) : null;
+            
             return finca?.fin_nombre === filtroFinca;
         })
         .map(a => ({

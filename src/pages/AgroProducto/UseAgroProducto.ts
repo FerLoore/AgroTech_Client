@@ -51,6 +51,8 @@ export const useAgroProducto = () => {
             produ_tipo:          producto.produ_tipo,
             produ_concentracion: producto.produ_concentracion || "",
             produ_unidad:        producto.produ_unidad || "",
+            produ_stock_actual:  producto.produ_stock_actual || 0,
+            produ_stock_minimo:  producto.produ_stock_minimo || 0,
         });
         setFormError("");
         setModal(true);
@@ -77,6 +79,8 @@ export const useAgroProducto = () => {
                 produ_tipo:          form.produ_tipo,
                 produ_concentracion: form.produ_concentracion || undefined,
                 produ_unidad:        form.produ_unidad || undefined,
+                produ_stock_actual:  Number(form.produ_stock_actual),
+                produ_stock_minimo:  Number(form.produ_stock_minimo),
             };
 
             if (editando) {

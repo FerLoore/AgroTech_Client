@@ -18,6 +18,7 @@ import {
     getAnalisisLaboratorio,
     createAnalisisLaboratorio,
     updateAnalisisLaboratorio,
+    deleteAnalisisLaboratorio,
 } from "../../api/agroAnalisisLaboratorio.api";
 import { createCatalogoPatogeno } from "../../api/AgroCatalogoPatogeno.api";
 import { getAlertas } from "../../api/AgroAlertaSalud.api";
@@ -84,7 +85,7 @@ export const useRegistroAnalisis = () => {
                 getAlertas(),
                 getAnalisisLaboratorio(),
                 getCatalogoPatogenos(),
-                getArboles(),
+                getArboles(1, 2000),
                 getSurcos(),
                 getAgroSecciones(),
                 getAgroFincas(),
@@ -133,7 +134,7 @@ export const useRegistroAnalisis = () => {
 
     // ── Helper: finca de un árbol ─────────────────────────────
     const fincaDeArbol = (arbId: number): string => {
-        const arbol   = arboles.find(a => Number(a.arb_arbol) === arbId);
+        const arbol   = arboles.find(a => Number(a.arb_arbol) === Number(arbId));
         const surco   = arbol   ? surcos.find(s => Number(s.sur_surco) === Number(arbol.sur_surcos)) : null;
         const seccion = surco   ? secciones.find(s => Number(s.secc_seccion) === Number(surco.secc_secciones)) : null;
         const finca   = seccion ? fincas.find(f => Number(f.fin_finca) === Number(seccion.fin_finca)) : null;
@@ -324,6 +325,26 @@ export const useRegistroAnalisis = () => {
         }
     };
 
+    // ── Eliminar Análisis ─────────────────────────────────────
+    const handleEliminar = (an: any) => {
+        toast.warning(`¿Eliminar análisis #${an.analab_analisis_laboratorio}?`, {
+            description: "Esta acción es irreversible y eliminará el registro de la base de datos.",
+            action: {
+                label: "Eliminar",
+                onClick: async () => {
+                    try {
+                        await deleteAnalisisLaboratorio(an.analab_analisis_laboratorio);
+                        toast.success("Análisis eliminado correctamente");
+                        await cargarTodo();
+                    } catch (err: any) {
+                        toast.error("Error al eliminar el análisis");
+                    }
+                }
+            },
+            cancel: { label: "Cancelar", onClick: () => {} }
+        });
+    };
+
     return {
         alertasActivas: alertasActivasFiltradas,
         analisis: analisisFiltrados,
@@ -343,6 +364,7 @@ export const useRegistroAnalisis = () => {
         guardando,
         formError,
         handleGuardar,
+        handleEliminar,
         loading,
         error,
     };
