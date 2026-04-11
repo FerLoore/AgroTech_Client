@@ -454,7 +454,7 @@ export default function HomeDashboardPage() {
                 <option value="arboles">Árboles</option>
                 <option value="productos">Insumos</option>
               </select>
-              <span style={S.cardLink} onClick={() => navigate(vistaInventario === "arboles" ? "/agro-arboles" : "/agro-productos")}>ver →</span>
+              <span style={S.cardLink} onClick={() => navigate(vistaInventario === "arboles" ? "/agro-arboles" : "/agro-producto")}>ver →</span>
             </div>
           </div>
 
@@ -531,26 +531,44 @@ export default function HomeDashboardPage() {
             ))}
           </div>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-            <thead>
-              <tr>
-                {["Ref", "Antes", "", "Después", "Cuándo"].map((h) => (
-                  <th key={h} style={{ padding: "7px 10px", textAlign: "left", fontSize: 10, fontWeight: 500, color: "#9aaa9a", textTransform: "uppercase", letterSpacing: ".5px", borderBottom: "0.5px solid #f0ece4" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {histFiltrado.slice(0, 5).map((r) => (
-                <tr key={r.ref} onClick={() => navigate("/agro-historial")} style={{ cursor: "pointer" }}>
-                  <td style={{ padding: "9px 10px", borderBottom: "0.5px solid #f8f4f0", color: "#9aaa9a", fontSize: 11 }}>{r.ref}</td>
-                  <td style={{ padding: "9px 10px", borderBottom: "0.5px solid #f8f4f0" }}><EstadoBadge estado={r.antes} /></td>
-                  <td style={{ padding: "9px 10px", borderBottom: "0.5px solid #f8f4f0", color: "#ccc" }}>→</td>
-                  <td style={{ padding: "9px 10px", borderBottom: "0.5px solid #f8f4f0" }}><EstadoBadge estado={r.despues} /></td>
-                  <td style={{ padding: "9px 10px", borderBottom: "0.5px solid #f8f4f0", color: "#aaa", fontSize: 10 }}>{r.cuando}</td>
+          {histFiltrado.length === 0 ? (
+            <div style={{
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              padding: "30px 10px", textAlign: "center", background: "#fcfdfe", borderRadius: 12, marginTop: 8, border: "1px dashed #d5e5d5"
+            }}>
+              <div style={{ background: "#f4f4f4", borderRadius: "50%", padding: 12, marginBottom: 12 }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9da39d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "#5F5E5A", marginBottom: 4 }}>Sin cambios recientes</span>
+              <span style={{ fontSize: 11, color: "#9aaa9a", maxWidth: "80%", lineHeight: 1.4 }}>
+                Aún no hay registros de cambios de estado para mostrar.
+              </span>
+            </div>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr>
+                  {["Ref", "Antes", "", "Después", "Cuándo"].map((h, i) => (
+                    <th key={i} style={{ padding: "7px 10px", textAlign: "left", fontSize: 10, fontWeight: 500, color: "#9aaa9a", textTransform: "uppercase", letterSpacing: ".5px", borderBottom: "0.5px solid #f0ece4" }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {histFiltrado.slice(0, 5).map((r) => (
+                  <tr key={r.ref} onClick={() => navigate("/agro-historial")} style={{ cursor: "pointer" }}>
+                    <td style={{ padding: "9px 10px", borderBottom: "0.5px solid #f8f4f0", color: "#9aaa9a", fontSize: 11 }}>{r.ref}</td>
+                    <td style={{ padding: "9px 10px", borderBottom: "0.5px solid #f8f4f0" }}><EstadoBadge estado={r.antes} /></td>
+                    <td style={{ padding: "9px 10px", borderBottom: "0.5px solid #f8f4f0", color: "#ccc" }}>→</td>
+                    <td style={{ padding: "9px 10px", borderBottom: "0.5px solid #f8f4f0" }}><EstadoBadge estado={r.despues} /></td>
+                    <td style={{ padding: "9px 10px", borderBottom: "0.5px solid #f8f4f0", color: "#aaa", fontSize: 10 }}>{r.cuando}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* card ALERTAS DE SALUD RECIENTES */}
@@ -560,24 +578,42 @@ export default function HomeDashboardPage() {
             <span style={S.cardLink} onClick={() => navigate("/agro-alerta-salud")}>ver todas →</span>
           </div>
 
-          {alertasMapeadas.slice(0, 5).map((a) => {
-            const dotColor = a.severidad === "alta" ? "#A32D2D" : a.severidad === "media" ? "#854F0B" : "#888";
-            return (
-              <div
-                key={a.arbol + a.descripcion}
-                onClick={() => navigate("/agro-alerta-salud")}
-                style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "9px 0", borderBottom: "0.5px solid #f8f4f0", cursor: "pointer" }}
-              >
-                <div style={{ width: 7, height: 7, borderRadius: "50%", background: dotColor, marginTop: 4, flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontSize: 12, color: "#1a1a1a", lineHeight: 1.35 }}>{a.descripcion} — árbol {a.arbol}</div>
-                  <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>
-                    Sección {a.seccion}{a.patogeno ? ` · ${a.patogeno}` : ""} · {a.cuando}
+          {alertasMapeadas.length === 0 ? (
+            <div style={{
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              padding: "30px 10px", textAlign: "center", background: "#fcfdfe", borderRadius: 12, marginTop: 8, border: "1px dashed #d5e5d5"
+            }}>
+              <div style={{ background: "#eef5ee", borderRadius: "50%", padding: 12, marginBottom: 12 }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6ca66c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "#2d4a2d", marginBottom: 4 }}>¡Cultivos saludables!</span>
+              <span style={{ fontSize: 11, color: "#9aaa9a", maxWidth: "80%", lineHeight: 1.4 }}>
+                No se han registrado alertas de salud recientes en esta finca.
+              </span>
+            </div>
+          ) : (
+            alertasMapeadas.slice(0, 5).map((a) => {
+              const dotColor = a.severidad === "alta" ? "#A32D2D" : a.severidad === "media" ? "#854F0B" : "#888";
+              return (
+                <div
+                  key={a.arbol + a.descripcion}
+                  onClick={() => navigate("/agro-alerta-salud")}
+                  style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "9px 0", borderBottom: "0.5px solid #f8f4f0", cursor: "pointer" }}
+                >
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: dotColor, marginTop: 4, flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: 12, color: "#1a1a1a", lineHeight: 1.35 }}>{a.descripcion} — árbol {a.arbol}</div>
+                    <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>
+                      Sección {a.seccion}{a.patogeno ? ` · ${a.patogeno}` : ""} · {a.cuando}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
     </div>
