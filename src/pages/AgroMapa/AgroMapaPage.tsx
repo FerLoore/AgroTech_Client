@@ -131,11 +131,63 @@ const MedidasPoligono = ({ puntos, color = "#4a7c59", cerrar = true }: { puntos:
 // ─── Control crosshair ───────────────────────────────────────
 const ControlMapa = ({ activo, onPunto }: { activo: boolean; onPunto: (ll: LatLng) => void }) => {
     const map = useMap();
+
     useEffect(() => {
-        if (activo) { map.dragging.disable(); map.getContainer().style.cursor = "crosshair"; }
-        else { map.dragging.enable(); map.getContainer().style.cursor = ""; }
-        return () => { map.dragging.enable(); map.getContainer().style.cursor = ""; };
+        if (!activo) {
+            map.dragging.enable();
+            map.getContainer().style.cursor = "";
+            return;
+        }
+
+        const container = map.getContainer();
+        container.style.cursor = "crosshair";
+        map.dragging.disable(); // Deshabilitamos drag de click izquierdo
+
+        let isRightDragging = false;
+        let lastPos: { x: number, y: number } | null = null;
+
+        const onMouseDown = (e: MouseEvent) => {
+            if (e.button === 2) {
+                isRightDragging = true;
+                lastPos = { x: e.clientX, y: e.clientY };
+                container.style.cursor = "grabbing";
+            }
+        };
+
+        const onMouseMove = (e: MouseEvent) => {
+            if (isRightDragging && lastPos) {
+                const dx = lastPos.x - e.clientX;
+                const dy = lastPos.y - e.clientY;
+                map.panBy([dx, dy], { animate: false });
+                lastPos = { x: e.clientX, y: e.clientY };
+            }
+        };
+
+        const onMouseUp = (e: MouseEvent) => {
+            if (e.button === 2) {
+                isRightDragging = false;
+                lastPos = null;
+                container.style.cursor = "crosshair";
+            }
+        };
+
+        const onContextMenu = (e: MouseEvent) => e.preventDefault();
+
+        container.addEventListener("mousedown", onMouseDown);
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", onMouseUp);
+        container.addEventListener("contextmenu", onContextMenu);
+
+        return () => {
+            container.removeEventListener("mousedown", onMouseDown);
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+            container.removeEventListener("contextmenu", onContextMenu);
+            map.dragging.enable();
+            container.style.cursor = "";
+        };
     }, [activo, map]);
+
     useMapEvents({ click(e) { if (activo) onPunto(e.latlng); } });
     return null;
 };
