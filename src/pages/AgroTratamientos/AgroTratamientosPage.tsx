@@ -7,23 +7,39 @@ import AgroTratamientoTracking from "./AgroTratamientoTracking";
 
 const COLUMNAS: ColumnaConfig[] = [
     { header: "ID", key: "trata_tratamientos" },
-    { 
-        header: "Tipo", 
+    {
+        header: "Tipo",
         key: "trata_tipo",
         badge: {
-            "Curativo":   { label: "Curativo",   bg: "#e0f2fe", text: "#0369a1" },
+            "Curativo": { label: "Curativo", bg: "#e0f2fe", text: "#0369a1" },
             "Preventivo": { label: "Preventivo", bg: "#f3e8ff", text: "#7e22ce" }
         }
     },
     { header: "Objetivo", key: "ui_arbol_id" },
+    {
+        header: "Alerta",
+        key: "alertsalu_alerta_salud",
+        render: (valor) => valor ? (
+            <span style={{
+                padding: "4px 10px",
+                borderRadius: "20px",
+                fontSize: "12px",
+                fontWeight: 600,
+                background: "#fee2e2",
+                color: "#991b1b"
+            }}>
+                #{valor}
+            </span>
+        ) : "—"
+    },
     { header: "Inicio", key: "trata_fecha_inicio" },
-    { 
-        header: "Estado", 
+    {
+        header: "Estado",
         key: "trata_estado",
         badge: {
-            "En curso":   { label: "En curso",   bg: "#fef3c7", text: "#92400e" },
+            "En curso": { label: "En curso", bg: "#fef3c7", text: "#92400e" },
             "Finalizado": { label: "Finalizado", bg: "#dcfce7", text: "#166534" },
-            "Cancelado":  { label: "Cancelado",  bg: "#fee2e2", text: "#991b1b" }
+            "Cancelado": { label: "Cancelado", bg: "#fee2e2", text: "#991b1b" }
         }
     },
     { header: "Dosis", key: "trata_dosis" },
@@ -39,76 +55,76 @@ const CAMPOS = (
     filtroFincaForm: string,
     setFiltroFincaForm: (v: string) => void
 ): CampoFormulario[] => [
-    {
-        key: "trata_tipo",
-        label: "Tipo de Aplicación",
-        tipo: "select",
-        requerido: true,
-        opciones: [
-            { valor: "Curativo", label: "Curativo (Basado en Diagnóstico)" },
-            { valor: "Preventivo", label: "Preventivo (Por Sección)" },
-        ],
-    },
-    {
-        key: "trata_fecha_inicio",
-        label: "Fecha de inicio",
-        tipo: "date",
-        requerido: true,
-    },
-    {
-        key: "trata_estado",
-        label: "Estado",
-        tipo: "select",
-        requerido: true,
-        opciones: [
-            { valor: "En curso",    label: "En curso"    },
-            { valor: "Finalizado",  label: "Finalizado"  },
-            { valor: "Cancelado",   label: "Cancelado"   },
-        ],
-    },
-    {
-        key: "trata_dosis",
-        label: "Dosis (Cantidad a descontar)",
-        tipo: "text",
-        placeholder: "Ej: 10",
-    },
-    // Filtro de Finca (SOLO UI para filtrar alertas)
-    ...(tipoActual === "Curativo" ? [{
-        key: "ui_filtro_finca",
-        label: "Filtrar Alertas por Finca",
-        tipo: "select" as const,
-        opciones: opcionesFincas,
-    }] : []),
-    // Condicional: Solo si el tipo es Curativo
-    ...(tipoActual === "Curativo" ? [{
-        key: "alertsalu_alerta_salud",
-        label: "Alerta con Diagnóstico Positivo",
-        tipo: "select" as const,
-        requerido: true,
-        opciones: opcionesAlertas,
-    }] : []),
-    // Condicional: Solo si el tipo es Preventivo
-    ...(tipoActual === "Preventivo" ? [{
-        key: "secc_seccion",
-        label: "Sección a Fumigar",
-        tipo: "select" as const,
-        requerido: true,
-        opciones: opcionesSecciones,
-    }] : []),
-    {
-        key: "produ_producto",
-        label: "Producto",
-        tipo: "select",
-        requerido: true,
-        opciones: opcionesProductos,
-    },
-    {
-        key: "trata_observaciones",
-        label: "Observaciones",
-        tipo: "text",
-        placeholder: "Ej: Aplicación inicial",
-    },
-];
+        {
+            key: "trata_tipo",
+            label: "Tipo de Aplicación",
+            tipo: "select",
+            requerido: true,
+            opciones: [
+                { valor: "Curativo", label: "Curativo (Basado en Diagnóstico)" },
+                { valor: "Preventivo", label: "Preventivo (Por Sección)" },
+            ],
+        },
+        {
+            key: "trata_fecha_inicio",
+            label: "Fecha de inicio",
+            tipo: "date",
+            requerido: true,
+        },
+        {
+            key: "trata_estado",
+            label: "Estado",
+            tipo: "select",
+            requerido: true,
+            opciones: [
+                { valor: "En curso", label: "En curso" },
+                { valor: "Finalizado", label: "Finalizado" },
+                { valor: "Cancelado", label: "Cancelado" },
+            ],
+        },
+        {
+            key: "trata_dosis",
+            label: "Dosis (Cantidad a descontar)",
+            tipo: "text",
+            placeholder: "Ej: 10",
+        },
+        // Filtro de Finca (SOLO UI para filtrar alertas)
+        ...(tipoActual === "Curativo" ? [{
+            key: "ui_filtro_finca",
+            label: "Filtrar Alertas por Finca",
+            tipo: "select" as const,
+            opciones: opcionesFincas,
+        }] : []),
+        // Condicional: Solo si el tipo es Curativo
+        ...(tipoActual === "Curativo" ? [{
+            key: "alertsalu_alerta_salud",
+            label: "Alerta con Diagnóstico Positivo",
+            tipo: "select" as const,
+            requerido: true,
+            opciones: opcionesAlertas,
+        }] : []),
+        // Condicional: Solo si el tipo es Preventivo
+        ...(tipoActual === "Preventivo" ? [{
+            key: "secc_seccion",
+            label: "Sección a Fumigar",
+            tipo: "select" as const,
+            requerido: true,
+            opciones: opcionesSecciones,
+        }] : []),
+        {
+            key: "produ_producto",
+            label: "Producto",
+            tipo: "select",
+            requerido: true,
+            opciones: opcionesProductos,
+        },
+        {
+            key: "trata_observaciones",
+            label: "Observaciones",
+            tipo: "text",
+            placeholder: "Ej: Aplicación inicial",
+        },
+    ];
 
 const AgroTratamientosPage = () => {
     const [view, setView] = useState<"table" | "tracking">("table");
@@ -162,7 +178,7 @@ const AgroTratamientosPage = () => {
     const extraFilters = (
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <div style={{ display: "flex", background: "#f3f4f6", padding: "4px", borderRadius: "8px", border: "1px solid #e5e7eb" }}>
-                <button 
+                <button
                     onClick={() => setView("table")}
                     style={{
                         padding: "6px 12px",
@@ -181,7 +197,7 @@ const AgroTratamientosPage = () => {
                 >
                     <TableIcon size={14} /> Tabla
                 </button>
-                <button 
+                <button
                     onClick={() => setView("tracking")}
                     style={{
                         padding: "6px 12px",
@@ -206,8 +222,8 @@ const AgroTratamientosPage = () => {
                 <>
                     <div style={{ width: "1px", height: "24px", background: "#e5e7eb" }}></div>
                     <Filter size={14} color="#4a7c59" />
-                    <select 
-                        value={filtroEstado} 
+                    <select
+                        value={filtroEstado}
                         onChange={e => setFiltroEstado(e.target.value)}
                         style={selectStyle}
                     >
@@ -217,8 +233,8 @@ const AgroTratamientosPage = () => {
                         <option value="Cancelado">Cancelado</option>
                     </select>
 
-                    <select 
-                        value={filtroProducto} 
+                    <select
+                        value={filtroProducto}
                         onChange={e => setFiltroProducto(e.target.value)}
                         style={selectStyle}
                     >
@@ -228,8 +244,8 @@ const AgroTratamientosPage = () => {
                         ))}
                     </select>
 
-                    <select 
-                        value={filtroFincaTabla} 
+                    <select
+                        value={filtroFincaTabla}
                         onChange={e => setFiltroFincaTabla(e.target.value)}
                         style={selectStyle}
                     >
@@ -239,16 +255,16 @@ const AgroTratamientosPage = () => {
                         ))}
                     </select>
 
-                    <input 
-                        type="date" 
-                        value={filtroFechaDesde} 
+                    <input
+                        type="date"
+                        value={filtroFechaDesde}
                         onChange={e => setFiltroFechaDesde(e.target.value)}
                         style={selectStyle}
                     />
                     <span style={{ color: "#7a9a7a", fontSize: "12px" }}>—</span>
-                    <input 
-                        type="date" 
-                        value={filtroFechaHasta} 
+                    <input
+                        type="date"
+                        value={filtroFechaHasta}
                         onChange={e => setFiltroFechaHasta(e.target.value)}
                         style={selectStyle}
                     />
@@ -310,4 +326,4 @@ const AgroTratamientosPage = () => {
     );
 };
 
-export default AgroTratamientosPage;
+export default AgroTratamientosPage;
