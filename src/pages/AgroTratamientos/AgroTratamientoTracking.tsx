@@ -20,13 +20,33 @@ const WEEKDAYS = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
 // Helpers para manejo seguro de fechas (evita desfase de zona horaria)
 const stringToLocalDate = (dateStr: string) => {
     if (!dateStr) return null;
-    const [year, month, day] = dateStr.split("-").map(Number);
+    // Si la fecha ya incluye una T (ISO), tomamos solo la parte de la fecha
+    const baseDate = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+    const [year, month, day] = baseDate.split("-").map(Number);
     // Usamos el mediodía (12:00) para evitar que cambios de horario (DST) muevan la fecha
     return new Date(year, month - 1, day, 12, 0, 0);
 };
 
-const localDateToString = (date: Date) => {
+const localDateToString = (date: Date | string) => {
     if (!date) return "";
+    
+    // Si es un string, simplemente extraemos la parte de la fecha (YYYY-MM-DD)
+    if (typeof date === "string") {
+        return date.split("T")[0];
+    }
+
+    // Si es un objeto Date y representa exactamente la medianoche UTC (00:00:00.000Z),
+    // es casi seguro que proviene de un campo "solo fecha" del servidor.
+    try {
+        const iso = date.toISOString();
+        if (iso.endsWith("T00:00:00.000Z")) {
+            return iso.split("T")[0];
+        }
+    } catch (e) {
+        // Ignorar si isOString falla (date inválida)
+    }
+
+    // Para cualquier otro caso (como 'new Date()'), usamos los componentes locales
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
     const d = String(date.getDate()).padStart(2, "0");
@@ -67,10 +87,10 @@ const AgroTratamientoTracking = () => {
     const [recipeForm, setRecipeForm] = useState({
         resultado: "", // Positivo | Negativo
         producto: "",
-        tipo_aplicacion: "Aspersión",
+        tipo_aplicacion: "",
         frecuencia: "cada 7 días",
         dosis: "",
-        unidad: "ml",
+        unidad: "",
         num_aplicaciones: 1,
         fecha_inicio: localDateToString(new Date()),
         fecha_fin: "",
@@ -91,10 +111,10 @@ const AgroTratamientoTracking = () => {
     const INITIAL_RECIPE_FORM = {
         resultado: "",
         producto: "",
-        tipo_aplicacion: "Aspersión",
+        tipo_aplicacion: "",
         frecuencia: "cada 7 días",
         dosis: "",
-        unidad: "ml",
+        unidad: "",
         num_aplicaciones: 1,
         fecha_inicio: localDateToString(new Date()),
         fecha_fin: "",
@@ -200,7 +220,7 @@ const AgroTratamientoTracking = () => {
                 const todasLasSecciones = (resSecciones as any)?.data?.secciones || [];
 
                 // 2. Filtrar árboles que tienen al menos un análisis de laboratorio Y pertenecen a la finca
-                const arbolesConDictamen = todosLosArboles.filter(arbol => {
+                const arbolesConDictamen = todosLosArboles.filter((arbol: any) => {
                     // a. Verificar Finca
                     const surco = todosLosSurcos.find((s: any) => Number(s.sur_surco) === Number(arbol.sur_surcos));
                     const seccion = surco ? todasLasSecciones.find((s: any) => Number(s.secc_seccion) === Number(surco.secc_secciones)) : null;
@@ -209,9 +229,9 @@ const AgroTratamientoTracking = () => {
                     if (!esDeFinca) return false;
 
                     // b. Verificar si alguna alerta tiene análisis
-                    const alertasDelArbol = todasLasAlertas.filter(al => Number(al.arb_arbol) === Number(arbol.arb_arbol));
-                    return alertasDelArbol.some(al =>
-                        todosLosAnalisis.some(an => Number(an.alert_alerta_salud) === Number(al.alertsalud_id))
+                    const alertasDelArbol = todasLasAlertas.filter((al: any) => Number(al.arb_arbol) === Number(arbol.arb_arbol));
+                    return alertasDelArbol.some((al: any) =>
+                        todosLosAnalisis.some((an: any) => Number(an.alert_alerta_salud) === Number(al.alertsalud_id))
                     );
                 });
 
@@ -398,8 +418,8 @@ const AgroTratamientoTracking = () => {
 
             // 1. Tratamientos (Amber)
             const activeTrata = tratamientos.find(t => {
-                const inicioStr = String(t.trata_fecha_inicio).split("T")[0];
-                const finStr = t.trata_fecha_fin ? String(t.trata_fecha_fin).split("T")[0] : null;
+                const inicioStr = localDateToString(t.trata_fecha_inicio);
+                const finStr = t.trata_fecha_fin ? localDateToString(t.trata_fecha_fin) : null;
                 
                 // Rango básico
                 const inRange = finStr ? (dateStr >= inicioStr && dateStr <= finStr) : (dateStr === inicioStr);
@@ -411,10 +431,12 @@ const AgroTratamientoTracking = () => {
                 if (interval === 9999) return dateStr === inicioStr;
 
                 // Calcular diferencia de días desde el inicio para ver si "cae" en este intervalo
-                const startD = new Date(inicioStr + "T12:00:00");
-                const currentD = new Date(dateStr + "T12:00:00");
+                const startD = stringToLocalDate(inicioStr);
+                const currentD = stringToLocalDate(dateStr);
+                if (!startD || !currentD) return false;
+
                 const diffTime = Math.abs(currentD.getTime() - startD.getTime());
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
                 return diffDays % interval === 0;
             });
@@ -423,7 +445,7 @@ const AgroTratamientoTracking = () => {
             }
 
             // 2. Alertas (Red)
-            const dayAlerts = alertas.filter(a => String(a.fecha_deteccion).split("T")[0] === dateStr);
+            const dayAlerts = alertas.filter(a => localDateToString(a.fecha_deteccion) === dateStr);
             dayAlerts.forEach(a => {
                 dayEvents.push({ type: "critical", label: "Alerta", data: a });
             });
@@ -431,7 +453,7 @@ const AgroTratamientoTracking = () => {
             // 3. Revisiones/Análisis (Green)
             const dayAnalisis = analisis.filter(an => {
                 const alerta = alertas.find(a => Number(a.alertsalud_id) === Number(an.alert_alerta_salud));
-                return alerta && String(an.analab_fecha_resultado || an.analab_fecha_envio).split("T")[0] === dateStr;
+                return alerta && localDateToString(an.analab_fecha_resultado || an.analab_fecha_envio) === dateStr;
             });
             dayAnalisis.forEach(an => {
                 dayEvents.push({ type: "revision", label: "Análisis Lab", data: an });
@@ -443,7 +465,7 @@ const AgroTratamientoTracking = () => {
             }
 
             // Día de cierre (Amber background)
-            const isClosingDay = tratamientos.some(t => t.trata_fecha_fin && String(t.trata_fecha_fin).split("T")[0] === dateStr);
+            const isClosingDay = tratamientos.some(t => t.trata_fecha_fin && localDateToString(t.trata_fecha_fin) === dateStr);
 
             cells.push({
                 day: d,
@@ -462,8 +484,10 @@ const AgroTratamientoTracking = () => {
 
     const daysRemaining = useMemo(() => {
         if (!activeTreatment || !activeTreatment.trata_fecha_fin) return null;
-        const fin = new Date(activeTreatment.trata_fecha_fin);
+        const fin = stringToLocalDate(activeTreatment.trata_fecha_fin);
         const hoy = new Date();
+        if (!fin) return null;
+        
         hoy.setHours(0, 0, 0, 0);
         fin.setHours(0, 0, 0, 0);
 
@@ -551,7 +575,7 @@ const AgroTratamientoTracking = () => {
             // 1. Actualizar Análisis
             await updateAnalisisLaboratorio(selectedAnas.analab_analisis_laboratorio, {
                 analab_resultado_tipo: recipeForm.resultado,
-                analab_fecha_resultado: new Date().toISOString().split("T")[0]
+                analab_fecha_resultado: localDateToString(new Date())
             });
 
             // 2. Si es positivo, crear tratamiento
@@ -823,28 +847,22 @@ const AgroTratamientoTracking = () => {
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
                                     <div className="form-group">
                                         <label className="form-label">Aplicación</label>
-                                        <select className="form-select" value={recipeForm.tipo_aplicacion} onChange={e => setRecipeForm({ ...recipeForm, tipo_aplicacion: e.target.value })}>
-                                            <option value="Aspersión">Aspersión</option>
-                                            <option value="Inyección">Inyección</option>
-                                            <option value="Riego">Riego</option>
-                                            <option value="Foliar">Foliar</option>
-                                        </select>
+                                        <input 
+                                            type="text" 
+                                            className="form-select" 
+                                            placeholder="Ej. Aspersión, Riego, Foliar..."
+                                            value={recipeForm.tipo_aplicacion} 
+                                            onChange={e => setRecipeForm({ ...recipeForm, tipo_aplicacion: e.target.value })} 
+                                        />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">Dosis y Unidad</label>
                                         <div style={{ display: "flex", gap: "4px" }}>
                                             <input type="text" className="form-select" placeholder="Can." style={{ width: "60px" }} value={recipeForm.dosis} onChange={e => setRecipeForm({ ...recipeForm, dosis: e.target.value })} />
-                                            {recipeForm.producto ? (
+                                            {recipeForm.producto && (
                                                 <div style={{ display: "flex", alignItems: "center", padding: "0 10px", background: "#f3f4f6", borderRadius: "4px", fontSize: "14px", border: "1px solid #d1d5db", color: "#4b5563", fontWeight: 600 }}>
                                                     {recipeForm.unidad}
                                                 </div>
-                                            ) : (
-                                                <select className="form-select" value={recipeForm.unidad} onChange={e => setRecipeForm({ ...recipeForm, unidad: e.target.value })}>
-                                                    <option value="ml">ml</option>
-                                                    <option value="gr">gr</option>
-                                                    <option value="L">L</option>
-                                                    <option value="kg">kg</option>
-                                                </select>
                                             )}
                                         </div>
                                     </div>
