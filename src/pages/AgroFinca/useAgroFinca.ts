@@ -35,7 +35,8 @@ export const useAgroFinca = () => {
     const fincasFiltradas = useMemo(() => {
         return fincas.filter(f => 
             String(f.fin_nombre || "").toLowerCase().includes(busqueda.toLowerCase()) ||
-            String(f.fin_ubicacion || "").toLowerCase().includes(busqueda.toLowerCase())
+            String(f.fin_ubicacion || "").toLowerCase().includes(busqueda.toLowerCase()) ||
+            String(f.usu_nombre || "").toLowerCase().includes(busqueda.toLowerCase())
         );
     }, [fincas, busqueda]);
 

@@ -9,7 +9,7 @@ const columnas: ColumnaConfig[] = [
     { header: 'Nombre Finca', key: 'fin_nombre' },
     { header: 'Ubicación', key: 'fin_ubicacion' },
     { header: 'Hectáreas', key: 'fin_hectarea' },
-    { header: 'ID Dueño', key: 'usu_usuario' }
+    { header: 'Dueño', key: 'usu_nombre' }
 ];
 
 const campos: CampoFormulario[] = [
