@@ -54,7 +54,7 @@ const AgroAlertaSaludPage = () => {
             setEnviando(alertsalud_id);
             await createAnalisisLaboratorio({
                 alert_alerta_salud:        alertsalud_id,
-                analab_laboratorio_nombre: "Pendiente de asignar",
+                analab_laboratorio_nombre: "",
                 analab_fecha_envio:        hoy(),
             });
             toast.success("Alerta enviada al laboratorio");
