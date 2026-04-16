@@ -1,10 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getAgroUsuarios, createAgroUsuario, updateAgroUsuario, deleteAgroUsuario } from '../../api/AgroUsuario.api';
+import { getRoles } from '../../api/Agrorol.api';
 import type { AgroUsuario } from './AgroUsuario.types';
+import type { Rol } from '../AgroRol/AgroRol.types';
 import { toast } from 'sonner';
 
 export const useAgroUsuario = () => {
     const [usuarios, setUsuarios] = useState<AgroUsuario[]>([]);
+    const [roles, setRoles] = useState<Rol[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>("");
 
@@ -19,8 +22,12 @@ export const useAgroUsuario = () => {
     const fetchUsuarios = async () => {
         setLoading(true);
         try {
-            const response = await getAgroUsuarios();
-            setUsuarios(response.data.usuarios || []);
+            const [usersRes, rolesRes] = await Promise.all([
+                getAgroUsuarios(),
+                getRoles()
+            ]);
+            setUsuarios(usersRes.data.usuarios || []);
+            setRoles(rolesRes || []);
         } catch (err: any) {
             setError(err.message || "Error al obtener los usuarios");
         } finally {
@@ -98,7 +105,7 @@ export const useAgroUsuario = () => {
     };
 
     return {
-        usuarios: usuariosFiltrados, loading, error,
+        usuarios: usuariosFiltrados, roles, loading, error,
         busqueda, setBusqueda,
         modal, editando, form, setForm, guardando, formError,
         onNuevo, onEditar, onEliminar, onGuardar, onCerrar
