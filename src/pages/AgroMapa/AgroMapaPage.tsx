@@ -36,6 +36,7 @@ interface SeccionFinca {
     secc_seccion: number;
     secc_nombre: string;
     secc_tipo_suelo: string;
+    tiene_arboles: number;
 }
 
 // ─── Ray Casting ──────────────────────────────────────────────
@@ -405,7 +406,14 @@ const AgroMapaPage = () => {
             setSeccionesFinca(secciones);
             setTiposArbol(tipos);
 
-            if (secciones.length > 0) setSeccionSeleccionada(secciones[0].secc_seccion);
+            // Seleccionar la primera sección que NO esté ocupada
+            const seccionDisponible = secciones.find(s => Number(s.tiene_arboles || 0) === 0);
+            if (seccionDisponible) {
+                setSeccionSeleccionada(seccionDisponible.secc_seccion);
+            } else if (secciones.length > 0) {
+                setSeccionSeleccionada(null); // Ninguna disponible para selección
+            }
+
             if (tipos.length > 0) setTipoArbolSeleccionado(tipos[0].tipar_tipo_arbol);
 
             // Si no tiene secciones, ir a crearla primero
@@ -423,6 +431,7 @@ const AgroMapaPage = () => {
     // ─── Confirmar configuración y generar grilla ────────────
     const confirmarConfiguracion = () => {
         if (!seccionSeleccionada || !tipoArbolSeleccionado) return;
+
         const preview = generarGrilla(
             puntosNuevos,
             espaciadoSeleccionado,
@@ -827,8 +836,13 @@ const AgroMapaPage = () => {
                                         onChange={e => setSeccionSeleccionada(Number(e.target.value))}
                                         style={{ ...inputStyle, flex: 1, cursor: "pointer" }}>
                                         {seccionesFinca.map(s => (
-                                            <option key={s.secc_seccion} value={s.secc_seccion}>
-                                                {s.secc_nombre} — {s.secc_tipo_suelo}
+                                            <option 
+                                                key={s.secc_seccion} 
+                                                value={s.secc_seccion} 
+                                                disabled={Number(s.tiene_arboles || 0) > 0}
+                                                style={{ color: Number(s.tiene_arboles || 0) > 0 ? "#9ca3af" : "inherit" }}
+                                            >
+                                                {s.secc_nombre} {Number(s.tiene_arboles || 0) > 0 ? "(Ya utilizada)" : `— ${s.secc_tipo_suelo}`}
                                             </option>
                                         ))}
                                     </select>
