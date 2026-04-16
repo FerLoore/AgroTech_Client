@@ -1,10 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getAgroFincas, createAgroFinca, updateAgroFinca, deleteAgroFinca } from '../../api/AgroFinca.api';
+import { getAgroUsuarios } from '../../api/AgroUsuario.api';
 import type { AgroFinca } from './AgroFinca.types';
+import type { AgroUsuario } from '../AgroUsuario/AgroUsuario.types';
 import { toast } from 'sonner';
 
 export const useAgroFinca = () => {
     const [fincas, setFincas] = useState<AgroFinca[]>([]);
+    const [usuarios, setUsuarios] = useState<AgroUsuario[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>("");
 
@@ -19,8 +22,12 @@ export const useAgroFinca = () => {
     const fetchFincas = async () => {
         setLoading(true);
         try {
-            const response = await getAgroFincas();
-            setFincas(response.data.fincas || []);
+            const [fincasRes, usersRes] = await Promise.all([
+                getAgroFincas(),
+                getAgroUsuarios()
+            ]);
+            setFincas(fincasRes.data.fincas || []);
+            setUsuarios(usersRes.data.usuarios || []);
         } catch (err: any) {
             setError(err.message || "Error al obtener las fincas");
         } finally {
@@ -99,7 +106,7 @@ export const useAgroFinca = () => {
     };
 
     return {
-        fincas: fincasFiltradas, loading, error,
+        fincas: fincasFiltradas, usuarios, loading, error,
         busqueda, setBusqueda,
         modal, editando, form, setForm, guardando, formError,
         onNuevo, onEditar, onEliminar, onGuardar, onCerrar
