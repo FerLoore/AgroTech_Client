@@ -236,7 +236,7 @@ const AgroAnalisisLaboratorioPage = () => {
                                                 type="text"
                                                 value={form.analab_laboratorio_nombre}
                                                 onChange={e => setForm({ ...form, analab_laboratorio_nombre: e.target.value })}
-                                                placeholder="Ej: Laboratorio Central Agrícola"
+                                                placeholder="Ej. Laboratorio Flores"
                                                 className={INPUT_CLS}
                                             />
                                         </div>

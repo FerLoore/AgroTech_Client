@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Grid } from 'lucide-react'; 
 import CrudTabla, { type ColumnaConfig, type CampoFormulario } from '../../components/CrudTabla';
 import { useAgroSeccion } from './useAgroSeccion';
@@ -8,17 +8,25 @@ const columnas: ColumnaConfig[] = [
     { header: 'ID', key: 'secc_seccion' },
     { header: 'Nombre de Sección', key: 'secc_nombre' },
     { header: 'Tipo de Suelo', key: 'secc_tipo_suelo' },
-    { header: 'ID Finca', key: 'fin_finca' }
-];
-
-const campos: CampoFormulario[] = [
-    { key: 'secc_nombre', label: 'Nombre de la Sección', tipo: 'text', placeholder: 'Ej. Sección Norte' },
-    { key: 'secc_tipo_suelo', label: 'Tipo de Suelo', tipo: 'text', placeholder: 'Ej. Franco Arcilloso' },
-    { key: 'fin_finca', label: 'ID de la Finca', tipo: 'number', placeholder: 'Ej. 1' }
+    { header: 'Finca', key: 'fin_nombre' }
 ];
 
 const AgroSeccionPage: React.FC = () => {
     const hookData = useAgroSeccion();
+
+    const campos = useMemo<CampoFormulario[]>(() => [
+        { key: 'secc_nombre', label: 'Nombre de la Sección', tipo: 'text', placeholder: 'Ej. Sección Norte' },
+        { key: 'secc_tipo_suelo', label: 'Tipo de Suelo', tipo: 'text', placeholder: 'Ej. Franco Arcilloso' },
+        { 
+            key: 'fin_finca', 
+            label: 'Finca', 
+            tipo: 'select', 
+            opciones: hookData.fincas.map(f => ({ 
+                valor: String(f.fin_finca), 
+                label: f.fin_nombre 
+            }))
+        }
+    ], [hookData.fincas]);
 
     return (
         <CrudTabla<AgroSeccion>
