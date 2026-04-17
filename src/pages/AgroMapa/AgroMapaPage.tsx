@@ -12,7 +12,7 @@ import type { LatLng } from "leaflet";
 import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMapa.api";
 import type { Finca, ArbolMapa, PuntoPerimetro } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
-import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine } from "lucide-react";
+import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus } from "lucide-react";
 
 const { BaseLayer } = LayersControl;
 
@@ -36,6 +36,7 @@ interface SeccionFinca {
     secc_seccion: number;
     secc_nombre: string;
     secc_tipo_suelo: string;
+    tiene_arboles: number;
 }
 
 // ─── Ray Casting ──────────────────────────────────────────────
@@ -131,11 +132,63 @@ const MedidasPoligono = ({ puntos, color = "#4a7c59", cerrar = true }: { puntos:
 // ─── Control crosshair ───────────────────────────────────────
 const ControlMapa = ({ activo, onPunto }: { activo: boolean; onPunto: (ll: LatLng) => void }) => {
     const map = useMap();
+
     useEffect(() => {
-        if (activo) { map.dragging.disable(); map.getContainer().style.cursor = "crosshair"; }
-        else { map.dragging.enable(); map.getContainer().style.cursor = ""; }
-        return () => { map.dragging.enable(); map.getContainer().style.cursor = ""; };
+        if (!activo) {
+            map.dragging.enable();
+            map.getContainer().style.cursor = "";
+            return;
+        }
+
+        const container = map.getContainer();
+        container.style.cursor = "crosshair";
+        map.dragging.disable(); // Deshabilitamos drag de click izquierdo
+
+        let isRightDragging = false;
+        let lastPos: { x: number, y: number } | null = null;
+
+        const onMouseDown = (e: MouseEvent) => {
+            if (e.button === 2) {
+                isRightDragging = true;
+                lastPos = { x: e.clientX, y: e.clientY };
+                container.style.cursor = "grabbing";
+            }
+        };
+
+        const onMouseMove = (e: MouseEvent) => {
+            if (isRightDragging && lastPos) {
+                const dx = lastPos.x - e.clientX;
+                const dy = lastPos.y - e.clientY;
+                map.panBy([dx, dy], { animate: false });
+                lastPos = { x: e.clientX, y: e.clientY };
+            }
+        };
+
+        const onMouseUp = (e: MouseEvent) => {
+            if (e.button === 2) {
+                isRightDragging = false;
+                lastPos = null;
+                container.style.cursor = "crosshair";
+            }
+        };
+
+        const onContextMenu = (e: MouseEvent) => e.preventDefault();
+
+        container.addEventListener("mousedown", onMouseDown);
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", onMouseUp);
+        container.addEventListener("contextmenu", onContextMenu);
+
+        return () => {
+            container.removeEventListener("mousedown", onMouseDown);
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+            container.removeEventListener("contextmenu", onContextMenu);
+            map.dragging.enable();
+            container.style.cursor = "";
+        };
     }, [activo, map]);
+
     useMapEvents({ click(e) { if (activo) onPunto(e.latlng); } });
     return null;
 };
@@ -267,10 +320,10 @@ const AgroMapaPage = () => {
     const [cargandoConfig, setCargandoConfig] = useState(false);
 
     // ── Paso sin-seccion: creación inline ───────────────────
-    const [seccionForm, setSeccionForm] = useState({ secc_nombre: "", secc_tipo_suelo: "Franco" });
+    const [seccionForm, setSeccionForm] = useState({ secc_nombre: "", secc_tipo_suelo: "" });
     const [guardandoSeccion, setGuardandoSeccion] = useState(false);
 
-    const TIPOS_SUELO = ["Franco", "Arcilloso", "Arenoso", "Limoso", "Franco-arcilloso", "Franco-arenoso"];
+
 
     // ─── Reset completo del wizard ───────────────────────────
     const resetWizard = () => {
@@ -278,7 +331,7 @@ const AgroMapaPage = () => {
         setPuntosNuevos([]);
         setArbolesPreview([]);
         setProgreso(0);
-        setSeccionForm({ secc_nombre: "", secc_tipo_suelo: "Franco" });
+        setSeccionForm({ secc_nombre: "", secc_tipo_suelo: "" });
         setSeccionSeleccionada(null);
         setTipoArbolSeleccionado(null);
         setEspaciadoSeleccionado(2);
@@ -353,7 +406,14 @@ const AgroMapaPage = () => {
             setSeccionesFinca(secciones);
             setTiposArbol(tipos);
 
-            if (secciones.length > 0) setSeccionSeleccionada(secciones[0].secc_seccion);
+            // Seleccionar la primera sección que NO esté ocupada
+            const seccionDisponible = secciones.find(s => Number(s.tiene_arboles || 0) === 0);
+            if (seccionDisponible) {
+                setSeccionSeleccionada(seccionDisponible.secc_seccion);
+            } else if (secciones.length > 0) {
+                setSeccionSeleccionada(null); // Ninguna disponible para selección
+            }
+
             if (tipos.length > 0) setTipoArbolSeleccionado(tipos[0].tipar_tipo_arbol);
 
             // Si no tiene secciones, ir a crearla primero
@@ -371,6 +431,7 @@ const AgroMapaPage = () => {
     // ─── Confirmar configuración y generar grilla ────────────
     const confirmarConfiguracion = () => {
         if (!seccionSeleccionada || !tipoArbolSeleccionado) return;
+
         const preview = generarGrilla(
             puntosNuevos,
             espaciadoSeleccionado,
@@ -455,7 +516,7 @@ const AgroMapaPage = () => {
                 fin_finca: fincaId,
                 secc_tipo_suelo: seccionForm.secc_tipo_suelo,
             });
-            setSeccionForm({ secc_nombre: "", secc_tipo_suelo: "Franco" });
+            setSeccionForm({ secc_nombre: "", secc_tipo_suelo: "" });
             // Recargar configuración para que aparezca la sección recién creada
             await cargarConfiguracion(fincaId);
         } catch {
@@ -769,16 +830,36 @@ const AgroMapaPage = () => {
                                     </button>
                                 </p>
                             ) : (
-                                <select
-                                    value={seccionSeleccionada ?? ""}
-                                    onChange={e => setSeccionSeleccionada(Number(e.target.value))}
-                                    style={{ ...inputStyle, width: "100%", cursor: "pointer" }}>
-                                    {seccionesFinca.map(s => (
-                                        <option key={s.secc_seccion} value={s.secc_seccion}>
-                                            {s.secc_nombre} — {s.secc_tipo_suelo}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                    <select
+                                        value={seccionSeleccionada ?? ""}
+                                        onChange={e => setSeccionSeleccionada(Number(e.target.value))}
+                                        style={{ ...inputStyle, flex: 1, cursor: "pointer" }}>
+                                        {seccionesFinca.map(s => (
+                                            <option 
+                                                key={s.secc_seccion} 
+                                                value={s.secc_seccion} 
+                                                disabled={Number(s.tiene_arboles || 0) > 0}
+                                                style={{ color: Number(s.tiene_arboles || 0) > 0 ? "#9ca3af" : "inherit" }}
+                                            >
+                                                {s.secc_nombre} {Number(s.tiene_arboles || 0) > 0 ? "(Ya utilizada)" : `— ${s.secc_tipo_suelo}`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button 
+                                        type="button"
+                                        onClick={() => setPaso("sin-seccion")} 
+                                        title="Nueva sección"
+                                        style={{ 
+                                            background: "#7c3aed", color: "#fff", border: "none", 
+                                            borderRadius: 8, width: 36, height: 36, cursor: "pointer", 
+                                            display: "flex", alignItems: "center", justifyContent: "center",
+                                            boxShadow: "0 2px 4px rgba(124, 58, 237, 0.2)",
+                                            flexShrink: 0
+                                        }}>
+                                        <Plus size={18} />
+                                    </button>
+                                </div>
                             )}
                         </div>
 
@@ -865,12 +946,13 @@ const AgroMapaPage = () => {
                         </div>
                         <div style={{ flex: 1, minWidth: 140 }}>
                             <label style={labelStyle}>Tipo de suelo</label>
-                            <select
+                            <input
+                                type="text"
                                 value={seccionForm.secc_tipo_suelo}
                                 onChange={e => setSeccionForm({ ...seccionForm, secc_tipo_suelo: e.target.value })}
-                                style={{ ...inputStyle, width: "100%", cursor: "pointer" }}>
-                                {TIPOS_SUELO.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
+                                placeholder='Ej: "Franco Arcilloso"'
+                                style={{ ...inputStyle, width: "100%" }}
+                            />
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
                             <button onClick={() => { setPaso("dibujando"); }} style={btnSecondary}>

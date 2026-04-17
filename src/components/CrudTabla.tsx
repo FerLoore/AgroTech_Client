@@ -153,7 +153,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
 
     return (
         <div style={{ padding: "32px" }}>
-            <div style={{ maxWidth: 960, margin: "0 auto" }}>
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
                 {/* ── Encabezado ──────────────────────────────────────
                     Muestra: ícono + título + subtítulo + botón Nuevo
