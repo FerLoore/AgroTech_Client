@@ -10,7 +10,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import type { LatLng } from "leaflet";
 import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMapa.api";
-import type { Finca, ArbolMapa, PuntoPerimetro } from "./agroMapa.types";
+import type { Finca, ArbolMapa, PuntoPerimetro, SeccionStats } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
 import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus } from "lucide-react";
 
@@ -300,6 +300,8 @@ const AgroMapaPage = () => {
     const [filtroEstado, setFiltroEstado] = useState("all");
     const [filtroSeccion, setFiltroSeccion] = useState(location.state?.seccionNombre || "all");
     const [cuarentena, setCuarentena] = useState(false);
+    const [modoReporte, setModoReporte] = useState(false);
+    const [seccionesStats, setSeccionesStats] = useState<SeccionStats[]>([]);
 
     // ── Wizard ───────────────────────────────────────────────
     const [paso, setPaso] = useState<Paso>("idle");
@@ -348,6 +350,7 @@ const AgroMapaPage = () => {
             setFinca(data.finca);
             setArboles(data.arboles);
             setPerimetro(data.perimetro);
+            setSeccionesStats(data.secciones_stats || []);
             return data;
         } catch (e: any) {
             if (e?.response?.status === 400) {
@@ -372,6 +375,7 @@ const AgroMapaPage = () => {
             setFinca(data.finca);
             setArboles(data.arboles);
             setPerimetro(data.perimetro);
+            setSeccionesStats(data.secciones_stats || []);
             if (!data.finca.fin_latitud_origen || !data.finca.fin_longitud_origen) {
                 setCoordsForm({ lat: "14.6349", lng: "-90.5069" });
                 setPaso("coords");
@@ -639,6 +643,15 @@ const AgroMapaPage = () => {
     );
     const arbolesEnfermos = arboles.filter(a => a.estado === "Enfermo");
 
+    // ─── Utilidades Reporte ──────────────────────────────────
+    const getIncidenciaColor = (inc: number) => {
+        if (inc === 0) return "#4a7c59";
+        if (inc <= 5) return "#27ae60";
+        if (inc <= 15) return "#f1c40f";
+        if (inc <= 30) return "#e67e22";
+        return "#c0392b";
+    };
+
     // Agrupar perímetros por sección
     const poligonosPorSeccion = perimetro.reduce((acc, p) => {
         const sid = p.seccion_id || 0;
@@ -648,11 +661,19 @@ const AgroMapaPage = () => {
     }, {} as Record<number, PuntoPerimetro[]>);
 
     // Convertir a formato Leaflet, sorteando por orden
-    const renderPoligonos = Object.entries(poligonosPorSeccion).map(([sid, puntos]) => ({
-        seccionId: Number(sid),
-        nombre: arboles.find(a => a.seccion_id === Number(sid))?.seccion_nombre || "Sección",
-        puntos: puntos.sort((a, b) => a.orden - b.orden).map(p => [p.lat, p.lng] as [number, number])
-    })).filter(p => p.puntos.length >= 3);
+    const renderPoligonos = Object.entries(poligonosPorSeccion).map(([sid, puntos]) => {
+        const idS = Number(sid);
+        // Búsqueda robusta por ID numérico
+        const stats = seccionesStats.find(s => Number(s.seccion_id) === idS);
+        
+        return {
+            seccionId: idS,
+            nombre: arboles.find(a => a.seccion_id === idS)?.seccion_nombre || stats?.nombre || "Sección",
+            puntos: puntos.sort((a, b) => a.orden - b.orden).map(p => [p.lat, p.lng] as [number, number]),
+            incidencia: stats ? Number(stats.incidencia) : 0,
+            stats: stats || { total: 0, enfermos: 0, incidencia: 0 }
+        };
+    }).filter(p => p.puntos.length >= 3);
 
     const poligonoEnDibujo = puntosNuevos.map(p => [p.lat, p.lng] as [number, number]);
     const centro: [number, number] = finca?.fin_latitud_origen && finca?.fin_longitud_origen
@@ -716,6 +737,15 @@ const AgroMapaPage = () => {
                         background: cuarentena ? "#c0392b" : "transparent",
                         color: cuarentena ? "#fff" : "#c0392b", borderColor: "#c0392b",
                     }}>Cuarentena</button>
+
+                    <button onClick={() => setModoReporte(v => !v)} style={{
+                        ...btnOutline,
+                        background: modoReporte ? "#7c3aed" : "transparent",
+                        color: modoReporte ? "#fff" : "#7c3aed", borderColor: "#7c3aed",
+                        fontWeight: "bold"
+                    }}>
+                        {modoReporte ? "📊 Ver Mapa Normal" : "🩺 Modo Reporte Salud"}
+                    </button>
 
                     {filtroSeccion !== "all" && paso === "idle" && (
                         <button onClick={eliminarTerrenoActual} style={{ ...btnOutline, color: "#c0392b", borderColor: "#c0392b", fontWeight: "bold" }}>
@@ -1104,14 +1134,25 @@ const AgroMapaPage = () => {
                     {renderPoligonos.map(poly => (
                         <Polygon key={`poly-${poly.seccionId}`} positions={poly.puntos}
                             pathOptions={{
-                                color: filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc",
-                                fillColor: filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc",
-                                fillOpacity: (filtroSeccion === poly.nombre) ? 0.2 : 0.05,
-                                weight: (filtroSeccion === poly.nombre) ? 3 : 1.5,
+                                color: modoReporte ? getIncidenciaColor(poly.incidencia) : (filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc"),
+                                fillColor: modoReporte ? getIncidenciaColor(poly.incidencia) : (filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc"),
+                                fillOpacity: modoReporte ? 0.4 : ((filtroSeccion === poly.nombre) ? 0.2 : 0.05),
+                                weight: (filtroSeccion === poly.nombre || modoReporte) ? 3 : 1.5,
                                 dashArray: (filtroSeccion === poly.nombre) ? "0" : "6 4"
                             }}>
-                            <Tooltip sticky>{poly.nombre}</Tooltip>
-                            <MedidasPoligono puntos={poly.puntos.map(p => ({ lat: p[0], lng: p[1] }))} color="#4a7c59" />
+                            <Tooltip sticky>
+                                <div style={{ textAlign: "center" }}>
+                                    <div style={{ fontWeight: "bold" }}>{poly.nombre}</div>
+                                    {modoReporte && (
+                                        <div style={{ fontSize: 11, color: getIncidenciaColor(poly.incidencia) }}>
+                                            Incidencia: {poly.incidencia}%
+                                            <br />
+                                            ({poly.stats?.enfermos} de {poly.stats?.total} árboles)
+                                        </div>
+                                    )}
+                                </div>
+                            </Tooltip>
+                            <MedidasPoligono puntos={poly.puntos.map(p => ({ lat: p[0], lng: p[1] }))} color={modoReporte ? getIncidenciaColor(poly.incidencia) : "#4a7c59"} />
                         </Polygon>
                     ))}
                     {paso === "dibujando" && poligonoEnDibujo.length >= 2 && (
@@ -1207,6 +1248,24 @@ const AgroMapaPage = () => {
                     <span style={{ width: 14, height: 0, borderTop: "2px dashed #4a7c59", display: "inline-block" }} />
                     Perímetro guardado
                 </span>
+
+                {modoReporte && (
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", marginLeft: "auto", background: "#f8fafc", padding: "6px 12px", borderRadius: 10, border: "1px solid #e2e8f0" }}>
+                        <span style={{ fontWeight: 700, fontSize: 11, color: "#64748b", marginRight: 4 }}>NIVEL DE INCIDENCIA:</span>
+                        {[
+                            { label: "Sano (0%)", color: "#4a7c59" },
+                            { label: "Bajo (1-5%)", color: "#27ae60" },
+                            { label: "Medio (5-15%)", color: "#f1c40f" },
+                            { label: "Alto (15-30%)", color: "#e67e22" },
+                            { label: "Crítico (>30%)", color: "#c0392b" },
+                        ].map(level => (
+                            <span key={level.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                <span style={{ width: 12, height: 12, borderRadius: 3, background: level.color }} />
+                                {level.label}
+                            </span>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
