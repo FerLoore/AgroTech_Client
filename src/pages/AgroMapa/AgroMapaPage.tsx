@@ -12,7 +12,13 @@ import type { LatLng } from "leaflet";
 import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMapa.api";
 import type { Finca, ArbolMapa, PuntoPerimetro, SeccionStats } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
-import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus } from "lucide-react";
+import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, Flame, FileText } from "lucide-react";
+import "leaflet.heat";
+import { generatePDF } from "../../reports/core/PDFGenerator";
+import AgroReportTemplate from "../../reports/templates/AgroReportTemplate";
+import type { AgroReportData } from "../../reports/types/report.types";
+import html2canvas from "html2canvas";
+import { useRef } from "react";
 
 const { BaseLayer } = LayersControl;
 
@@ -240,6 +246,36 @@ const LocationMarker = ({ onPos }: { onPos: (p: LatLng) => void }) => {
     );
 };
 
+// ─── Heatmap Layer ───────────────────────────────────────────
+const HeatmapLayer = ({ points }: { points: [number, number, number][] }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!map || points.length === 0) return;
+
+        // @ts-ignore - leaflet.heat adds heatLayer to L
+        const heat = L.heatLayer(points, {
+            radius: 30,
+            blur: 20,
+            maxZoom: 18,
+            max: 1.0,
+            gradient: {
+                0.4: 'blue',
+                0.6: 'cyan',
+                0.7: 'lime',
+                0.8: 'yellow',
+                1.0: 'red'
+            }
+        }).addTo(map);
+
+        return () => {
+            map.removeLayer(heat);
+        };
+    }, [map, points]);
+
+    return null;
+};
+
 // ─── WizardPanel ─────────────────────────────────────────────
 const WizardPanel = ({
     paso, totalPasos, titulo, descripcion, color, children,
@@ -282,6 +318,9 @@ const WizardPanel = ({
 const AgroMapaPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const reportRef = useRef<HTMLDivElement>(null);
+    const [isExporting, setIsExporting] = useState(false);
+    const [reportData, setReportData] = useState<AgroReportData | null>(null);
 
     // ── Datos generales ──────────────────────────────────────
     const [fincas, setFincas] = useState<Finca[]>([]);
@@ -301,6 +340,7 @@ const AgroMapaPage = () => {
     const [filtroSeccion, setFiltroSeccion] = useState(location.state?.seccionNombre || "all");
     const [cuarentena, setCuarentena] = useState(false);
     const [modoReporte, setModoReporte] = useState(false);
+    const [mostrarHeatmap, setMostrarHeatmap] = useState(false);
     const [seccionesStats, setSeccionesStats] = useState<SeccionStats[]>([]);
 
     // ── Wizard ───────────────────────────────────────────────
@@ -634,6 +674,65 @@ const AgroMapaPage = () => {
             duration: 8000
         });
     };
+    
+    // ─── Exportación PDF ──────────────────────────────────────
+    const exportarPDF = async () => {
+        if (!finca || isExporting) return;
+        setIsExporting(true);
+        toast.info("Generando reporte fitosanitario...", { duration: 2000 });
+
+        try {
+            // 1. Capturar el mapa actual
+            const mapContainer = document.querySelector('.leaflet-container') as HTMLElement;
+            if (!mapContainer) throw new Error("Mapa no encontrado");
+
+            const canvas = await html2canvas(mapContainer, { 
+                useCORS: true,
+                logging: false,
+                scale: 1
+            });
+            const snapshot = canvas.toDataURL('image/png');
+
+            // 2. Preparar datos y actualizar estado
+            const nuevoReportData: AgroReportData = {
+                finca: {
+                    id: finca.fin_finca,
+                    nombre: finca.fin_nombre,
+                    ubicacion: finca.fin_ubicacion
+                },
+                fecha: new Date().toLocaleDateString(),
+                autor: "Administrador AgroTech",
+                mapa: {
+                    snapshot: snapshot,
+                    stats: renderPoligonos.map(p => ({
+                        seccion_id: p.seccionId,
+                        nombre: p.nombre,
+                        total: p.stats?.total || 0,
+                        enfermos: p.stats?.enfermos || 0,
+                        incidencia: p.incidencia
+                    })),
+                    modo: mostrarHeatmap ? "Heatmap" : "Choropleth"
+                }
+            };
+            
+            setReportData(nuevoReportData);
+
+            // 3. Pequeña pausa para que React renderice el template con la imagen
+            setTimeout(async () => {
+                if (reportRef.current) {
+                    const success = await generatePDF(reportRef.current, `Reporte_Fitosanitario_${finca.fin_nombre.replace(/\s+/g, '_')}`);
+                    if (success) toast.success("✓ Reporte generado con éxito");
+                    else toast.error("Error al generar el PDF");
+                    setIsExporting(false);
+                }
+            }, 500);
+
+        } catch (err) {
+            console.error(err);
+            toast.error("Error al capturar el mapa para el reporte");
+            setIsExporting(false);
+        }
+    };
 
     // ─── Datos derivados ──────────────────────────────────────
     const seccionesUnicas = [...new Set(arboles.map(a => a.seccion_nombre))];
@@ -651,6 +750,10 @@ const AgroMapaPage = () => {
         if (inc <= 30) return "#e67e22";
         return "#c0392b";
     };
+
+    const puntosHeatmap = useMemo(() => {
+        return arbolesEnfermos.map(a => [a.lat, a.lng, 1] as [number, number, number]);
+    }, [arbolesEnfermos]);
 
     // Agrupar perímetros por sección
     const poligonosPorSeccion = perimetro.reduce((acc, p) => {
@@ -745,6 +848,30 @@ const AgroMapaPage = () => {
                         fontWeight: "bold"
                     }}>
                         {modoReporte ? "📊 Ver Mapa Normal" : "🩺 Modo Reporte Salud"}
+                    </button>
+
+                    <button onClick={() => setMostrarHeatmap(v => !v)} style={{
+                        ...btnOutline,
+                        background: mostrarHeatmap ? "#f97316" : "transparent",
+                        color: mostrarHeatmap ? "#fff" : "#f97316", borderColor: "#f97316",
+                        fontWeight: "bold"
+                    }}>
+                        <Flame size={14} style={{ display: "inline", marginRight: 4 }} />
+                        {mostrarHeatmap ? "Ocultar Heatmap" : "Ver Heatmap de Focos"}
+                    </button>
+
+                    <button 
+                        onClick={exportarPDF} 
+                        disabled={isExporting || !finca}
+                        style={{
+                            ...btnOutline,
+                            background: "#2d4a2d",
+                            color: "#fff", borderColor: "#2d4a2d",
+                            fontWeight: "bold", opacity: isExporting ? 0.7 : 1
+                        }}
+                    >
+                        <FileText size={14} style={{ display: "inline", marginRight: 4 }} />
+                        {isExporting ? "Generando..." : "Exportar PDF"}
                     </button>
 
                     {filtroSeccion !== "all" && paso === "idle" && (
@@ -973,8 +1100,6 @@ const AgroMapaPage = () => {
                                 style={{ ...inputStyle, width: "100%" }}
                                 autoFocus
                             />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 140 }}>
                             <label style={labelStyle}>Tipo de suelo</label>
                             <input
                                 type="text"
@@ -1102,7 +1227,7 @@ const AgroMapaPage = () => {
             {/* ── MAPA ── */}
             <div style={{ flex: 1, minHeight: 460, borderRadius: 16, overflow: "hidden", border: "0.5px solid #e8e0d0" }}>
                 <MapContainer key={`mapa-${fincaId}`} center={centroActivo} zoom={ZOOM_INICIAL}
-                    maxZoom={24} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
+                    maxZoom={24} style={{ height: "100%", width: "100%" }} scrollWheelZoom preferCanvas={true}>
                     <MapUpdater lat={centroActivo[0]} lng={centroActivo[1]} />
                     <LocationMarker onPos={setGpsPosition} />
                     <ControlMapa
@@ -1113,6 +1238,7 @@ const AgroMapaPage = () => {
                         activo={paso === "coords"} 
                         onPunto={ll => setCoordsForm({ lat: String(ll.lat), lng: String(ll.lng) })} 
                     />
+                    {mostrarHeatmap && <HeatmapLayer points={puntosHeatmap} />}
                     {paso === "coords" && coordsForm.lat && coordsForm.lng && !isNaN(Number(coordsForm.lat)) && !isNaN(Number(coordsForm.lng)) && (
                         <Marker position={[Number(coordsForm.lat), Number(coordsForm.lng)]}>
                             <Tooltip permanent direction="top" offset={[0, -32]}>
@@ -1265,6 +1391,16 @@ const AgroMapaPage = () => {
                             </span>
                         ))}
                     </div>
+                )}
+            </div>
+
+            {/* ── TEMPLATE OCULTO PARA PDF ── */}
+            <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+                {reportData && (
+                    <AgroReportTemplate 
+                        ref={reportRef} 
+                        data={reportData}
+                    />
                 )}
             </div>
         </div>
