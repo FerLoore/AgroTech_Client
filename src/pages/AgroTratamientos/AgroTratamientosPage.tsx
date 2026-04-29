@@ -52,8 +52,6 @@ const CAMPOS = (
     opcionesSecciones: CampoFormulario["opciones"],
     opcionesFincas: CampoFormulario["opciones"],
     tipoActual: string,
-    filtroFincaForm: string,
-    setFiltroFincaForm: (v: string) => void
 ): CampoFormulario[] => [
         {
             key: "trata_tipo",
@@ -87,6 +85,17 @@ const CAMPOS = (
             label: "Dosis (Cantidad a descontar)",
             tipo: "text",
             placeholder: "Ej: 10",
+        },
+        {
+            key: "trata_num_aplicaciones",
+            label: "Número de aplicaciones",
+            tipo: "number",
+            placeholder: "Ej: 4",
+        },
+        {
+            key: "trata_fecha_fin",
+            label: "Fecha estimada de fin",
+            tipo: "date",
         },
         // Filtro de Finca (SOLO UI para filtrar alertas)
         ...(tipoActual === "Curativo" ? [{
@@ -302,7 +311,7 @@ const AgroTratamientosPage = () => {
                     columnas={COLUMNAS}
                     datos={tratamientosFiltrados}
                     idKey="trata_tratamientos"
-                    campos={CAMPOS(opcionesAlertas, opcionesProductos, opcionesSecciones, opcionesFincas, String(form.trata_tipo), filtroFincaForm, setFiltroFincaForm)}
+                    campos={CAMPOS(opcionesAlertas, opcionesProductos, opcionesSecciones, opcionesFincas, String(form.trata_tipo))}
                     loading={loading}
                     error={error}
                     busqueda={busqueda}

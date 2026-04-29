@@ -16,7 +16,7 @@ import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, Flame, FileTex
 import "leaflet.heat";
 import { generatePDF } from "../../reports/core/PDFGenerator";
 import AgroReportTemplate from "../../reports/templates/AgroReportTemplate";
-import type { AgroReportData } from "../../reports/types/report.types";
+import type { AgroReportData, ChartsData } from "../../reports/types/report.types";
 import html2canvas from "html2canvas";
 import { useRef } from "react";
 
@@ -674,7 +674,7 @@ const AgroMapaPage = () => {
             duration: 8000
         });
     };
-    
+
     // ─── Exportación PDF ──────────────────────────────────────
     const exportarPDF = async () => {
         if (!finca || isExporting) return;
@@ -682,50 +682,204 @@ const AgroMapaPage = () => {
         toast.info("Generando reporte fitosanitario...", { duration: 2000 });
 
         try {
-            // 1. Capturar el mapa actual
-            const mapContainer = document.querySelector('.leaflet-container') as HTMLElement;
+            // ── 1. Captura del mapa Leaflet ───────────────────────────────────────
+            const mapContainer = document.querySelector(".leaflet-container") as HTMLElement;
             if (!mapContainer) throw new Error("Mapa no encontrado");
 
-            const canvas = await html2canvas(mapContainer, { 
+            const mapCanvas = await html2canvas(mapContainer, {
                 useCORS: true,
                 logging: false,
-                scale: 1
+                scale: 1,
             });
-            const snapshot = canvas.toDataURL('image/png');
+            const snapshot = mapCanvas.toDataURL("image/png");
 
-            // 2. Preparar datos y actualizar estado
+            // ── 2. Cargar TODAS las alertas de salud de esta finca desde la API ──
+            //      Endpoint real: GET /agro-alerta-salud  (ya existe en tu backend)
+            //      El handler filtra alertsalud_activo = 1.
+            let alertasSalud: Array<{
+                alertsalud_id: number;
+                arb_arbol: number;
+                descripcion_sintoma?: string;
+            }> = [];
+
+            // También cargamos los análisis de laboratorio para determinar
+            // cuáles alertas están "Dictaminado" (tienen analab_fecha_resultado)
+            let analisisLab: Array<{
+                alert_alerta_salud: number;
+                analab_fecha_resultado?: string | null;
+            }> = [];
+
+            try {
+                const { default: api } = await import("../../api/Axios");
+                const [resAlertas, resAnalisis] = await Promise.all([
+                    api.get("/agro-alerta-salud"),
+                    api.get("/agro-analisis-laboratorio"),
+                ]);
+                alertasSalud = Array.isArray(resAlertas.data)
+                    ? resAlertas.data
+                    : (resAlertas.data.alertas ?? []);
+                analisisLab = Array.isArray(resAnalisis.data)
+                    ? resAnalisis.data
+                    : (resAnalisis.data.analisis ?? resAnalisis.data ?? []);
+            } catch {
+                // Si falla la carga de alertas, los gráficos aparecen vacíos (no rompe el PDF)
+                alertasSalud = [];
+                analisisLab  = [];
+            }
+
+            // IDs de alertas que tienen al menos un análisis con fecha_resultado → Dictaminado
+            const idsDictaminadas = new Set(
+                analisisLab
+                    .filter(a => a.analab_fecha_resultado)
+                    .map(a => Number(a.alert_alerta_salud))
+            );
+
+            // ── 3. Filtrar alertas de la finca actual ─────────────────────────────
+            //      Cruzamos por arb_arbol con el listado de árboles ya en memoria
+            const idsArbolesEnFinca = new Set(arboles.map(a => a.id));
+            const alertasFinca = alertasSalud.filter(al =>
+                idsArbolesEnFinca.has(al.arb_arbol)
+            );
+
+            // Alertas dictaminadas de esta finca (confirmadas por laboratorio)
+            const alertasDictaminadasFinca = alertasFinca.filter(al =>
+                idsDictaminadas.has(al.alertsalud_id)
+            );
+
+            // ── 4. Top 10 árboles con más alertas ────────────────────────────────
+            //      Conteo real: cuántas alertas tiene cada árbol
+            const conteoAlertasPorArbol = alertasFinca.reduce<Record<number, number>>(
+                (acc, al) => {
+                    acc[al.arb_arbol] = (acc[al.arb_arbol] ?? 0) + 1;
+                    return acc;
+                },
+                {}
+            );
+
+            const top10Arboles = Object.entries(conteoAlertasPorArbol)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 10)
+                .map(([idStr, totalAlertas]) => {
+                    const id = Number(idStr);
+                    const arb = arboles.find(a => a.id === id);
+                    return {
+                        arbol_id: id,
+                        referencia: arb?.referencia ?? `#${id}`,
+                        seccion: arb?.seccion_nombre ?? "—",
+                        surco: arb?.numero_surco ?? 0,
+                        totalAlertas,
+                        estado: arb?.estado ?? "—",
+                    };
+                });
+
+            // ── 5. Frecuencia de síntomas para la dona ────────────────────────────
+            //      Solo alertas DICTAMINADAS (confirmadas por análisis de laboratorio).
+            const conteoSintomas = alertasDictaminadasFinca.reduce<Record<string, number>>(
+                (acc, al) => {
+                    const sintoma =
+                        (al.descripcion_sintoma ?? "").trim().slice(0, 40) ||
+                        "Sin descripción";
+                    acc[sintoma] = (acc[sintoma] ?? 0) + 1;
+                    return acc;
+                },
+                {}
+            );
+
+            const frecuenciaEnfermedades = Object.entries(conteoSintomas)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 8) // máximo 8 sectores en la dona
+                .map(([nombre, cantidad]) => ({ nombre, cantidad }));
+
+            // ── 6. Armar el objeto ChartsData ─────────────────────────────────────
+            const charts: ChartsData = { top10Arboles, frecuenciaEnfermedades };
+
+            // ── 7. Objeto completo del reporte ────────────────────────────────────
             const nuevoReportData: AgroReportData = {
                 finca: {
                     id: finca.fin_finca,
                     nombre: finca.fin_nombre,
-                    ubicacion: finca.fin_ubicacion
+                    ubicacion: finca.fin_ubicacion,
                 },
-                fecha: new Date().toLocaleDateString(),
+                fecha: new Date().toLocaleDateString("es-GT"),
                 autor: "Administrador AgroTech",
+
                 mapa: {
-                    snapshot: snapshot,
+                    snapshot,
                     stats: renderPoligonos.map(p => ({
                         seccion_id: p.seccionId,
                         nombre: p.nombre,
-                        total: p.stats?.total || 0,
-                        enfermos: p.stats?.enfermos || 0,
-                        incidencia: p.incidencia
+                        total: p.stats?.total ?? 0,
+                        enfermos: p.stats?.enfermos ?? 0,
+                        incidencia: p.incidencia,
                     })),
-                    modo: mostrarHeatmap ? "Heatmap" : "Choropleth"
-                }
+                    modo: mostrarHeatmap ? "Heatmap" : "Choropleth",
+                },
+
+                estadisticas: {
+                    totalArboles: arboles.length,
+                    totalSurcos: [...new Set(arboles.map(a => a.numero_surco))].length,
+                    totalSecciones: [...new Set(arboles.map(a => a.seccion_id))].length,
+                    arbolesEnfermos: arboles.filter(a => a.estado === "Enfermo").length,
+                    arbolesEnAlerta: arboles.filter(a => a.estado_sospechoso).length,
+                    distribucionEstados: [
+                        { estado: "Crecimiento", cantidad: arboles.filter(a => a.estado === "Crecimiento").length },
+                        { estado: "Produccion", cantidad: arboles.filter(a => a.estado === "Produccion").length },
+                        { estado: "Enfermo", cantidad: arboles.filter(a => a.estado === "Enfermo").length },
+                        { estado: "Muerto", cantidad: arboles.filter(a => a.estado === "Muerto").length },
+                    ],
+                    surcosCriticos: seccionesStats
+                        .map(s => ({
+                            nombre: s.nombre,
+                            total: s.total,
+                            enfermos: s.enfermos,
+                            alertas: arboles.filter(a =>
+                                a.seccion_id === s.seccion_id && a.estado_sospechoso
+                            ).length,
+                        }))
+                        .filter(s => s.enfermos > 0 || s.alertas > 0)
+                        .sort((a, b) => (b.enfermos + b.alertas) - (a.enfermos + a.alertas))
+                        .slice(0, 5),
+                    arbolesSOspechosos: arboles
+                        .filter(a => a.estado_sospechoso)
+                        .map(a => {
+                            const siembra = new Date(a.fecha_siembra);
+                            const aniosTranscurridos =
+                                (Date.now() - siembra.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+                            const aniosEsperados = a.anios_produccion ?? 8;
+                            return {
+                                arbol_id: a.id,
+                                referencia: a.referencia,
+                                seccion: a.seccion_nombre,
+                                surco: a.numero_surco,
+                                variedad: a.variedad,
+                                fecha_siembra: a.fecha_siembra,
+                                anios_transcurridos: Math.round(aniosTranscurridos * 10) / 10,
+                                anios_esperados: aniosEsperados,
+                                exceso_anios: Math.round((aniosTranscurridos - aniosEsperados) * 10) / 10,
+                            };
+                        })
+                        .sort((a, b) => b.exceso_anios - a.exceso_anios)
+                        .slice(0, 20),
+                },
+
+                charts,  // ← datos 100 % reales de la BD
             };
-            
+
             setReportData(nuevoReportData);
 
-            // 3. Pequeña pausa para que React renderice el template con la imagen
+            // ── 8. Renderizar template y generar PDF ──────────────────────────────
+            //       600 ms = suficiente para que React hidrate el template oculto
             setTimeout(async () => {
                 if (reportRef.current) {
-                    const success = await generatePDF(reportRef.current, `Reporte_Fitosanitario_${finca.fin_nombre.replace(/\s+/g, '_')}`);
-                    if (success) toast.success("✓ Reporte generado con éxito");
+                    const ok = await generatePDF(
+                        reportRef.current,
+                        `Reporte_Fitosanitario_${finca.fin_nombre.replace(/\s+/g, "_")}`,
+                    );
+                    if (ok) toast.success("✓ Reporte generado con éxito");
                     else toast.error("Error al generar el PDF");
                     setIsExporting(false);
                 }
-            }, 500);
+            }, 600);
 
         } catch (err) {
             console.error(err);
@@ -736,11 +890,27 @@ const AgroMapaPage = () => {
 
     // ─── Datos derivados ──────────────────────────────────────
     const seccionesUnicas = [...new Set(arboles.map(a => a.seccion_nombre))];
-    const arbolesFiltrados = arboles.filter(a =>
+    const arbolesEnfermosBD = arboles.filter(a => a.estado === "Enfermo");
+
+    // Lógica de Cuarentena Dinámica: todo árbol a <= 10m de un enfermo es Cuarentena (si está activado)
+    const arbolesConEstadoEfectivo = arboles.map(a => {
+        if (a.estado === "Enfermo") return a;
+        if (cuarentena) {
+            const estaEnCuarentena = arbolesEnfermosBD.some(enfermo =>
+                L.latLng(a.lat, a.lng).distanceTo(L.latLng(enfermo.lat, enfermo.lng)) <= 10
+            );
+            if (estaEnCuarentena) {
+                return { ...a, estado: "Cuarentena" as any };
+            }
+        }
+        return a;
+    });
+
+    const arbolesFiltrados = arbolesConEstadoEfectivo.filter(a =>
         (filtroEstado === "all" || a.estado === filtroEstado) &&
         (filtroSeccion === "all" || a.seccion_nombre === filtroSeccion)
     );
-    const arbolesEnfermos = arboles.filter(a => a.estado === "Enfermo");
+    const arbolesEnfermos = arbolesFiltrados.filter(a => a.estado === "Enfermo");
 
     // ─── Utilidades Reporte ──────────────────────────────────
     const getIncidenciaColor = (inc: number) => {
@@ -768,7 +938,7 @@ const AgroMapaPage = () => {
         const idS = Number(sid);
         // Búsqueda robusta por ID numérico
         const stats = seccionesStats.find(s => Number(s.seccion_id) === idS);
-        
+
         return {
             seccionId: idS,
             nombre: arboles.find(a => a.seccion_id === idS)?.seccion_nombre || stats?.nombre || "Sección",
@@ -789,6 +959,7 @@ const AgroMapaPage = () => {
         produccion: arbolesFiltrados.filter(a => a.estado === "Produccion").length,
         enfermos: arbolesFiltrados.filter(a => a.estado === "Enfermo").length,
         crecimiento: arbolesFiltrados.filter(a => a.estado === "Crecimiento").length,
+        cuarentena: arbolesFiltrados.filter(a => a.estado === "Cuarentena").length,
     };
 
     const estaEnWizard = paso !== "idle" && paso !== "listo";
@@ -860,8 +1031,8 @@ const AgroMapaPage = () => {
                         {mostrarHeatmap ? "Ocultar Heatmap" : "Ver Heatmap de Focos"}
                     </button>
 
-                    <button 
-                        onClick={exportarPDF} 
+                    <button
+                        onClick={exportarPDF}
                         disabled={isExporting || !finca}
                         style={{
                             ...btnOutline,
@@ -993,9 +1164,9 @@ const AgroMapaPage = () => {
                                         onChange={e => setSeccionSeleccionada(Number(e.target.value))}
                                         style={{ ...inputStyle, flex: 1, cursor: "pointer" }}>
                                         {seccionesFinca.map(s => (
-                                            <option 
-                                                key={s.secc_seccion} 
-                                                value={s.secc_seccion} 
+                                            <option
+                                                key={s.secc_seccion}
+                                                value={s.secc_seccion}
                                                 disabled={Number(s.tiene_arboles || 0) > 0}
                                                 style={{ color: Number(s.tiene_arboles || 0) > 0 ? "#9ca3af" : "inherit" }}
                                             >
@@ -1003,13 +1174,13 @@ const AgroMapaPage = () => {
                                             </option>
                                         ))}
                                     </select>
-                                    <button 
+                                    <button
                                         type="button"
-                                        onClick={() => setPaso("sin-seccion")} 
+                                        onClick={() => setPaso("sin-seccion")}
                                         title="Nueva sección"
-                                        style={{ 
-                                            background: "#7c3aed", color: "#fff", border: "none", 
-                                            borderRadius: 8, width: 36, height: 36, cursor: "pointer", 
+                                        style={{
+                                            background: "#7c3aed", color: "#fff", border: "none",
+                                            borderRadius: 8, width: 36, height: 36, cursor: "pointer",
                                             display: "flex", alignItems: "center", justifyContent: "center",
                                             boxShadow: "0 2px 4px rgba(124, 58, 237, 0.2)",
                                             flexShrink: 0
@@ -1131,16 +1302,16 @@ const AgroMapaPage = () => {
                     <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                             {[
-                                { icon: <Leaf size={22} color="#2d4a2d" strokeWidth={2}/>, label: "Árboles", val: arbolesPreview.length.toLocaleString() },
-                                { icon: <Layers size={22} color="#b45309" strokeWidth={2}/>, label: "Surcos", val: String(new Set(arbolesPreview.map(a => a.surco)).size) },
-                                { icon: <Ruler size={22} color="#185FA5" strokeWidth={2}/>, label: "Perímetro", val: perimetroTotal < 1000 ? `${perimetroTotal.toFixed(1)}m` : `${(perimetroTotal / 1000).toFixed(2)}km` },
-                                { icon: <Expand size={22} color="#4a7c59" strokeWidth={2}/>, label: "Espaciado", val: `${espaciadoSeleccionado}m` },
+                                { icon: <Leaf size={22} color="#2d4a2d" strokeWidth={2} />, label: "Árboles", val: arbolesPreview.length.toLocaleString() },
+                                { icon: <Layers size={22} color="#b45309" strokeWidth={2} />, label: "Surcos", val: String(new Set(arbolesPreview.map(a => a.surco)).size) },
+                                { icon: <Ruler size={22} color="#185FA5" strokeWidth={2} />, label: "Perímetro", val: perimetroTotal < 1000 ? `${perimetroTotal.toFixed(1)}m` : `${(perimetroTotal / 1000).toFixed(2)}km` },
+                                { icon: <Expand size={22} color="#4a7c59" strokeWidth={2} />, label: "Espaciado", val: `${espaciadoSeleccionado}m` },
                                 {
-                                    icon: <FolderTree size={22} color="#7a5a00" strokeWidth={2}/>, label: "Sección",
+                                    icon: <FolderTree size={22} color="#7a5a00" strokeWidth={2} />, label: "Sección",
                                     val: seccionesFinca.find(s => s.secc_seccion === seccionSeleccionada)?.secc_nombre ?? "—"
                                 },
                                 {
-                                    icon: <TreePine size={22} color="#2d6a2d" strokeWidth={2}/>, label: "Tipo",
+                                    icon: <TreePine size={22} color="#2d6a2d" strokeWidth={2} />, label: "Tipo",
                                     val: tiposArbol.find(t => t.tipar_tipo_arbol === tipoArbolSeleccionado)?.tipar_nombre_comun ?? "—"
                                 },
                             ].map(item => (
@@ -1193,12 +1364,13 @@ const AgroMapaPage = () => {
             )}
 
             {/* ── STATS ── */}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
                 {[
                     { label: "Total", val: stats.total, color: "#2d4a2d" },
-                    { label: "Producción", val: stats.produccion, color: "#4a7c59" },
+                    { label: "Producción", val: stats.produccion, color: "#185FA5" },
                     { label: "Enfermos", val: stats.enfermos, color: "#c0392b" },
-                    { label: "Crecimiento", val: stats.crecimiento, color: "#e67e22" },
+                    { label: "Crecimiento", val: stats.crecimiento, color: "#4a7c59" },
+                    ...(cuarentena ? [{ label: "Cuarentena", val: stats.cuarentena, color: "#c0392b" }] : []),
                 ].map(s => (
                     <div key={s.label} style={{
                         background: "#fff", borderRadius: 10, padding: "8px 18px",
@@ -1234,9 +1406,9 @@ const AgroMapaPage = () => {
                         activo={paso === "dibujando"}
                         onPunto={ll => setPuntosNuevos(prev => [...prev, { lat: ll.lat, lng: ll.lng }])}
                     />
-                    <ControlOrigen 
-                        activo={paso === "coords"} 
-                        onPunto={ll => setCoordsForm({ lat: String(ll.lat), lng: String(ll.lng) })} 
+                    <ControlOrigen
+                        activo={paso === "coords"}
+                        onPunto={ll => setCoordsForm({ lat: String(ll.lat), lng: String(ll.lng) })}
                     />
                     {mostrarHeatmap && <HeatmapLayer points={puntosHeatmap} />}
                     {paso === "coords" && coordsForm.lat && coordsForm.lng && !isNaN(Number(coordsForm.lat)) && !isNaN(Number(coordsForm.lng)) && (
@@ -1397,8 +1569,8 @@ const AgroMapaPage = () => {
             {/* ── TEMPLATE OCULTO PARA PDF ── */}
             <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
                 {reportData && (
-                    <AgroReportTemplate 
-                        ref={reportRef} 
+                    <AgroReportTemplate
+                        ref={reportRef}
                         data={reportData}
                     />
                 )}
