@@ -32,11 +32,20 @@ export interface ArbolMapa {
     lng: number;
 }
 
+export interface SeccionStats {
+    seccion_id: number;
+    nombre: string;
+    total: number;
+    enfermos: number;
+    incidencia: number; // Porcentaje 0-100
+}
+
 export interface MapaFincaResponse {
     ok: boolean;
     finca: Finca;
     perimetro: PuntoPerimetro[];
     arboles: ArbolMapa[];
+    secciones_stats: SeccionStats[];
 }
 
 // Colores por estado — usados en CircleMarker

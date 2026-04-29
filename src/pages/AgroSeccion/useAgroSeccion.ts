@@ -1,10 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getAgroSecciones, createAgroSeccion, updateAgroSeccion, deleteAgroSeccion } from '../../api/AgroSeccion.api';
+import { getAgroFincas } from '../../api/AgroFinca.api';
 import type { AgroSeccion } from './AgroSeccion.types';
+import type { AgroFinca } from '../AgroFinca/AgroFinca.types';
 import { toast } from 'sonner';
 
 export const useAgroSeccion = () => {
     const [secciones, setSecciones] = useState<AgroSeccion[]>([]);
+    const [fincas, setFincas] = useState<AgroFinca[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>("");
 
@@ -19,8 +22,12 @@ export const useAgroSeccion = () => {
     const fetchSecciones = async () => {
         setLoading(true);
         try {
-            const response = await getAgroSecciones();
-            setSecciones(response.data.secciones || []);
+            const [seccionesRes, fincasRes] = await Promise.all([
+                getAgroSecciones(),
+                getAgroFincas()
+            ]);
+            setSecciones(seccionesRes.data.secciones || []);
+            setFincas(fincasRes.data.fincas || []);
         } catch (err: any) {
             setError(err.message || "Error al obtener las secciones");
         } finally {
@@ -35,7 +42,8 @@ export const useAgroSeccion = () => {
     const seccionesFiltradas = useMemo(() => {
         return secciones.filter(s => 
             String(s.secc_nombre || "").toLowerCase().includes(busqueda.toLowerCase()) ||
-            String(s.secc_tipo_suelo || "").toLowerCase().includes(busqueda.toLowerCase())
+            String(s.secc_tipo_suelo || "").toLowerCase().includes(busqueda.toLowerCase()) ||
+            String(s.fin_nombre || "").toLowerCase().includes(busqueda.toLowerCase())
         );
     }, [secciones, busqueda]);
 
@@ -98,7 +106,7 @@ export const useAgroSeccion = () => {
     };
 
     return {
-        secciones: seccionesFiltradas, loading, error,
+        secciones: seccionesFiltradas, fincas, loading, error,
         busqueda, setBusqueda,
         modal, editando, form, setForm, guardando, formError,
         onNuevo, onEditar, onEliminar, onGuardar, onCerrar

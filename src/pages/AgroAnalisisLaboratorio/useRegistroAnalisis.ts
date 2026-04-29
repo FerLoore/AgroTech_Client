@@ -179,8 +179,9 @@ export const useRegistroAnalisis = () => {
         if (alerta.analisisExistente) {
             // Pre-cargar datos del análisis existente (modo actualizar)
             const toDate = (d: string) => d ? String(d).split("T")[0] : "";
+            const labNombre = alerta.analisisExistente.analab_laboratorio_nombre || "";
             setForm({
-                analab_laboratorio_nombre: alerta.analisisExistente.analab_laboratorio_nombre || "",
+                analab_laboratorio_nombre: labNombre === "Pendiente de asignar" ? "" : labNombre,
                 catpato_catalogo_patogeno: String(alerta.analisisExistente.catpato_catalogo_patogeno || ""),
                 analab_fecha_envio:        toDate(alerta.analisisExistente.analab_fecha_envio),
                 analab_fecha_resultado:    toDate(alerta.analisisExistente.analab_fecha_resultado),
@@ -219,8 +220,9 @@ export const useRegistroAnalisis = () => {
         if (alerta) setAlertaSeleccionada(alerta);
         setAnalisisEditandoId(Number(an.analab_analisis_laboratorio));
         setFormError("");
+        const labNombre = an.analab_laboratorio_nombre || "";
         setForm({
-            analab_laboratorio_nombre: an.analab_laboratorio_nombre || "",
+            analab_laboratorio_nombre: labNombre === "Pendiente de asignar" ? "" : labNombre,
             catpato_catalogo_patogeno: String(an.catpato_catalogo_patogeno || ""),
             analab_fecha_envio:        toDate(an.analab_fecha_envio),
             analab_fecha_resultado:    toDate(an.analab_fecha_resultado),
@@ -312,9 +314,19 @@ export const useRegistroAnalisis = () => {
 
             // Recargar datos y limpiar selección
             await cargarTodo();
+            
+            // Retornar datos para navegación si es necesario
+            const result = {
+                arbolId: alertaSeleccionada.arb_arbol,
+                alertaId: alertaSeleccionada.alertsalud_id,
+                resultado: form.analab_resultado_tipo
+            };
+
             setAlertaSeleccionada(null);
             setAnalisisEditandoId(null);
             setForm({ ...FORM_INICIAL, analab_fecha_envio: hoy() });
+
+            return result;
 
         } catch (err: any) {
             const mensaje = err?.message || "Error al guardar el análisis";
