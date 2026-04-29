@@ -298,8 +298,8 @@ export default function HomeDashboardPage() {
     { label: "Total árboles", value: totArb, color: "#2d4a2d", sub: "activos en finca", trend: "", up: null as null | boolean, mod: "arboles" },
     { label: "En producción", value: prodArb, color: "#185FA5", sub: totArb ? `${Math.round(prodArb / totArb * 100)}% del inventario` : "0%", trend: "", up: null as null | boolean, mod: "arboles" },
     { label: "En crecimiento", value: creArb, color: "#4a7c59", sub: totArb ? `${Math.round(creArb / totArb * 100)}% del inventario` : "0%", trend: "", up: null as null | boolean, mod: "arboles" },
-    { label: "Enfermos", value: enfArb, color: "#c0392b", sub: "requieren atención", trend: "", up: null as null | boolean, mod: "alertas" },
-    { label: "Alertas activas", value: totalAlert, color: "#c0392b", sub: "pendientes análisis", trend: "", up: null as null | boolean, mod: "alertas" },
+    { label: "Enfermos", value: enfArb, color: "#c0392b", sub: "requieren atención", trend: "", up: null as null | boolean, mod: "alerta-salud" },
+    { label: "Alertas activas", value: totalAlert, color: "#c0392b", sub: "pendientes análisis", trend: "", up: null as null | boolean, mod: "alerta-salud" },
   ];
 
   const totProd = productosDb.length;

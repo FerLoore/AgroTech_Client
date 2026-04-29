@@ -27,9 +27,11 @@ export interface ArbolMapa {
     seccion_id: number;
     variedad: string;
     fecha_siembra: string;
-    referencia: string;   // ej: "S1-P3"
+    referencia: string;
     lat: number;
     lng: number;
+    estado_sospechoso?: boolean;
+    anios_produccion?: number;  // tipar_anios_produccion del tipo de árbol (viene del backend)
 }
 
 export interface SeccionStats {
@@ -37,7 +39,7 @@ export interface SeccionStats {
     nombre: string;
     total: number;
     enfermos: number;
-    incidencia: number; // Porcentaje 0-100
+    incidencia: number;
 }
 
 export interface MapaFincaResponse {
