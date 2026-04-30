@@ -172,8 +172,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
                         <div>
                             <h1 style={{ fontSize: 24, fontWeight: 700, color: "#2d4a2d", margin: 0 }}>{titulo}</h1>
                             <p style={{ fontSize: 13, color: "#7a9a7a", marginTop: 2 }}>
-
-
+                                {subtitulo}
                             </p>
                             {onHistorial && (
                                 <p style={{ fontSize: 13, color: "#575757ff", margin: "4px 0 0" }}>

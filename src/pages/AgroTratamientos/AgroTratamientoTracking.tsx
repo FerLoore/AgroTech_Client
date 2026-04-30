@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
     Calendar, CheckCircle2, ChevronLeft, ChevronRight, ClipboardEdit, 
-    FlaskConical, TreePalm, AlertTriangle, 
-    ClipboardCheck, ClipboardList, Package, Info
+    TreePalm, AlertTriangle, Info
 } from "lucide-react";
 import { getAgroFincas } from "../../api/AgroFinca.api";
 import { getArboles, updateArbol } from "../../api/AgroArbol.api";
@@ -64,7 +63,7 @@ const AgroTratamientoTracking = () => {
     const [tratamientos, setTratamientos] = useState<any[]>([]);
     const [alertas, setAlertas] = useState<any[]>([]);
     const [analisis, setAnalisis] = useState<any[]>([]);
-    const [loadingData, setLoadingData] = useState(false);
+    const [, setLoadingData] = useState(false);
 
     // Calendario
     const [currentDate, setCurrentDate] = useState(new Date());

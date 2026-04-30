@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday, addDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
-import { Calendar as CalIcon, Plus, Info, Trash2, CheckCircle } from "lucide-react";
+import { Calendar as CalIcon, Plus, Trash2, CheckCircle } from "lucide-react";
 import { getMantenimientos, createMantenimiento, updateMantenimiento, deleteMantenimiento } from "../../api/AgroMantenimiento.api";
 import { getAgroSecciones } from "../../api/AgroSeccion.api";
 

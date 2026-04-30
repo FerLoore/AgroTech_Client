@@ -1,4 +1,3 @@
-import React from "react";
 import { Package } from "lucide-react";
 import { useAgroProducto } from "./UseAgroProducto";
 import { TIPO_PRODUCTO } from "./AgroProducto.types";

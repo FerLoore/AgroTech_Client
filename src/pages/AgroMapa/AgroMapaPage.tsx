@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import L from "leaflet";
@@ -12,7 +12,10 @@ import type { LatLng } from "leaflet";
 import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMapa.api";
 import type { Finca, ArbolMapa, PuntoPerimetro } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
-import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus } from "lucide-react";
+import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, FileDown } from "lucide-react";
+import html2pdf from "html2pdf.js";
+import { AgroReportTemplate } from "../../reports/templates/AgroReportTemplate";
+import type { AgroReportData } from "../../reports/types/report.types";
 
 const { BaseLayer } = LayersControl;
 
@@ -681,6 +684,56 @@ const AgroMapaPage = () => {
         return sum;
     }, [puntosNuevos]);
 
+    const reportRef = useRef<HTMLDivElement>(null);
+    const [isExporting, setIsExporting] = useState(false);
+
+    const exportarPDF = async () => {
+        if (!reportRef.current || !finca) return;
+        setIsExporting(true);
+        toast.info("Generando reporte PDF...", { duration: 2000 });
+        
+        try {
+            const opt = {
+                margin: 0,
+                filename: `Reporte_AgroTech_${finca.fin_nombre.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg' as const, quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
+            };
+            
+            await html2pdf().from(reportRef.current).set(opt).save();
+            toast.success("Reporte exportado exitosamente");
+        } catch (e) {
+            console.error("Error al exportar PDF:", e);
+            toast.error("Hubo un error al generar el PDF");
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const reportData: AgroReportData = {
+        fincaNombre: finca?.fin_nombre || "Finca No Seleccionada",
+        seccionNombre: filtroSeccion === "all" ? "Todas las secciones" : filtroSeccion,
+        fechaReporte: new Date().toLocaleDateString("es-ES"),
+        stats: {
+            totalArboles: stats.total,
+            enProduccion: stats.produccion,
+            enCrecimiento: stats.crecimiento,
+            enfermos: stats.enfermos,
+            muertos: 0
+        },
+        clima: {
+            humedad: 75,
+            temperatura: 24,
+            riesgoRoya: "Moderado"
+        },
+        mantenimiento: {
+            proximosRiegos: 5,
+            alertasActivas: stats.enfermos,
+            tratamientosPendientes: 3
+        }
+    };
+
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 24, gap: 12 }}>
 
@@ -739,6 +792,17 @@ const AgroMapaPage = () => {
                             + Configurar terreno
                         </button>
                     )}
+                    
+                    {finca && paso === "idle" && (
+                        <button 
+                            onClick={exportarPDF} 
+                            disabled={isExporting}
+                            style={{ ...btnPrimary, background: "#4a7c59", display: "flex", alignItems: "center", gap: 6 }}>
+                            <FileDown size={16} />
+                            {isExporting ? "Exportando..." : "Exportar PDF"}
+                        </button>
+                    )}
+
                     {estaEnWizard && (
                         <button onClick={resetWizard} style={{ ...btnOutline, color: "#c0392b", borderColor: "#c0392b" }}>
                             ✕ Cancelar
@@ -1207,6 +1271,11 @@ const AgroMapaPage = () => {
                     <span style={{ width: 14, height: 0, borderTop: "2px dashed #4a7c59", display: "inline-block" }} />
                     Perímetro guardado
                 </span>
+            </div>
+
+            {/* Template oculto para PDF */}
+            <div style={{ position: "absolute", top: "-9999px", left: "-9999px" }}>
+                <AgroReportTemplate ref={reportRef} data={reportData} />
             </div>
         </div>
     );

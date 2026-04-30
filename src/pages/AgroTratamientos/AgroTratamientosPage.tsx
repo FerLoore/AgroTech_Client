@@ -51,9 +51,7 @@ const CAMPOS = (
     opcionesProductos: CampoFormulario["opciones"],
     opcionesSecciones: CampoFormulario["opciones"],
     opcionesFincas: CampoFormulario["opciones"],
-    tipoActual: string,
-    filtroFincaForm: string,
-    setFiltroFincaForm: (v: string) => void
+    tipoActual: string
 ): CampoFormulario[] => [
         {
             key: "trata_tipo",
@@ -302,7 +300,7 @@ const AgroTratamientosPage = () => {
                     columnas={COLUMNAS}
                     datos={tratamientosFiltrados}
                     idKey="trata_tratamientos"
-                    campos={CAMPOS(opcionesAlertas, opcionesProductos, opcionesSecciones, opcionesFincas, String(form.trata_tipo), filtroFincaForm, setFiltroFincaForm)}
+                    campos={CAMPOS(opcionesAlertas, opcionesProductos, opcionesSecciones, opcionesFincas, String(form.trata_tipo))}
                     loading={loading}
                     error={error}
                     busqueda={busqueda}
