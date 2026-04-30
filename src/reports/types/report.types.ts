@@ -29,7 +29,7 @@ export interface StatsSummaryData {
     arbolesEnAlerta: number;
     distribucionEstados: { estado: string; cantidad: number }[];
     surcosCriticos: { nombre: string; total: number; enfermos: number; alertas: number }[];
-    arbolesSOspechosos?: ArbolSospechoso[];  // lista detallada para la tabla del PDF
+    arbolesSOspechosos?: ArbolSospechoso[];
 }
 
 // ── Top 10 árboles con más alertas ──────────────────────────────────────────
@@ -44,7 +44,7 @@ export interface ArbolTopAlerta {
 
 // ── Frecuencia de síntomas (dona) ────────────────────────────────────────────
 export interface FrecuenciaEnfermedad {
-    nombre: string;    // Texto del síntoma
+    nombre: string;
     cantidad: number;
 }
 
@@ -52,6 +52,24 @@ export interface FrecuenciaEnfermedad {
 export interface ChartsData {
     top10Arboles: ArbolTopAlerta[];
     frecuenciaEnfermedades: FrecuenciaEnfermedad[];
+}
+
+export interface ClimaticData {
+    humedad: number;
+    temperatura: number;
+    precipitacion: number;
+    fecha: string;
+    seccion_id: number;
+    seccion_nombre?: string;
+}
+
+export interface PrediccionData {
+    alertas_clima: ClimaticData[];
+    correlaciones: {
+        condicion: string;
+        riesgo: string;
+        descripcion: string;
+    }[];
 }
 
 export interface AgroReportData {
@@ -70,9 +88,7 @@ export interface AgroReportData {
     };
 
     estadisticas?: StatsSummaryData;
-
     charts?: ChartsData;
-
     mantenimiento?: any;
-    prediccion?: any;
+    prediccion?: PrediccionData;
 }

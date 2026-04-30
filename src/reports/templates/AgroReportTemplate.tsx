@@ -1,9 +1,10 @@
-import { forwardRef } from "react";
+import React, { forwardRef } from "react";
 import { Map, BarChart2, ClipboardList } from "lucide-react";
 import type { AgroReportData } from "../types/report.types";
 import logo from "../../assets/AGROTECHLOGOsinfondo.png";
 import StatsSummary from "../components/StatsSummary";
 import TreeHealthCharts from "../components/TreeHealthCharts";
+import ClimateAlert from "../components/ClimateAlert";
 
 interface Props { data: AgroReportData; }
 
@@ -163,14 +164,21 @@ const AgroReportTemplate = forwardRef<HTMLDivElement, Props>(({ data }, ref) => 
             </table>
         </Bloque>
 
-        {/* ══ SECCIÓN 2 — ESTADÍSTICAS ════════════════════════════ */}
+        {/* ══ SECCIÓN 2 — CLIMA PREDICTIVO ════════════════════════ */}
+        {data.prediccion && (
+            <Bloque>
+                <ClimateAlert prediccion={data.prediccion} />
+            </Bloque>
+        )}
+
+        {/* ══ SECCIÓN 3 — ESTADÍSTICAS ════════════════════════════ */}
         {data.estadisticas && (
             <Bloque>
                 <StatsSummary data={data.estadisticas} />
             </Bloque>
         )}
 
-        {/* ══ SECCIÓN 3 — GRÁFICOS ════════════════════════════════ */}
+        {/* ══ SECCIÓN 4 — GRÁFICOS ════════════════════════════════ */}
         {data.charts && (
             <Bloque>
                 <SectionTitle icon={<BarChart2 size={18} />}>

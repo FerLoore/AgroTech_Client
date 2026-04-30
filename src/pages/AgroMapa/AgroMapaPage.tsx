@@ -16,7 +16,8 @@ import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, Flame, FileTex
 import "leaflet.heat";
 import { generatePDF } from "../../reports/core/PDFGenerator";
 import AgroReportTemplate from "../../reports/templates/AgroReportTemplate";
-import type { AgroReportData, ChartsData } from "../../reports/types/report.types";
+import type { AgroReportData, ChartsData, ClimaticData } from "../../reports/types/report.types";
+import { getAgroClimas } from "../../api/AgroClima.api";
 import html2canvas from "html2canvas";
 import { useRef } from "react";
 
@@ -693,17 +694,12 @@ const AgroMapaPage = () => {
             });
             const snapshot = mapCanvas.toDataURL("image/png");
 
-            // ── 2. Cargar TODAS las alertas de salud de esta finca desde la API ──
-            //      Endpoint real: GET /agro-alerta-salud  (ya existe en tu backend)
-            //      El handler filtra alertsalud_activo = 1.
+            // ── 2. Alertas + análisis de laboratorio (gráficos) ──────────────────
             let alertasSalud: Array<{
                 alertsalud_id: number;
                 arb_arbol: number;
                 descripcion_sintoma?: string;
             }> = [];
-
-            // También cargamos los análisis de laboratorio para determinar
-            // cuáles alertas están "Dictaminado" (tienen analab_fecha_resultado)
             let analisisLab: Array<{
                 alert_alerta_salud: number;
                 analab_fecha_resultado?: string | null;
@@ -722,78 +718,64 @@ const AgroMapaPage = () => {
                     ? resAnalisis.data
                     : (resAnalisis.data.analisis ?? resAnalisis.data ?? []);
             } catch {
-                // Si falla la carga de alertas, los gráficos aparecen vacíos (no rompe el PDF)
                 alertasSalud = [];
                 analisisLab  = [];
             }
 
-            // IDs de alertas que tienen al menos un análisis con fecha_resultado → Dictaminado
             const idsDictaminadas = new Set(
                 analisisLab
                     .filter(a => a.analab_fecha_resultado)
                     .map(a => Number(a.alert_alerta_salud))
             );
 
-            // ── 3. Filtrar alertas de la finca actual ─────────────────────────────
-            //      Cruzamos por arb_arbol con el listado de árboles ya en memoria
             const idsArbolesEnFinca = new Set(arboles.map(a => a.id));
-            const alertasFinca = alertasSalud.filter(al =>
-                idsArbolesEnFinca.has(al.arb_arbol)
-            );
+            const alertasFinca = alertasSalud.filter(al => idsArbolesEnFinca.has(al.arb_arbol));
+            const alertasDictaminadasFinca = alertasFinca.filter(al => idsDictaminadas.has(al.alertsalud_id));
 
-            // Alertas dictaminadas de esta finca (confirmadas por laboratorio)
-            const alertasDictaminadasFinca = alertasFinca.filter(al =>
-                idsDictaminadas.has(al.alertsalud_id)
-            );
-
-            // ── 4. Top 10 árboles con más alertas ────────────────────────────────
-            //      Conteo real: cuántas alertas tiene cada árbol
             const conteoAlertasPorArbol = alertasFinca.reduce<Record<number, number>>(
-                (acc, al) => {
-                    acc[al.arb_arbol] = (acc[al.arb_arbol] ?? 0) + 1;
-                    return acc;
-                },
+                (acc, al) => { acc[al.arb_arbol] = (acc[al.arb_arbol] ?? 0) + 1; return acc; },
                 {}
             );
-
             const top10Arboles = Object.entries(conteoAlertasPorArbol)
-                .sort(([, a], [, b]) => b - a)
-                .slice(0, 10)
+                .sort(([, a], [, b]) => b - a).slice(0, 10)
                 .map(([idStr, totalAlertas]) => {
                     const id = Number(idStr);
                     const arb = arboles.find(a => a.id === id);
-                    return {
-                        arbol_id: id,
-                        referencia: arb?.referencia ?? `#${id}`,
-                        seccion: arb?.seccion_nombre ?? "—",
-                        surco: arb?.numero_surco ?? 0,
-                        totalAlertas,
-                        estado: arb?.estado ?? "—",
-                    };
+                    return { arbol_id: id, referencia: arb?.referencia ?? `#${id}`, seccion: arb?.seccion_nombre ?? "—", surco: arb?.numero_surco ?? 0, totalAlertas, estado: arb?.estado ?? "—" };
                 });
 
-            // ── 5. Frecuencia de síntomas para la dona ────────────────────────────
-            //      Solo alertas DICTAMINADAS (confirmadas por análisis de laboratorio).
             const conteoSintomas = alertasDictaminadasFinca.reduce<Record<string, number>>(
-                (acc, al) => {
-                    const sintoma =
-                        (al.descripcion_sintoma ?? "").trim().slice(0, 40) ||
-                        "Sin descripción";
-                    acc[sintoma] = (acc[sintoma] ?? 0) + 1;
-                    return acc;
-                },
+                (acc, al) => { const s = (al.descripcion_sintoma ?? "").trim().slice(0, 40) || "Sin descripción"; acc[s] = (acc[s] ?? 0) + 1; return acc; },
                 {}
             );
-
             const frecuenciaEnfermedades = Object.entries(conteoSintomas)
-                .sort(([, a], [, b]) => b - a)
-                .slice(0, 8) // máximo 8 sectores en la dona
+                .sort(([, a], [, b]) => b - a).slice(0, 8)
                 .map(([nombre, cantidad]) => ({ nombre, cantidad }));
 
-            // ── 6. Armar el objeto ChartsData ─────────────────────────────────────
             const charts: ChartsData = { top10Arboles, frecuenciaEnfermedades };
 
-            // ── 7. Objeto completo del reporte ────────────────────────────────────
+            // ── 3. Datos climáticos (módulo predictivo) ───────────────────────────
+            const climaRes = await getAgroClimas();
+            const climaRaw: any[] = climaRes.data?.climas ?? climaRes.data ?? [];
+
+            const alertas_clima: ClimaticData[] = climaRaw.map((c: any) => ({
+                humedad:       Number(c.clim_humedad_relativa ?? c.clim_humedad ?? c.humedad ?? 0),
+                temperatura:   Number(c.clim_temperatura ?? c.temperatura ?? 0),
+                precipitacion: Number(c.clim_precipitacion ?? c.precipitacion ?? 0),
+                fecha:         c.clim_fecha ?? c.fecha ?? "",
+                seccion_id:    Number(c.secc_seccion ?? c.seccion_id ?? 0),
+                seccion_nombre: c.secc_nombre ?? c.seccion_nombre,
+            }));
+
+            const correlacionesMap = new Map<string, { condicion: string; riesgo: string; descripcion: string }>();
+            for (const c of alertas_clima) {
+                if (c.humedad > 80)       correlacionesMap.set("humedad-critica",  { condicion: "Humedad crítica",  riesgo: "alto",  descripcion: "Alta probabilidad de Roya en 3 días" });
+                else if (c.humedad >= 70) correlacionesMap.set("humedad-elevada",  { condicion: "Humedad elevada",  riesgo: "medio", descripcion: "Monitorear árboles en sección afectada" });
+                if (c.temperatura > 30)   correlacionesMap.set("temperatura-alta", { condicion: "Temperatura alta", riesgo: "medio", descripcion: "Condiciones favorables para plagas" });
+                if (c.precipitacion > 10) correlacionesMap.set("lluvia-intensa",   { condicion: "Lluvia intensa",   riesgo: "alto",  descripcion: "Riesgo de hongos y pudrición radicular" });
+            }
+
+            // ── 4. Objeto completo del reporte ────────────────────────────────────
             const nuevoReportData: AgroReportData = {
                 finca: {
                     id: finca.fin_finca,
@@ -823,18 +805,16 @@ const AgroMapaPage = () => {
                     arbolesEnAlerta: arboles.filter(a => a.estado_sospechoso).length,
                     distribucionEstados: [
                         { estado: "Crecimiento", cantidad: arboles.filter(a => a.estado === "Crecimiento").length },
-                        { estado: "Produccion", cantidad: arboles.filter(a => a.estado === "Produccion").length },
-                        { estado: "Enfermo", cantidad: arboles.filter(a => a.estado === "Enfermo").length },
-                        { estado: "Muerto", cantidad: arboles.filter(a => a.estado === "Muerto").length },
+                        { estado: "Produccion",  cantidad: arboles.filter(a => a.estado === "Produccion").length },
+                        { estado: "Enfermo",     cantidad: arboles.filter(a => a.estado === "Enfermo").length },
+                        { estado: "Muerto",      cantidad: arboles.filter(a => a.estado === "Muerto").length },
                     ],
                     surcosCriticos: seccionesStats
                         .map(s => ({
                             nombre: s.nombre,
                             total: s.total,
                             enfermos: s.enfermos,
-                            alertas: arboles.filter(a =>
-                                a.seccion_id === s.seccion_id && a.estado_sospechoso
-                            ).length,
+                            alertas: arboles.filter(a => a.seccion_id === s.seccion_id && a.estado_sospechoso).length,
                         }))
                         .filter(s => s.enfermos > 0 || s.alertas > 0)
                         .sort((a, b) => (b.enfermos + b.alertas) - (a.enfermos + a.alertas))
@@ -843,8 +823,7 @@ const AgroMapaPage = () => {
                         .filter(a => a.estado_sospechoso)
                         .map(a => {
                             const siembra = new Date(a.fecha_siembra);
-                            const aniosTranscurridos =
-                                (Date.now() - siembra.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+                            const aniosTranscurridos = (Date.now() - siembra.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
                             const aniosEsperados = a.anios_produccion ?? 8;
                             return {
                                 arbol_id: a.id,
@@ -862,7 +841,12 @@ const AgroMapaPage = () => {
                         .slice(0, 20),
                 },
 
-                charts,  // ← datos 100 % reales de la BD
+                charts,
+
+                prediccion: {
+                    alertas_clima,
+                    correlaciones: Array.from(correlacionesMap.values()),
+                },
             };
 
             setReportData(nuevoReportData);
