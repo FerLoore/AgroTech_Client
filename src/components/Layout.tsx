@@ -5,7 +5,7 @@ import {
     Users, MapPin, Layers, CloudRain,
     GitBranch, Leaf, ClipboardList,
     AlertTriangle, FlaskConical, Syringe,
-    ChevronLeft, ChevronRight, History
+    ChevronLeft, ChevronRight, History, Calendar
     // Map as MapIcon
 } from "lucide-react";
 import logo from "../assets/AGROTECHLOGOsinfondo.png";
@@ -27,6 +27,7 @@ const MENU = [
             { label: "Fincas", ruta: "/agro-finca", icono: MapPin },
             { label: "Secciones", ruta: "/agro-seccion", icono: Layers },
             { label: "Clima", ruta: "/agro-clima", icono: CloudRain },
+            { label: "Calendario Manten.", ruta: "/agro-mantenimiento", icono: Calendar },
         ]
     },
     {

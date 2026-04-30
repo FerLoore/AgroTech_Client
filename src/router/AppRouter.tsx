@@ -19,6 +19,7 @@ import AgroAuditoriaPage from "../pages/AgroAuditoria/AgroAuditoriaPage";
 import ArbolTimelinePage from "../pages/AgroHistorial/ArbolTimelinePage";
 import HomeDashboardPage from "../pages/HomeDashboard/HomeDashboardPage";
 import AgroMapaPage from "../pages/AgroMapa/AgroMapaPage";
+import AgroMantenimientoPage from "../pages/AgroMantenimiento/AgroMantenimientoPage";
 
 const AppRouter = () => {
     return (
@@ -44,6 +45,7 @@ const AppRouter = () => {
                     <Route path="/agro-mapa" element={<AgroMapaPage />} />
                     <Route path="/agro-arbol-timeline" element={<ArbolTimelinePage />} />
                     <Route path="/home-dashboard" element={<HomeDashboardPage />} />
+                    <Route path="/agro-mantenimiento" element={<AgroMantenimientoPage />} />
                 </Routes>
             </Layout>
         </BrowserRouter>

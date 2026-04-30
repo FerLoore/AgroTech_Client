@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
 import { MapContainer, TileLayer, Polygon, CircleMarker } from "react-leaflet";
+import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import "leaflet/dist/leaflet.css";
 
 import { getAgroFincas } from "../../api/AgroFinca.api";
@@ -292,12 +293,65 @@ export default function HomeDashboardPage() {
   const muerArb = arbolesFinca.filter((a: any) => a.estado?.toLowerCase().includes("muert")).length;
   const totalAlert = alertasMapeadas.length;
 
+  // --- Generar datos reales para los minigráficos (sparklines) de los últimos 14 días ---
+  const last14Days = Array.from({length: 14}).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (13 - i));
+    return d.toISOString().split('T')[0];
+  });
+
+  const alertsByDay = alertasDb.reduce((acc: any, a: any) => {
+    const d = a.fecha_deteccion ? String(a.fecha_deteccion).split('T')[0] : null;
+    if (d) acc[d] = (acc[d] || 0) + 1;
+    return acc;
+  }, {});
+
+  const histEventsByDay = historialDb.reduce((acc: any, h: any) => {
+    const d = h.histo_fecha_cambio ? String(h.histo_fecha_cambio).split('T')[0] : null;
+    if (d) {
+      if (!acc[d]) acc[d] = [];
+      acc[d].push(h);
+    }
+    return acc;
+  }, {});
+
+  const sparklineAlertas = [];
+  const sparklineProd = [];
+  const sparklineCre = [];
+  const sparklineEnf = [];
+  const sparklineTot = [];
+
+  let curProd = prodArb;
+  let curCre = creArb;
+  let curEnf = enfArb;
+
+  for (let i = 13; i >= 0; i--) {
+     const dateStr = last14Days[i];
+     sparklineAlertas.unshift({ name: dateStr, val: alertsByDay[dateStr] || 0 });
+     sparklineProd.unshift({ name: dateStr, val: curProd });
+     sparklineCre.unshift({ name: dateStr, val: curCre });
+     sparklineEnf.unshift({ name: dateStr, val: curEnf });
+     sparklineTot.unshift({ name: dateStr, val: totArb }); // Para simplificar asume que no se talaron árboles
+
+     const eventsToday = histEventsByDay[dateStr] || [];
+     eventsToday.forEach((h: any) => {
+       const antes = h.histo_estado_anterior?.toLowerCase() || "";
+       const despues = h.histo_estado_nuevo?.toLowerCase() || "";
+       if (despues.includes("producci")) curProd--;
+       if (antes.includes("producci")) curProd++;
+       if (despues.includes("crecimient")) curCre--;
+       if (antes.includes("crecimient")) curCre++;
+       if (despues.includes("enferm")) curEnf--;
+       if (antes.includes("enferm")) curEnf++;
+     });
+  }
+
   const kpisData = [
-    { label: "Total árboles", value: totArb, color: "#2d4a2d", sub: "activos en finca", trend: "", up: null as null | boolean, mod: "arboles" },
-    { label: "En producción", value: prodArb, color: "#185FA5", sub: totArb ? `${Math.round(prodArb / totArb * 100)}% del inventario` : "0%", trend: "", up: null as null | boolean, mod: "arboles" },
-    { label: "En crecimiento", value: creArb, color: "#854F0B", sub: totArb ? `${Math.round(creArb / totArb * 100)}% del inventario` : "0%", trend: "", up: null as null | boolean, mod: "arboles" },
-    { label: "Enfermos", value: enfArb, color: "#A32D2D", sub: "requieren atención", trend: "", up: null as null | boolean, mod: "alertas" },
-    { label: "Alertas activas", value: totalAlert, color: "#E24B4A", sub: "pendientes análisis", trend: "", up: null as null | boolean, mod: "alertas" },
+    { id: "tot", label: "Total árboles", value: totArb, color: "#2d4a2d", sub: "activos en finca", trend: "", up: null as null | boolean, mod: "arboles", data: sparklineTot },
+    { id: "prod", label: "En producción", value: sparklineProd[13]?.val || 0, color: "#185FA5", sub: totArb ? `${Math.round((sparklineProd[13]?.val || 0) / totArb * 100)}% del inventario` : "0%", trend: (sparklineProd[13]?.val || 0) >= (sparklineProd[0]?.val || 0) ? "Estable/Sube" : "Baja", up: (sparklineProd[13]?.val || 0) >= (sparklineProd[0]?.val || 0), mod: "arboles", data: sparklineProd },
+    { id: "crec", label: "En crecimiento", value: sparklineCre[13]?.val || 0, color: "#854F0B", sub: totArb ? `${Math.round((sparklineCre[13]?.val || 0) / totArb * 100)}% del inventario` : "0%", trend: (sparklineCre[13]?.val || 0) >= (sparklineCre[0]?.val || 0) ? "Sube" : "Baja", up: (sparklineCre[13]?.val || 0) >= (sparklineCre[0]?.val || 0), mod: "arboles", data: sparklineCre },
+    { id: "enf", label: "Enfermos", value: sparklineEnf[13]?.val || 0, color: "#A32D2D", sub: "requieren atención", trend: (sparklineEnf[13]?.val || 0) < (sparklineEnf[0]?.val || 0) ? "Mejora (Menos)" : (sparklineEnf[13]?.val || 0) > (sparklineEnf[0]?.val || 0) ? "Empeora (Más)" : "Estable", up: (sparklineEnf[13]?.val || 0) < (sparklineEnf[0]?.val || 0), mod: "alertas", data: sparklineEnf },
+    { id: "alert", label: "Alertas activas", value: totalAlert, color: "#E24B4A", sub: "pendientes análisis", trend: sparklineAlertas.some(a=>a.val>0) ? "Nuevas alertas" : "Sin alertas recientes", up: null as null | boolean, mod: "alertas", data: sparklineAlertas },
   ];
 
   const totProd = productosDb.length;
@@ -397,18 +451,35 @@ export default function HomeDashboardPage() {
             style={{ background: "#fff", borderRadius: 12, border: "0.5px solid #e4ddd4", padding: "14px 16px", cursor: "pointer", position: "relative", overflow: "hidden" }}
           >
             <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", borderRadius: "2px 0 0 2px", background: m.color }} />
-            <div style={{ fontSize: 10, color: "#9aaa9a", textTransform: "uppercase", letterSpacing: ".6px", marginBottom: 6 }}>{m.label}</div>
-            <div style={{ fontSize: 26, fontWeight: 500, color: m.color, lineHeight: 1 }}>{m.value}</div>
-            <div style={{ fontSize: 11, color: "#b0b8a8", marginTop: 4 }}>{m.sub}</div>
-            {m.up !== null && (
-              <div style={{ fontSize: 10, marginTop: 6, display: "flex", alignItems: "center", gap: 3, color: m.up ? "#27500A" : "#791F1F" }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d={m.up ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
-                </svg>
-                {m.trend}
-              </div>
-            )}
-            {m.up === null && <div style={{ fontSize: 10, marginTop: 6, color: "#9aaa9a" }}>{m.trend}</div>}
+            <div style={{ position: "relative", zIndex: 1 }}>
+              <div style={{ fontSize: 10, color: "#9aaa9a", textTransform: "uppercase", letterSpacing: ".6px", marginBottom: 6 }}>{m.label}</div>
+              <div style={{ fontSize: 26, fontWeight: 500, color: m.color, lineHeight: 1 }}>{m.value}</div>
+              <div style={{ fontSize: 11, color: "#b0b8a8", marginTop: 4 }}>{m.sub}</div>
+              {m.up !== null && (
+                <div style={{ fontSize: 10, marginTop: 6, display: "flex", alignItems: "center", gap: 3, color: m.up ? "#27500A" : "#791F1F" }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d={m.up ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"} />
+                  </svg>
+                  {m.trend}
+                </div>
+              )}
+              {m.up === null && <div style={{ fontSize: 10, marginTop: 6, color: "#9aaa9a" }}>{m.trend}</div>}
+            </div>
+            
+            {/* Sparkline de fondo */}
+            <div style={{ position: "absolute", bottom: -5, right: 0, width: "65%", height: "55%", zIndex: 0, opacity: 0.15 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={m.data}>
+                  <defs>
+                    <linearGradient id={`grad_${m.id}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={m.color} stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor={m.color} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <Area type="monotone" dataKey="val" stroke={m.color} fillOpacity={1} fill={`url(#grad_${m.id})`} strokeWidth={2} isAnimationActive={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         ))}
       </div>
