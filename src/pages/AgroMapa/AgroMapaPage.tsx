@@ -73,9 +73,9 @@ function generarGrilla(poly: { lat: number; lng: number }[], espaciado = 2, latO
     const maxN = Math.ceil((Math.max(...lats) - latOrigen) / paso);
 
     for (let m = minM; m <= maxM; m++) {
-        let lng = lngOrigen + m * paso;
+        const lng = lngOrigen + m * paso;
         for (let n = minN; n <= maxN; n++) {
-            let lat = latOrigen + n * paso;
+            const lat = latOrigen + n * paso;
             if (puntoEnPoligono(lat, lng, poly)) {
                 arboles.push({ lat, lng, surco: m, posicion: n });
             }
@@ -253,7 +253,6 @@ const HeatmapLayer = ({ points }: { points: [number, number, number][] }) => {
     useEffect(() => {
         if (!map || points.length === 0) return;
 
-        // @ts-ignore - leaflet.heat adds heatLayer to L
         const heat = L.heatLayer(points, {
             radius: 30,
             blur: 20,
@@ -392,6 +391,7 @@ const AgroMapaPage = () => {
             setPerimetro(data.perimetro);
             setSeccionesStats(data.secciones_stats || []);
             return data;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
             if (e?.response?.status === 400) {
                 setArboles([]);
@@ -420,6 +420,7 @@ const AgroMapaPage = () => {
                 setCoordsForm({ lat: "14.6349", lng: "-90.5069" });
                 setPaso("coords");
             }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
             if (e?.response?.status === 400) {
                 setFinca(fincas.find(f => f.fin_finca === id) ?? null);
@@ -529,6 +530,7 @@ const AgroMapaPage = () => {
             // Usá cargarDatosMapa (no cargarMapa) para no resetear el wizard
             await cargarDatosMapa(fincaId);
             setPaso("dibujando"); // ahora sí llega limpio
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
             console.error("Error completo:", e);
             toast.error("Error al guardar las coordenadas: " + (e.response?.data?.message || e.message));
@@ -755,9 +757,10 @@ const AgroMapaPage = () => {
 
             // ── 3. Datos climáticos (módulo predictivo) ───────────────────────────
             const climaRes = await getAgroClimas();
-            const climaRaw: any[] = climaRes.data?.climas ?? climaRes.data ?? [];
+            const climaRaw: unknown[] = climaRes.data?.climas ?? climaRes.data ?? [];
 
-            const alertas_clima: ClimaticData[] = climaRaw.map((c: any) => ({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const alertas_clima: ClimaticData[] = (climaRaw as any[]).map((c: any) => ({
                 humedad:       Number(c.clim_humedad_relativa ?? c.clim_humedad ?? c.humedad ?? 0),
                 temperatura:   Number(c.clim_temperatura ?? c.temperatura ?? 0),
                 precipitacion: Number(c.clim_precipitacion ?? c.precipitacion ?? 0),
@@ -883,6 +886,7 @@ const AgroMapaPage = () => {
                 L.latLng(a.lat, a.lng).distanceTo(L.latLng(enfermo.lat, enfermo.lng)) <= 10
             );
             if (estaEnCuarentena) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 return { ...a, estado: "Cuarentena" as any };
             }
         }
@@ -959,55 +963,7 @@ const AgroMapaPage = () => {
         return sum;
     }, [puntosNuevos]);
 
-    const reportRef = useRef<HTMLDivElement>(null);
-    const [isExporting, setIsExporting] = useState(false);
 
-    const exportarPDF = async () => {
-        if (!reportRef.current || !finca) return;
-        setIsExporting(true);
-        toast.info("Generando reporte PDF...", { duration: 2000 });
-        
-        try {
-            const opt = {
-                margin: 0,
-                filename: `Reporte_AgroTech_${finca.fin_nombre.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`,
-                image: { type: 'jpeg' as const, quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
-            };
-            
-            await html2pdf().from(reportRef.current).set(opt).save();
-            toast.success("Reporte exportado exitosamente");
-        } catch (e) {
-            console.error("Error al exportar PDF:", e);
-            toast.error("Hubo un error al generar el PDF");
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
-    const reportData: AgroReportData = {
-        fincaNombre: finca?.fin_nombre || "Finca No Seleccionada",
-        seccionNombre: filtroSeccion === "all" ? "Todas las secciones" : filtroSeccion,
-        fechaReporte: new Date().toLocaleDateString("es-ES"),
-        stats: {
-            totalArboles: stats.total,
-            enProduccion: stats.produccion,
-            enCrecimiento: stats.crecimiento,
-            enfermos: stats.enfermos,
-            muertos: 0
-        },
-        clima: {
-            humedad: 75,
-            temperatura: 24,
-            riesgoRoya: "Moderado"
-        },
-        mantenimiento: {
-            proximosRiegos: 5,
-            alertasActivas: stats.enfermos,
-            tratamientosPendientes: 3
-        }
-    };
 
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 24, gap: 12 }}>
@@ -1106,7 +1062,7 @@ const AgroMapaPage = () => {
                             onClick={exportarPDF} 
                             disabled={isExporting}
                             style={{ ...btnPrimary, background: "#4a7c59", display: "flex", alignItems: "center", gap: 6 }}>
-                            <FileDown size={16} />
+                            <FileText size={16} />
                             {isExporting ? "Exportando..." : "Exportar PDF"}
                         </button>
                     )}
@@ -1620,10 +1576,6 @@ const AgroMapaPage = () => {
                 )}
             </div>
 
-            {/* Template oculto para PDF */}
-            <div style={{ position: "absolute", top: "-9999px", left: "-9999px" }}>
-                <AgroReportTemplate ref={reportRef} data={reportData} />
-            </div>
         </div>
     );
 };

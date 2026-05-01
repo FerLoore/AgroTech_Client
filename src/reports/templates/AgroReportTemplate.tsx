@@ -49,7 +49,10 @@ const IncPill: React.FC<{ v: number }> = ({ v }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-const AgroReportTemplate = forwardRef<HTMLDivElement, Props>(({ data }, ref) => (
+const AgroReportTemplate = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
+    const reportId = `AT-${data.finca.id}-${String(data.fecha).replace(/\//g, "")}`;
+
+    return (
     <div
         ref={ref}
         style={{
@@ -62,6 +65,7 @@ const AgroReportTemplate = forwardRef<HTMLDivElement, Props>(({ data }, ref) => 
             boxSizing: "border-box",
         }}
     >
+
         {/* ══ ENCABEZADO ══════════════════════════════════════════ */}
         <div data-pdf-avoid="true" style={{
             display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -82,7 +86,7 @@ const AgroReportTemplate = forwardRef<HTMLDivElement, Props>(({ data }, ref) => 
                 </div>
                 <div style={{ fontSize: 12, color: GRIS, marginTop: 3 }}>Fecha: {data.fecha}</div>
                 <div style={{ fontSize: 12, color: GRIS }}>
-                    ID: <strong style={{ color: VERDE }}>#{`AT-${data.finca.id}-${Date.now().toString().slice(-4)}`}</strong>
+                    ID: <strong style={{ color: VERDE }}>#{reportId}</strong>
                 </div>
             </div>
         </div>
@@ -200,7 +204,8 @@ const AgroReportTemplate = forwardRef<HTMLDivElement, Props>(({ data }, ref) => 
             <p style={{ margin: 0, fontSize: 11, color: GRIS, fontWeight: 600 }}>{data.fecha}</p>
         </div>
     </div>
-));
+    );
+});
 
 AgroReportTemplate.displayName = "AgroReportTemplate";
 export default AgroReportTemplate;

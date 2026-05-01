@@ -89,6 +89,12 @@ export interface AgroReportData {
 
     estadisticas?: StatsSummaryData;
     charts?: ChartsData;
-    mantenimiento?: any;
+    mantenimiento?: MaintenanceData;
     prediccion?: PrediccionData;
+}
+
+export interface MaintenanceData {
+    proximosRiegos: number;
+    alertasActivas: number;
+    tratamientosPendientes: number;
 }

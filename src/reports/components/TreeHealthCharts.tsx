@@ -29,31 +29,34 @@ const DonaChart: React.FC<{
     }
 
     const CX = 90, CY = 90, REXT = 70, RINT = 36;
-    let angAcum = -Math.PI / 2;
+    const ANGULO_INICIO = -Math.PI / 2;
 
-    const arcos = datos.map((d) => {
-        const ang = (d.cantidad / total) * 2 * Math.PI;
-        const x1 = CX + REXT * Math.cos(angAcum);
-        const y1 = CY + REXT * Math.sin(angAcum);
-        const x2 = CX + REXT * Math.cos(angAcum + ang);
-        const y2 = CY + REXT * Math.sin(angAcum + ang);
-        const xi1 = CX + RINT * Math.cos(angAcum);
-        const yi1 = CY + RINT * Math.sin(angAcum);
-        const xi2 = CX + RINT * Math.cos(angAcum + ang);
-        const yi2 = CY + RINT * Math.sin(angAcum + ang);
-        const grande = ang > Math.PI ? 1 : 0;
+    const arcos = datos.reduce<(typeof datos[0] & { path: string; angStart: number; ang: number })[]>(
+        (acc, d) => {
+            const angStart = acc.length === 0 ? ANGULO_INICIO : acc[acc.length - 1].angStart + acc[acc.length - 1].ang;
+            const ang = (d.cantidad / total) * 2 * Math.PI;
+            const x1 = CX + REXT * Math.cos(angStart);
+            const y1 = CY + REXT * Math.sin(angStart);
+            const x2 = CX + REXT * Math.cos(angStart + ang);
+            const y2 = CY + REXT * Math.sin(angStart + ang);
+            const xi1 = CX + RINT * Math.cos(angStart);
+            const yi1 = CY + RINT * Math.sin(angStart);
+            const xi2 = CX + RINT * Math.cos(angStart + ang);
+            const yi2 = CY + RINT * Math.sin(angStart + ang);
+            const grande = ang > Math.PI ? 1 : 0;
 
-        const path = [
-            `M ${x1.toFixed(2)} ${y1.toFixed(2)}`,
-            `A ${REXT} ${REXT} 0 ${grande} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`,
-            `L ${xi2.toFixed(2)} ${yi2.toFixed(2)}`,
-            `A ${RINT} ${RINT} 0 ${grande} 0 ${xi1.toFixed(2)} ${yi1.toFixed(2)}`,
-            "Z",
-        ].join(" ");
+            const path = [
+                `M ${x1.toFixed(2)} ${y1.toFixed(2)}`,
+                `A ${REXT} ${REXT} 0 ${grande} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`,
+                `L ${xi2.toFixed(2)} ${yi2.toFixed(2)}`,
+                `A ${RINT} ${RINT} 0 ${grande} 0 ${xi1.toFixed(2)} ${yi1.toFixed(2)}`,
+                "Z",
+            ].join(" ");
 
-        angAcum += ang;
-        return { ...d, path };
-    });
+            return [...acc, { ...d, path, angStart, ang }];
+        },
+        []
+    );
 
     return (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
