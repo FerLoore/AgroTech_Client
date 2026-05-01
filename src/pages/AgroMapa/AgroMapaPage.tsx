@@ -1057,15 +1057,7 @@ const AgroMapaPage = () => {
                         </button>
                     )}
                     
-                    {finca && paso === "idle" && (
-                        <button 
-                            onClick={exportarPDF} 
-                            disabled={isExporting}
-                            style={{ ...btnPrimary, background: "#4a7c59", display: "flex", alignItems: "center", gap: 6 }}>
-                            <FileText size={16} />
-                            {isExporting ? "Exportando..." : "Exportar PDF"}
-                        </button>
-                    )}
+
 
                     {estaEnWizard && (
                         <button onClick={resetWizard} style={{ ...btnOutline, color: "#c0392b", borderColor: "#c0392b" }}>
