@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { 
-    Calendar, CheckCircle2, ChevronLeft, ChevronRight, ClipboardEdit, 
+import {
+    Calendar, CheckCircle2, ChevronLeft, ChevronRight, ClipboardEdit,
     TreePalm, AlertTriangle, Info
 } from "lucide-react";
 import { getAgroFincas } from "../../api/AgroFinca.api";
@@ -28,7 +28,7 @@ const stringToLocalDate = (dateStr: string) => {
 
 const localDateToString = (date: Date | string) => {
     if (!date) return "";
-    
+
     // Si es un string, simplemente extraemos la parte de la fecha (YYYY-MM-DD)
     if (typeof date === "string") {
         return date.split("T")[0];
@@ -76,7 +76,7 @@ const AgroTratamientoTracking = () => {
     });
     const [isSavingDictamen, setIsSavingDictamen] = useState(false);
     const [dictamenGuardado, setDictamenGuardado] = useState<any>(null);
-    
+
     // Nuevo Flujo: Registro de Resultado y Receta
     const [productos, setProductos] = useState<any[]>([]);
     const [recipeStep, setRecipeStep] = useState<0 | 1 | 2>(0);
@@ -173,11 +173,11 @@ const AgroTratamientoTracking = () => {
 
                 const arbolesTodos = resArboles?.arboles || [];
                 const arbol = arbolesTodos.find((a: any) => Number(a.arb_arbol) === Number(pending.arbolId));
-                
+
                 if (arbol) {
                     const surcosTodos = resSurcos?.surcos || (Array.isArray(resSurcos) ? resSurcos : []);
                     const surco = surcosTodos.find((s: any) => Number(s.sur_surco) === Number(arbol.sur_surcos));
-                    
+
                     const seccionesTodas = (resSecciones as any)?.data?.secciones || [];
                     const seccion = surco ? seccionesTodas.find((s: any) => Number(s.secc_seccion) === Number(surco.secc_secciones)) : null;
 
@@ -283,10 +283,10 @@ const AgroTratamientoTracking = () => {
                         const pending = JSON.parse(pendingStr);
                         if (Number(pending.arbolId) === Number(selectedArbol)) {
                             const analisisTodos = Array.isArray(analRes) ? analRes : [];
-                            const anas = analisisTodos.find((an: any) => 
+                            const anas = analisisTodos.find((an: any) =>
                                 Number(an.alert_alerta_salud) === Number(pending.alertaId)
                             );
-                            
+
                             if (anas) {
                                 // Seleccionar el día para que los detalles se vean
                                 const fecha = anas.analab_fecha_resultado || anas.analab_fecha_envio;
@@ -294,7 +294,7 @@ const AgroTratamientoTracking = () => {
                                     const dateObj = stringToLocalDate(fecha);
                                     if (dateObj) setSelectedDay(dateObj);
                                 }
-                                
+
                                 // Iniciar flujo de receta (Paso 2 si ya es positivo)
                                 handleOpenResultFlow(anas);
                                 toast.info("Generando receta para árbol seleccionado...");
@@ -327,7 +327,7 @@ const AgroTratamientoTracking = () => {
         const start = stringToLocalDate(recipeForm.fecha_inicio);
         if (!start) return [];
         const dates = [localDateToString(start)];
-        
+
         if (recipeForm.frecuencia === "una vez") return dates;
 
         const end = recipeForm.fecha_fin ? stringToLocalDate(recipeForm.fecha_fin) : null;
@@ -359,7 +359,7 @@ const AgroTratamientoTracking = () => {
     // Reporte de Stock Proyectado
     const stockReport = useMemo(() => {
         if (!recipeForm.producto || !recipeForm.dosis || recipeStep !== 2) return null;
-        
+
         const prod = productos.find(p => String(p.produ_producto) === String(recipeForm.producto));
         if (!prod) return null;
 
@@ -387,7 +387,7 @@ const AgroTratamientoTracking = () => {
         const freqStr = match[1].toLowerCase();
         if (freqStr.includes("una vez")) return 9999; // Representa que solo ocurre en fecha_inicio
         if (freqStr.includes("mensual")) return 30;
-        
+
         const numMatch = freqStr.match(/(\d+)/);
         if (numMatch) return parseInt(numMatch[0]);
 
@@ -419,7 +419,7 @@ const AgroTratamientoTracking = () => {
             const activeTrata = tratamientos.find(t => {
                 const inicioStr = localDateToString(t.trata_fecha_inicio);
                 const finStr = t.trata_fecha_fin ? localDateToString(t.trata_fecha_fin) : null;
-                
+
                 // Rango básico
                 const inRange = finStr ? (dateStr >= inicioStr && dateStr <= finStr) : (dateStr === inicioStr);
                 if (!inRange) return false;
@@ -486,7 +486,7 @@ const AgroTratamientoTracking = () => {
         const fin = stringToLocalDate(activeTreatment.trata_fecha_fin);
         const hoy = new Date();
         if (!fin) return null;
-        
+
         hoy.setHours(0, 0, 0, 0);
         fin.setHours(0, 0, 0, 0);
 
@@ -546,7 +546,7 @@ const AgroTratamientoTracking = () => {
         if (!recipeForm.resultado || recipeForm.resultado === "Negativo") return "";
         const prod = productos.find(p => String(p.produ_producto) === String(recipeForm.producto));
         const prodNombre = prod ? prod.produ_nombre : "[Producto]";
-        
+
         return `Se aplicará ${prodNombre} mediante ${recipeForm.tipo_aplicacion} a una dosis de ${recipeForm.dosis}${recipeForm.unidad}, ${recipeForm.frecuencia}, por un total de ${recipeForm.num_aplicaciones} aplicaciones. Inicia el ${recipeForm.fecha_inicio} y finaliza estimado el ${recipeForm.fecha_fin || "---"}.`;
     }, [recipeForm, productos]);
 
@@ -590,10 +590,10 @@ const AgroTratamientoTracking = () => {
                     produ_producto: Number(recipeForm.producto)
                 });
             }
-            
+
             toast.success("Información guardada correctamente");
             resetRecipeFlow();
-            
+
             // Recargar datos
             const [trataRes, alertRes, analRes] = await Promise.all([
                 getTratamientosByArbol(Number(selectedArbol)),
@@ -707,8 +707,8 @@ const AgroTratamientoTracking = () => {
 
                                         if (sinResultado) {
                                             return (
-                                                <button 
-                                                    className="btn-action-small" 
+                                                <button
+                                                    className="btn-action-small"
                                                     style={{ marginTop: "8px", width: "100%", padding: "6px", fontSize: "12px", background: "#f3f4f6", border: "1px solid #d1d5db", borderRadius: "6px", cursor: "pointer" }}
                                                     onClick={() => handleOpenResultFlow(ev.data)}
                                                 >
@@ -716,11 +716,11 @@ const AgroTratamientoTracking = () => {
                                                 </button>
                                             );
                                         }
-                                        
+
                                         if (positivoSinTrata) {
                                             return (
-                                                <button 
-                                                    className="btn-action-small" 
+                                                <button
+                                                    className="btn-action-small"
                                                     style={{ marginTop: "8px", width: "100%", padding: "6px", fontSize: "12px", background: "#dcfce7", border: "1px solid #86efac", color: "#166534", borderRadius: "6px", cursor: "pointer" }}
                                                     onClick={() => handleOpenResultFlow(ev.data)}
                                                 >
@@ -797,7 +797,7 @@ const AgroTratamientoTracking = () => {
                             <div className="flow-step">
                                 <p style={{ fontSize: "14px", marginBottom: "12px", fontWeight: 500 }}>¿Cuál fue el resultado del análisis?</p>
                                 <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             setRecipeForm({ ...recipeForm, resultado: "Positivo" });
                                             setRecipeStep(2);
@@ -806,7 +806,7 @@ const AgroTratamientoTracking = () => {
                                     >
                                         Positivo
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => setRecipeForm({ ...recipeForm, resultado: "Negativo" })}
                                         style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1.5px solid", cursor: "pointer", background: recipeForm.resultado === "Negativo" ? "#f0fdf4" : "#fff", borderColor: recipeForm.resultado === "Negativo" ? "#22c55e" : "#e5e7eb", color: recipeForm.resultado === "Negativo" ? "#15803d" : "#374151" }}
                                     >
@@ -846,12 +846,12 @@ const AgroTratamientoTracking = () => {
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
                                     <div className="form-group">
                                         <label className="form-label">Aplicación</label>
-                                        <input 
-                                            type="text" 
-                                            className="form-select" 
+                                        <input
+                                            type="text"
+                                            className="form-select"
                                             placeholder="Ej. Aspersión, Riego, Foliar..."
-                                            value={recipeForm.tipo_aplicacion} 
-                                            onChange={e => setRecipeForm({ ...recipeForm, tipo_aplicacion: e.target.value })} 
+                                            value={recipeForm.tipo_aplicacion}
+                                            onChange={e => setRecipeForm({ ...recipeForm, tipo_aplicacion: e.target.value })}
                                         />
                                     </div>
                                     <div className="form-group">
@@ -871,7 +871,7 @@ const AgroTratamientoTracking = () => {
                                     <label className="form-label">Frecuencia</label>
                                     <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: showCustomFreqInput ? "8px" : "0" }}>
                                         {["cada 7 días", "cada 14 días", "cada 21 días", "mensual", "una vez"].map(f => (
-                                            <button 
+                                            <button
                                                 key={f}
                                                 onClick={() => {
                                                     setRecipeForm({ ...recipeForm, frecuencia: f });
@@ -882,7 +882,7 @@ const AgroTratamientoTracking = () => {
                                                 {f}
                                             </button>
                                         ))}
-                                        <button 
+                                        <button
                                             onClick={() => setShowCustomFreqInput(!showCustomFreqInput)}
                                             style={{ padding: "4px 8px", fontSize: "11px", borderRadius: "100px", border: showCustomFreqInput ? "1px solid #2d6a4f" : "1px dashed #d1d5db", cursor: "pointer", color: showCustomFreqInput ? "#2d6a4f" : "#6b7280", background: "#fff" }}
                                         >
@@ -890,9 +890,9 @@ const AgroTratamientoTracking = () => {
                                         </button>
                                     </div>
                                     {showCustomFreqInput && (
-                                        <input 
-                                            type="text" 
-                                            className="form-select" 
+                                        <input
+                                            type="text"
+                                            className="form-select"
                                             placeholder="Especifique frecuencia (ej: cada 3 días)"
                                             style={{ marginTop: "4px" }}
                                             value={recipeForm.frecuencia}
@@ -920,12 +920,12 @@ const AgroTratamientoTracking = () => {
                                 </div>
 
                                 {stockReport && (
-                                    <div style={{ 
-                                        display: "flex", 
-                                        alignItems: "center", 
-                                        gap: "10px", 
-                                        padding: "10px 12px", 
-                                        borderRadius: "8px", 
+                                    <div style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "10px",
+                                        padding: "10px 12px",
+                                        borderRadius: "8px",
                                         marginBottom: "20px",
                                         fontSize: "13px",
                                         background: stockReport.esSuficiente ? "#f0fdf4" : "#fef2f2",
@@ -936,7 +936,7 @@ const AgroTratamientoTracking = () => {
                                         <div style={{ flex: 1 }}>
                                             <span style={{ fontWeight: 700 }}>{stockReport.esSuficiente ? "Stock Disponible" : "Stock Insuficiente"}</span>
                                             <p style={{ margin: 0, fontSize: "12px", opacity: 0.9 }}>
-                                                {stockReport.esSuficiente 
+                                                {stockReport.esSuficiente
                                                     ? `Hay suficiente para las ${aplicacionesProyectadas.length} aplicaciones (${stockReport.stockActual} ${stockReport.unidad} en bodega).`
                                                     : `Faltan ${stockReport.faltante.toFixed(1)} ${stockReport.unidad} para completar el ciclo (Stock: ${stockReport.stockActual}).`
                                                 }

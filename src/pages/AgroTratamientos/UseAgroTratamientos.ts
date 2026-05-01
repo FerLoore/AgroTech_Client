@@ -190,16 +190,38 @@ export const useAgroTratamientos = () => {
     const abrirEditar = (t: Tratamiento) => {
         setEditando(t);
         const toDate = (d?: string) => d ? String(d).split("T")[0] : "";
+
+        // Restaurar el filtro de finca en el formulario para tratamientos Curativos
+        if (t.trata_tipo === "Curativo" && t.alertsalu_alerta_salud) {
+            const alerta = alertas.find(a => Number(a.alertsalud_id) === Number(t.alertsalu_alerta_salud));
+            if (alerta) {
+                const arbol   = arboles.find(a => Number(a.arb_arbol) === Number(alerta.arb_arbol));
+                const surco   = arbol   ? surcos.find(s => Number(s.sur_surco) === Number(arbol.sur_surcos)) : null;
+                const seccion = surco   ? secciones.find(s => Number(s.secc_seccion) === Number(surco.secc_secciones)) : null;
+                const finca   = seccion ? fincas.find(f => Number(f.fin_finca) === Number(seccion.fin_finca)) : null;
+                setFiltroFincaForm(finca ? String(finca.fin_finca) : "");
+            }
+        } else {
+            setFiltroFincaForm("");
+        }
+
+        // Extraer num_aplicaciones del texto de observaciones si existe
+        let numAplicaciones: number | null = null;
+        const obs = t.trata_observaciones || "";
+        const matchNum = obs.match(/por un total de (\d+) aplicaciones/);
+        if (matchNum) numAplicaciones = parseInt(matchNum[1]);
+
         setForm({
             trata_fecha_inicio: toDate(t.trata_fecha_inicio),
             trata_fecha_fin: toDate(t.trata_fecha_fin as string),
             trata_estado: t.trata_estado,
             trata_dosis: t.trata_dosis || "",
-            trata_observaciones: t.trata_observaciones || "",
+            trata_observaciones: obs,
             alertsalu_alerta_salud: t.alertsalu_alerta_salud !== undefined ? t.alertsalu_alerta_salud : null,
             produ_producto: t.produ_producto,
             trata_tipo: t.trata_tipo || "Curativo",
             secc_seccion: t.secc_seccion !== undefined ? t.secc_seccion : null,
+            trata_num_aplicaciones: numAplicaciones,
         });
         setFormError("");
         setModal(true);
@@ -232,15 +254,36 @@ export const useAgroTratamientos = () => {
             setGuardando(true);
             setFormError("");
 
+            const obsActual = String(form.trata_observaciones || "");
+            // Si el usuario cambió num_aplicaciones, actualizamos ese valor en las observaciones
+            let obsActualizada = obsActual;
+            if (form.trata_num_aplicaciones !== null && form.trata_num_aplicaciones !== undefined) {
+                const numApl = Number(form.trata_num_aplicaciones);
+                if (obsActual.match(/por un total de \d+ aplicaciones/)) {
+                    // Reemplazar el valor existente
+                    obsActualizada = obsActual.replace(
+                        /por un total de \d+ aplicaciones/,
+                        `por un total de ${numApl} aplicaciones`
+                    );
+                } else if (obsActual.trim()) {
+                    // Agregar al final si hay observaciones pero no tiene el patrón
+                    obsActualizada = `${obsActual} [Número de aplicaciones: ${numApl}]`;
+                } else {
+                    // Sin observaciones previas, crear una nueva
+                    obsActualizada = `Número de aplicaciones: ${numApl}`;
+                }
+            }
+
             const payload = {
                 ...form,
                 trata_fecha_inicio: form.trata_fecha_inicio || new Date().toISOString().split("T")[0],
                 trata_fecha_fin:    form.trata_fecha_fin    || null,
                 trata_estado:       form.trata_estado       || "En curso",
+                trata_observaciones: obsActualizada || undefined,
                 alertsalu_alerta_salud: form.trata_tipo === "Curativo" ? Number(form.alertsalu_alerta_salud) : null,
                 secc_seccion:           form.trata_tipo === "Preventivo" ? Number(form.secc_seccion) : null,
                 produ_producto:         Number(form.produ_producto),
-                usu_usuario:            1, // Simulamos ID de usuario
+                usu_usuario:            1,
             };
 
             if (editando) {

@@ -10,6 +10,7 @@ export interface Tratamiento {
     produ_producto: number;
     trata_tipo: string;
     secc_seccion?: number | null;
+    trata_num_aplicaciones?: number | null;
 }
 
 export interface TratamientoFormData {
@@ -23,6 +24,7 @@ export interface TratamientoFormData {
     produ_producto: number;
     trata_tipo: string;
     secc_seccion: number | null;
+    trata_num_aplicaciones: number | null;
 }
 
 export const TRATAMIENTO_FORM_INICIAL: TratamientoFormData = {
@@ -35,4 +37,5 @@ export const TRATAMIENTO_FORM_INICIAL: TratamientoFormData = {
     produ_producto: 0,
     trata_tipo: "Curativo",
     secc_seccion: null,
+    trata_num_aplicaciones: null,
 };

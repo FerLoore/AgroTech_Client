@@ -10,12 +10,15 @@ import {
 import "leaflet/dist/leaflet.css";
 import type { LatLng } from "leaflet";
 import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMapa.api";
-import type { Finca, ArbolMapa, PuntoPerimetro } from "./agroMapa.types";
+import type { Finca, ArbolMapa, PuntoPerimetro, SeccionStats } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
-import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, FileDown } from "lucide-react";
-import html2pdf from "html2pdf.js";
-import { AgroReportTemplate } from "../../reports/templates/AgroReportTemplate";
-import type { AgroReportData } from "../../reports/types/report.types";
+import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, Flame, FileText } from "lucide-react";
+import "leaflet.heat";
+import { generatePDF } from "../../reports/core/PDFGenerator";
+import AgroReportTemplate from "../../reports/templates/AgroReportTemplate";
+import type { AgroReportData, ChartsData, ClimaticData } from "../../reports/types/report.types";
+import { getAgroClimas } from "../../api/AgroClima.api";
+import html2canvas from "html2canvas";
 
 const { BaseLayer } = LayersControl;
 
@@ -243,6 +246,36 @@ const LocationMarker = ({ onPos }: { onPos: (p: LatLng) => void }) => {
     );
 };
 
+// ─── Heatmap Layer ───────────────────────────────────────────
+const HeatmapLayer = ({ points }: { points: [number, number, number][] }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!map || points.length === 0) return;
+
+        // @ts-ignore - leaflet.heat adds heatLayer to L
+        const heat = L.heatLayer(points, {
+            radius: 30,
+            blur: 20,
+            maxZoom: 18,
+            max: 1.0,
+            gradient: {
+                0.4: 'blue',
+                0.6: 'cyan',
+                0.7: 'lime',
+                0.8: 'yellow',
+                1.0: 'red'
+            }
+        }).addTo(map);
+
+        return () => {
+            map.removeLayer(heat);
+        };
+    }, [map, points]);
+
+    return null;
+};
+
 // ─── WizardPanel ─────────────────────────────────────────────
 const WizardPanel = ({
     paso, totalPasos, titulo, descripcion, color, children,
@@ -285,6 +318,9 @@ const WizardPanel = ({
 const AgroMapaPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const reportRef = useRef<HTMLDivElement>(null);
+    const [isExporting, setIsExporting] = useState(false);
+    const [reportData, setReportData] = useState<AgroReportData | null>(null);
 
     // ── Datos generales ──────────────────────────────────────
     const [fincas, setFincas] = useState<Finca[]>([]);
@@ -303,6 +339,9 @@ const AgroMapaPage = () => {
     const [filtroEstado, setFiltroEstado] = useState("all");
     const [filtroSeccion, setFiltroSeccion] = useState(location.state?.seccionNombre || "all");
     const [cuarentena, setCuarentena] = useState(false);
+    const [modoReporte, setModoReporte] = useState(false);
+    const [mostrarHeatmap, setMostrarHeatmap] = useState(false);
+    const [seccionesStats, setSeccionesStats] = useState<SeccionStats[]>([]);
 
     // ── Wizard ───────────────────────────────────────────────
     const [paso, setPaso] = useState<Paso>("idle");
@@ -351,6 +390,7 @@ const AgroMapaPage = () => {
             setFinca(data.finca);
             setArboles(data.arboles);
             setPerimetro(data.perimetro);
+            setSeccionesStats(data.secciones_stats || []);
             return data;
         } catch (e: any) {
             if (e?.response?.status === 400) {
@@ -375,6 +415,7 @@ const AgroMapaPage = () => {
             setFinca(data.finca);
             setArboles(data.arboles);
             setPerimetro(data.perimetro);
+            setSeccionesStats(data.secciones_stats || []);
             if (!data.finca.fin_latitud_origen || !data.finca.fin_longitud_origen) {
                 setCoordsForm({ lat: "14.6349", lng: "-90.5069" });
                 setPaso("coords");
@@ -634,13 +675,238 @@ const AgroMapaPage = () => {
         });
     };
 
+    // ─── Exportación PDF ──────────────────────────────────────
+    const exportarPDF = async () => {
+        if (!finca || isExporting) return;
+        setIsExporting(true);
+        toast.info("Generando reporte fitosanitario...", { duration: 2000 });
+
+        try {
+            // ── 1. Captura del mapa Leaflet ───────────────────────────────────────
+            const mapContainer = document.querySelector(".leaflet-container") as HTMLElement;
+            if (!mapContainer) throw new Error("Mapa no encontrado");
+
+            const mapCanvas = await html2canvas(mapContainer, {
+                useCORS: true,
+                logging: false,
+                scale: 1,
+            });
+            const snapshot = mapCanvas.toDataURL("image/png");
+
+            // ── 2. Alertas + análisis de laboratorio (gráficos) ──────────────────
+            let alertasSalud: Array<{
+                alertsalud_id: number;
+                arb_arbol: number;
+                descripcion_sintoma?: string;
+            }> = [];
+            let analisisLab: Array<{
+                alert_alerta_salud: number;
+                analab_fecha_resultado?: string | null;
+            }> = [];
+
+            try {
+                const { default: api } = await import("../../api/Axios");
+                const [resAlertas, resAnalisis] = await Promise.all([
+                    api.get("/agro-alerta-salud"),
+                    api.get("/agro-analisis-laboratorio"),
+                ]);
+                alertasSalud = Array.isArray(resAlertas.data)
+                    ? resAlertas.data
+                    : (resAlertas.data.alertas ?? []);
+                analisisLab = Array.isArray(resAnalisis.data)
+                    ? resAnalisis.data
+                    : (resAnalisis.data.analisis ?? resAnalisis.data ?? []);
+            } catch {
+                alertasSalud = [];
+                analisisLab  = [];
+            }
+
+            const idsDictaminadas = new Set(
+                analisisLab
+                    .filter(a => a.analab_fecha_resultado)
+                    .map(a => Number(a.alert_alerta_salud))
+            );
+
+            const idsArbolesEnFinca = new Set(arboles.map(a => a.id));
+            const alertasFinca = alertasSalud.filter(al => idsArbolesEnFinca.has(al.arb_arbol));
+            const alertasDictaminadasFinca = alertasFinca.filter(al => idsDictaminadas.has(al.alertsalud_id));
+
+            const conteoAlertasPorArbol = alertasFinca.reduce<Record<number, number>>(
+                (acc, al) => { acc[al.arb_arbol] = (acc[al.arb_arbol] ?? 0) + 1; return acc; },
+                {}
+            );
+            const top10Arboles = Object.entries(conteoAlertasPorArbol)
+                .sort(([, a], [, b]) => b - a).slice(0, 10)
+                .map(([idStr, totalAlertas]) => {
+                    const id = Number(idStr);
+                    const arb = arboles.find(a => a.id === id);
+                    return { arbol_id: id, referencia: arb?.referencia ?? `#${id}`, seccion: arb?.seccion_nombre ?? "—", surco: arb?.numero_surco ?? 0, totalAlertas, estado: arb?.estado ?? "—" };
+                });
+
+            const conteoSintomas = alertasDictaminadasFinca.reduce<Record<string, number>>(
+                (acc, al) => { const s = (al.descripcion_sintoma ?? "").trim().slice(0, 40) || "Sin descripción"; acc[s] = (acc[s] ?? 0) + 1; return acc; },
+                {}
+            );
+            const frecuenciaEnfermedades = Object.entries(conteoSintomas)
+                .sort(([, a], [, b]) => b - a).slice(0, 8)
+                .map(([nombre, cantidad]) => ({ nombre, cantidad }));
+
+            const charts: ChartsData = { top10Arboles, frecuenciaEnfermedades };
+
+            // ── 3. Datos climáticos (módulo predictivo) ───────────────────────────
+            const climaRes = await getAgroClimas();
+            const climaRaw: any[] = climaRes.data?.climas ?? climaRes.data ?? [];
+
+            const alertas_clima: ClimaticData[] = climaRaw.map((c: any) => ({
+                humedad:       Number(c.clim_humedad_relativa ?? c.clim_humedad ?? c.humedad ?? 0),
+                temperatura:   Number(c.clim_temperatura ?? c.temperatura ?? 0),
+                precipitacion: Number(c.clim_precipitacion ?? c.precipitacion ?? 0),
+                fecha:         c.clim_fecha ?? c.fecha ?? "",
+                seccion_id:    Number(c.secc_seccion ?? c.seccion_id ?? 0),
+                seccion_nombre: c.secc_nombre ?? c.seccion_nombre,
+            }));
+
+            const correlacionesMap = new Map<string, { condicion: string; riesgo: string; descripcion: string }>();
+            for (const c of alertas_clima) {
+                if (c.humedad > 80)       correlacionesMap.set("humedad-critica",  { condicion: "Humedad crítica",  riesgo: "alto",  descripcion: "Alta probabilidad de Roya en 3 días" });
+                else if (c.humedad >= 70) correlacionesMap.set("humedad-elevada",  { condicion: "Humedad elevada",  riesgo: "medio", descripcion: "Monitorear árboles en sección afectada" });
+                if (c.temperatura > 30)   correlacionesMap.set("temperatura-alta", { condicion: "Temperatura alta", riesgo: "medio", descripcion: "Condiciones favorables para plagas" });
+                if (c.precipitacion > 10) correlacionesMap.set("lluvia-intensa",   { condicion: "Lluvia intensa",   riesgo: "alto",  descripcion: "Riesgo de hongos y pudrición radicular" });
+            }
+
+            // ── 4. Objeto completo del reporte ────────────────────────────────────
+            const nuevoReportData: AgroReportData = {
+                finca: {
+                    id: finca.fin_finca,
+                    nombre: finca.fin_nombre,
+                    ubicacion: finca.fin_ubicacion,
+                },
+                fecha: new Date().toLocaleDateString("es-GT"),
+                autor: "Administrador AgroTech",
+
+                mapa: {
+                    snapshot,
+                    stats: renderPoligonos.map(p => ({
+                        seccion_id: p.seccionId,
+                        nombre: p.nombre,
+                        total: p.stats?.total ?? 0,
+                        enfermos: p.stats?.enfermos ?? 0,
+                        incidencia: p.incidencia,
+                    })),
+                    modo: mostrarHeatmap ? "Heatmap" : "Choropleth",
+                },
+
+                estadisticas: {
+                    totalArboles: arboles.length,
+                    totalSurcos: [...new Set(arboles.map(a => a.numero_surco))].length,
+                    totalSecciones: [...new Set(arboles.map(a => a.seccion_id))].length,
+                    arbolesEnfermos: arboles.filter(a => a.estado === "Enfermo").length,
+                    arbolesEnAlerta: arboles.filter(a => a.estado_sospechoso).length,
+                    distribucionEstados: [
+                        { estado: "Crecimiento", cantidad: arboles.filter(a => a.estado === "Crecimiento").length },
+                        { estado: "Produccion",  cantidad: arboles.filter(a => a.estado === "Produccion").length },
+                        { estado: "Enfermo",     cantidad: arboles.filter(a => a.estado === "Enfermo").length },
+                        { estado: "Muerto",      cantidad: arboles.filter(a => a.estado === "Muerto").length },
+                    ],
+                    surcosCriticos: seccionesStats
+                        .map(s => ({
+                            nombre: s.nombre,
+                            total: s.total,
+                            enfermos: s.enfermos,
+                            alertas: arboles.filter(a => a.seccion_id === s.seccion_id && a.estado_sospechoso).length,
+                        }))
+                        .filter(s => s.enfermos > 0 || s.alertas > 0)
+                        .sort((a, b) => (b.enfermos + b.alertas) - (a.enfermos + a.alertas))
+                        .slice(0, 5),
+                    arbolesSOspechosos: arboles
+                        .filter(a => a.estado_sospechoso)
+                        .map(a => {
+                            const siembra = new Date(a.fecha_siembra);
+                            const aniosTranscurridos = (Date.now() - siembra.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+                            const aniosEsperados = a.anios_produccion ?? 8;
+                            return {
+                                arbol_id: a.id,
+                                referencia: a.referencia,
+                                seccion: a.seccion_nombre,
+                                surco: a.numero_surco,
+                                variedad: a.variedad,
+                                fecha_siembra: a.fecha_siembra,
+                                anios_transcurridos: Math.round(aniosTranscurridos * 10) / 10,
+                                anios_esperados: aniosEsperados,
+                                exceso_anios: Math.round((aniosTranscurridos - aniosEsperados) * 10) / 10,
+                            };
+                        })
+                        .sort((a, b) => b.exceso_anios - a.exceso_anios)
+                        .slice(0, 20),
+                },
+
+                charts,
+
+                prediccion: {
+                    alertas_clima,
+                    correlaciones: Array.from(correlacionesMap.values()),
+                },
+            };
+
+            setReportData(nuevoReportData);
+
+            // ── 8. Renderizar template y generar PDF ──────────────────────────────
+            //       600 ms = suficiente para que React hidrate el template oculto
+            setTimeout(async () => {
+                if (reportRef.current) {
+                    const ok = await generatePDF(
+                        reportRef.current,
+                        `Reporte_Fitosanitario_${finca.fin_nombre.replace(/\s+/g, "_")}`,
+                    );
+                    if (ok) toast.success("✓ Reporte generado con éxito");
+                    else toast.error("Error al generar el PDF");
+                    setIsExporting(false);
+                }
+            }, 600);
+
+        } catch (err) {
+            console.error(err);
+            toast.error("Error al capturar el mapa para el reporte");
+            setIsExporting(false);
+        }
+    };
+
     // ─── Datos derivados ──────────────────────────────────────
     const seccionesUnicas = [...new Set(arboles.map(a => a.seccion_nombre))];
-    const arbolesFiltrados = arboles.filter(a =>
+    const arbolesEnfermosBD = arboles.filter(a => a.estado === "Enfermo");
+
+    // Lógica de Cuarentena Dinámica: todo árbol a <= 10m de un enfermo es Cuarentena (si está activado)
+    const arbolesConEstadoEfectivo = arboles.map(a => {
+        if (a.estado === "Enfermo") return a;
+        if (cuarentena) {
+            const estaEnCuarentena = arbolesEnfermosBD.some(enfermo =>
+                L.latLng(a.lat, a.lng).distanceTo(L.latLng(enfermo.lat, enfermo.lng)) <= 10
+            );
+            if (estaEnCuarentena) {
+                return { ...a, estado: "Cuarentena" as any };
+            }
+        }
+        return a;
+    });
+
+    const arbolesFiltrados = arbolesConEstadoEfectivo.filter(a =>
         (filtroEstado === "all" || a.estado === filtroEstado) &&
         (filtroSeccion === "all" || a.seccion_nombre === filtroSeccion)
     );
-    const arbolesEnfermos = arboles.filter(a => a.estado === "Enfermo");
+    const arbolesEnfermos = arbolesFiltrados.filter(a => a.estado === "Enfermo");
+
+    // ─── Utilidades Reporte ──────────────────────────────────
+    const getIncidenciaColor = (inc: number) => {
+        if (inc === 0) return "#4a7c59";
+        if (inc <= 5) return "#27ae60";
+        if (inc <= 15) return "#f1c40f";
+        if (inc <= 30) return "#e67e22";
+        return "#c0392b";
+    };
+
+    const puntosHeatmap = useMemo(() => {
+        return arbolesEnfermos.map(a => [a.lat, a.lng, 1] as [number, number, number]);
+    }, [arbolesEnfermos]);
 
     // Agrupar perímetros por sección
     const poligonosPorSeccion = perimetro.reduce((acc, p) => {
@@ -651,11 +917,19 @@ const AgroMapaPage = () => {
     }, {} as Record<number, PuntoPerimetro[]>);
 
     // Convertir a formato Leaflet, sorteando por orden
-    const renderPoligonos = Object.entries(poligonosPorSeccion).map(([sid, puntos]) => ({
-        seccionId: Number(sid),
-        nombre: arboles.find(a => a.seccion_id === Number(sid))?.seccion_nombre || "Sección",
-        puntos: puntos.sort((a, b) => a.orden - b.orden).map(p => [p.lat, p.lng] as [number, number])
-    })).filter(p => p.puntos.length >= 3);
+    const renderPoligonos = Object.entries(poligonosPorSeccion).map(([sid, puntos]) => {
+        const idS = Number(sid);
+        // Búsqueda robusta por ID numérico
+        const stats = seccionesStats.find(s => Number(s.seccion_id) === idS);
+
+        return {
+            seccionId: idS,
+            nombre: arboles.find(a => a.seccion_id === idS)?.seccion_nombre || stats?.nombre || "Sección",
+            puntos: puntos.sort((a, b) => a.orden - b.orden).map(p => [p.lat, p.lng] as [number, number]),
+            incidencia: stats ? Number(stats.incidencia) : 0,
+            stats: stats || { total: 0, enfermos: 0, incidencia: 0 }
+        };
+    }).filter(p => p.puntos.length >= 3);
 
     const poligonoEnDibujo = puntosNuevos.map(p => [p.lat, p.lng] as [number, number]);
     const centro: [number, number] = finca?.fin_latitud_origen && finca?.fin_longitud_origen
@@ -668,6 +942,7 @@ const AgroMapaPage = () => {
         produccion: arbolesFiltrados.filter(a => a.estado === "Produccion").length,
         enfermos: arbolesFiltrados.filter(a => a.estado === "Enfermo").length,
         crecimiento: arbolesFiltrados.filter(a => a.estado === "Crecimiento").length,
+        cuarentena: arbolesFiltrados.filter(a => a.estado === "Cuarentena").length,
     };
 
     const estaEnWizard = paso !== "idle" && paso !== "listo";
@@ -769,6 +1044,39 @@ const AgroMapaPage = () => {
                         background: cuarentena ? "#c0392b" : "transparent",
                         color: cuarentena ? "#fff" : "#c0392b", borderColor: "#c0392b",
                     }}>Cuarentena</button>
+
+                    <button onClick={() => setModoReporte(v => !v)} style={{
+                        ...btnOutline,
+                        background: modoReporte ? "#7c3aed" : "transparent",
+                        color: modoReporte ? "#fff" : "#7c3aed", borderColor: "#7c3aed",
+                        fontWeight: "bold"
+                    }}>
+                        {modoReporte ? "📊 Ver Mapa Normal" : "🩺 Modo Reporte Salud"}
+                    </button>
+
+                    <button onClick={() => setMostrarHeatmap(v => !v)} style={{
+                        ...btnOutline,
+                        background: mostrarHeatmap ? "#f97316" : "transparent",
+                        color: mostrarHeatmap ? "#fff" : "#f97316", borderColor: "#f97316",
+                        fontWeight: "bold"
+                    }}>
+                        <Flame size={14} style={{ display: "inline", marginRight: 4 }} />
+                        {mostrarHeatmap ? "Ocultar Heatmap" : "Ver Heatmap de Focos"}
+                    </button>
+
+                    <button
+                        onClick={exportarPDF}
+                        disabled={isExporting || !finca}
+                        style={{
+                            ...btnOutline,
+                            background: "#2d4a2d",
+                            color: "#fff", borderColor: "#2d4a2d",
+                            fontWeight: "bold", opacity: isExporting ? 0.7 : 1
+                        }}
+                    >
+                        <FileText size={14} style={{ display: "inline", marginRight: 4 }} />
+                        {isExporting ? "Generando..." : "Exportar PDF"}
+                    </button>
 
                     {filtroSeccion !== "all" && paso === "idle" && (
                         <button onClick={eliminarTerrenoActual} style={{ ...btnOutline, color: "#c0392b", borderColor: "#c0392b", fontWeight: "bold" }}>
@@ -900,9 +1208,9 @@ const AgroMapaPage = () => {
                                         onChange={e => setSeccionSeleccionada(Number(e.target.value))}
                                         style={{ ...inputStyle, flex: 1, cursor: "pointer" }}>
                                         {seccionesFinca.map(s => (
-                                            <option 
-                                                key={s.secc_seccion} 
-                                                value={s.secc_seccion} 
+                                            <option
+                                                key={s.secc_seccion}
+                                                value={s.secc_seccion}
                                                 disabled={Number(s.tiene_arboles || 0) > 0}
                                                 style={{ color: Number(s.tiene_arboles || 0) > 0 ? "#9ca3af" : "inherit" }}
                                             >
@@ -910,13 +1218,13 @@ const AgroMapaPage = () => {
                                             </option>
                                         ))}
                                     </select>
-                                    <button 
+                                    <button
                                         type="button"
-                                        onClick={() => setPaso("sin-seccion")} 
+                                        onClick={() => setPaso("sin-seccion")}
                                         title="Nueva sección"
-                                        style={{ 
-                                            background: "#7c3aed", color: "#fff", border: "none", 
-                                            borderRadius: 8, width: 36, height: 36, cursor: "pointer", 
+                                        style={{
+                                            background: "#7c3aed", color: "#fff", border: "none",
+                                            borderRadius: 8, width: 36, height: 36, cursor: "pointer",
                                             display: "flex", alignItems: "center", justifyContent: "center",
                                             boxShadow: "0 2px 4px rgba(124, 58, 237, 0.2)",
                                             flexShrink: 0
@@ -1007,8 +1315,6 @@ const AgroMapaPage = () => {
                                 style={{ ...inputStyle, width: "100%" }}
                                 autoFocus
                             />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 140 }}>
                             <label style={labelStyle}>Tipo de suelo</label>
                             <input
                                 type="text"
@@ -1040,16 +1346,16 @@ const AgroMapaPage = () => {
                     <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                             {[
-                                { icon: <Leaf size={22} color="#2d4a2d" strokeWidth={2}/>, label: "Árboles", val: arbolesPreview.length.toLocaleString() },
-                                { icon: <Layers size={22} color="#b45309" strokeWidth={2}/>, label: "Surcos", val: String(new Set(arbolesPreview.map(a => a.surco)).size) },
-                                { icon: <Ruler size={22} color="#185FA5" strokeWidth={2}/>, label: "Perímetro", val: perimetroTotal < 1000 ? `${perimetroTotal.toFixed(1)}m` : `${(perimetroTotal / 1000).toFixed(2)}km` },
-                                { icon: <Expand size={22} color="#4a7c59" strokeWidth={2}/>, label: "Espaciado", val: `${espaciadoSeleccionado}m` },
+                                { icon: <Leaf size={22} color="#2d4a2d" strokeWidth={2} />, label: "Árboles", val: arbolesPreview.length.toLocaleString() },
+                                { icon: <Layers size={22} color="#b45309" strokeWidth={2} />, label: "Surcos", val: String(new Set(arbolesPreview.map(a => a.surco)).size) },
+                                { icon: <Ruler size={22} color="#185FA5" strokeWidth={2} />, label: "Perímetro", val: perimetroTotal < 1000 ? `${perimetroTotal.toFixed(1)}m` : `${(perimetroTotal / 1000).toFixed(2)}km` },
+                                { icon: <Expand size={22} color="#4a7c59" strokeWidth={2} />, label: "Espaciado", val: `${espaciadoSeleccionado}m` },
                                 {
-                                    icon: <FolderTree size={22} color="#7a5a00" strokeWidth={2}/>, label: "Sección",
+                                    icon: <FolderTree size={22} color="#7a5a00" strokeWidth={2} />, label: "Sección",
                                     val: seccionesFinca.find(s => s.secc_seccion === seccionSeleccionada)?.secc_nombre ?? "—"
                                 },
                                 {
-                                    icon: <TreePine size={22} color="#2d6a2d" strokeWidth={2}/>, label: "Tipo",
+                                    icon: <TreePine size={22} color="#2d6a2d" strokeWidth={2} />, label: "Tipo",
                                     val: tiposArbol.find(t => t.tipar_tipo_arbol === tipoArbolSeleccionado)?.tipar_nombre_comun ?? "—"
                                 },
                             ].map(item => (
@@ -1102,12 +1408,13 @@ const AgroMapaPage = () => {
             )}
 
             {/* ── STATS ── */}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
                 {[
                     { label: "Total", val: stats.total, color: "#2d4a2d" },
-                    { label: "Producción", val: stats.produccion, color: "#4a7c59" },
+                    { label: "Producción", val: stats.produccion, color: "#185FA5" },
                     { label: "Enfermos", val: stats.enfermos, color: "#c0392b" },
-                    { label: "Crecimiento", val: stats.crecimiento, color: "#e67e22" },
+                    { label: "Crecimiento", val: stats.crecimiento, color: "#4a7c59" },
+                    ...(cuarentena ? [{ label: "Cuarentena", val: stats.cuarentena, color: "#c0392b" }] : []),
                 ].map(s => (
                     <div key={s.label} style={{
                         background: "#fff", borderRadius: 10, padding: "8px 18px",
@@ -1136,17 +1443,18 @@ const AgroMapaPage = () => {
             {/* ── MAPA ── */}
             <div style={{ flex: 1, minHeight: 460, borderRadius: 16, overflow: "hidden", border: "0.5px solid #e8e0d0" }}>
                 <MapContainer key={`mapa-${fincaId}`} center={centroActivo} zoom={ZOOM_INICIAL}
-                    maxZoom={24} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
+                    maxZoom={24} style={{ height: "100%", width: "100%" }} scrollWheelZoom preferCanvas={true}>
                     <MapUpdater lat={centroActivo[0]} lng={centroActivo[1]} />
                     <LocationMarker onPos={setGpsPosition} />
                     <ControlMapa
                         activo={paso === "dibujando"}
                         onPunto={ll => setPuntosNuevos(prev => [...prev, { lat: ll.lat, lng: ll.lng }])}
                     />
-                    <ControlOrigen 
-                        activo={paso === "coords"} 
-                        onPunto={ll => setCoordsForm({ lat: String(ll.lat), lng: String(ll.lng) })} 
+                    <ControlOrigen
+                        activo={paso === "coords"}
+                        onPunto={ll => setCoordsForm({ lat: String(ll.lat), lng: String(ll.lng) })}
                     />
+                    {mostrarHeatmap && <HeatmapLayer points={puntosHeatmap} />}
                     {paso === "coords" && coordsForm.lat && coordsForm.lng && !isNaN(Number(coordsForm.lat)) && !isNaN(Number(coordsForm.lng)) && (
                         <Marker position={[Number(coordsForm.lat), Number(coordsForm.lng)]}>
                             <Tooltip permanent direction="top" offset={[0, -32]}>
@@ -1168,14 +1476,25 @@ const AgroMapaPage = () => {
                     {renderPoligonos.map(poly => (
                         <Polygon key={`poly-${poly.seccionId}`} positions={poly.puntos}
                             pathOptions={{
-                                color: filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc",
-                                fillColor: filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc",
-                                fillOpacity: (filtroSeccion === poly.nombre) ? 0.2 : 0.05,
-                                weight: (filtroSeccion === poly.nombre) ? 3 : 1.5,
+                                color: modoReporte ? getIncidenciaColor(poly.incidencia) : (filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc"),
+                                fillColor: modoReporte ? getIncidenciaColor(poly.incidencia) : (filtroSeccion === "all" || filtroSeccion === poly.nombre ? "#4a7c59" : "#ccc"),
+                                fillOpacity: modoReporte ? 0.4 : ((filtroSeccion === poly.nombre) ? 0.2 : 0.05),
+                                weight: (filtroSeccion === poly.nombre || modoReporte) ? 3 : 1.5,
                                 dashArray: (filtroSeccion === poly.nombre) ? "0" : "6 4"
                             }}>
-                            <Tooltip sticky>{poly.nombre}</Tooltip>
-                            <MedidasPoligono puntos={poly.puntos.map(p => ({ lat: p[0], lng: p[1] }))} color="#4a7c59" />
+                            <Tooltip sticky>
+                                <div style={{ textAlign: "center" }}>
+                                    <div style={{ fontWeight: "bold" }}>{poly.nombre}</div>
+                                    {modoReporte && (
+                                        <div style={{ fontSize: 11, color: getIncidenciaColor(poly.incidencia) }}>
+                                            Incidencia: {poly.incidencia}%
+                                            <br />
+                                            ({poly.stats?.enfermos} de {poly.stats?.total} árboles)
+                                        </div>
+                                    )}
+                                </div>
+                            </Tooltip>
+                            <MedidasPoligono puntos={poly.puntos.map(p => ({ lat: p[0], lng: p[1] }))} color={modoReporte ? getIncidenciaColor(poly.incidencia) : "#4a7c59"} />
                         </Polygon>
                     ))}
                     {paso === "dibujando" && poligonoEnDibujo.length >= 2 && (
@@ -1271,6 +1590,34 @@ const AgroMapaPage = () => {
                     <span style={{ width: 14, height: 0, borderTop: "2px dashed #4a7c59", display: "inline-block" }} />
                     Perímetro guardado
                 </span>
+
+                {modoReporte && (
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", marginLeft: "auto", background: "#f8fafc", padding: "6px 12px", borderRadius: 10, border: "1px solid #e2e8f0" }}>
+                        <span style={{ fontWeight: 700, fontSize: 11, color: "#64748b", marginRight: 4 }}>NIVEL DE INCIDENCIA:</span>
+                        {[
+                            { label: "Sano (0%)", color: "#4a7c59" },
+                            { label: "Bajo (1-5%)", color: "#27ae60" },
+                            { label: "Medio (5-15%)", color: "#f1c40f" },
+                            { label: "Alto (15-30%)", color: "#e67e22" },
+                            { label: "Crítico (>30%)", color: "#c0392b" },
+                        ].map(level => (
+                            <span key={level.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                <span style={{ width: 12, height: 12, borderRadius: 3, background: level.color }} />
+                                {level.label}
+                            </span>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* ── TEMPLATE OCULTO PARA PDF ── */}
+            <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+                {reportData && (
+                    <AgroReportTemplate
+                        ref={reportRef}
+                        data={reportData}
+                    />
+                )}
             </div>
 
             {/* Template oculto para PDF */}

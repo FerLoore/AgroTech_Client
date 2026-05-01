@@ -1,30 +1,94 @@
-// Contrato de datos para el Sistema de Reportes Modular AgroTech
+// src/reports/types/report.types.ts
+
+export interface SeccionReportStat {
+    seccion_id: number;
+    nombre: string;
+    total: number;
+    enfermos: number;
+    incidencia: number;
+}
+
+// ── Árbol en estado sospechoso (Crecimiento que superó años esperados) ────────
+export interface ArbolSospechoso {
+    arbol_id: number;
+    referencia: string;       // "S3-P7"
+    seccion: string;
+    surco: number;
+    variedad: string;
+    fecha_siembra: string;    // ISO string
+    anios_transcurridos: number;
+    anios_esperados: number;
+    exceso_anios: number;     // anios_transcurridos - anios_esperados
+}
+
+export interface StatsSummaryData {
+    totalArboles: number;
+    totalSurcos: number;
+    totalSecciones: number;
+    arbolesEnfermos: number;
+    arbolesEnAlerta: number;
+    distribucionEstados: { estado: string; cantidad: number }[];
+    surcosCriticos: { nombre: string; total: number; enfermos: number; alertas: number }[];
+    arbolesSOspechosos?: ArbolSospechoso[];
+}
+
+// ── Top 10 árboles con más alertas ──────────────────────────────────────────
+export interface ArbolTopAlerta {
+    arbol_id: number;
+    referencia: string;
+    seccion: string;
+    surco: number;
+    totalAlertas: number;
+    estado: string;
+}
+
+// ── Frecuencia de síntomas (dona) ────────────────────────────────────────────
+export interface FrecuenciaEnfermedad {
+    nombre: string;
+    cantidad: number;
+}
+
+// ── Contenedor de ambos gráficos ─────────────────────────────────────────────
+export interface ChartsData {
+    top10Arboles: ArbolTopAlerta[];
+    frecuenciaEnfermedades: FrecuenciaEnfermedad[];
+}
 
 export interface ClimaticData {
     humedad: number;
     temperatura: number;
-    riesgoRoya: string;
+    precipitacion: number;
+    fecha: string;
+    seccion_id: number;
+    seccion_nombre?: string;
 }
 
-export interface StatsData {
-    totalArboles: number;
-    enProduccion: number;
-    enCrecimiento: number;
-    enfermos: number;
-    muertos: number;
-}
-
-export interface MaintenanceData {
-    proximosRiegos: number;
-    alertasActivas: number;
-    tratamientosPendientes: number;
+export interface PrediccionData {
+    alertas_clima: ClimaticData[];
+    correlaciones: {
+        condicion: string;
+        riesgo: string;
+        descripcion: string;
+    }[];
 }
 
 export interface AgroReportData {
-    fincaNombre: string;
-    seccionNombre: string;
-    fechaReporte: string;
-    stats: StatsData;
-    clima: ClimaticData;
-    mantenimiento: MaintenanceData;
+    finca: {
+        id: number;
+        nombre: string;
+        ubicacion: string;
+    };
+    fecha: string;
+    autor: string;
+
+    mapa: {
+        snapshot: string;
+        stats: SeccionReportStat[];
+        modo: "Choropleth" | "Heatmap";
+    };
+
+    estadisticas?: StatsSummaryData;
+    charts?: ChartsData;
+    mantenimiento?: any;
+    prediccion?: PrediccionData;
 }

@@ -130,7 +130,13 @@ export const useRegistroAnalisis = () => {
                 analisisExistente:   analisisDeEsta[0] ?? null,
             };
         })
-        .filter(Boolean) as AlertaActiva[];
+        .filter(Boolean)
+        // Más recientes primero
+        .sort((a, b) => {
+            const fa = (a as AlertaActiva).fecha_deteccion;
+            const fb = (b as AlertaActiva).fecha_deteccion;
+            return fb.localeCompare(fa);
+        }) as AlertaActiva[];
 
     // ── Helper: finca de un árbol ─────────────────────────────
     const fincaDeArbol = (arbId: number): string => {
@@ -147,12 +153,19 @@ export const useRegistroAnalisis = () => {
         : alertasActivas;
 
     // ── Análisis filtrados por finca ──────────────────────────
-    const analisisFiltrados = filtroFinca
+    const analisisFiltrados = (filtroFinca
         ? analisis.filter(an => {
             const alerta = alertas.find(a => Number(a.alertsalud_id) === Number(an.alert_alerta_salud));
             return alerta ? fincaDeArbol(Number(alerta.arb_arbol)) === filtroFinca : false;
         })
-        : analisis;
+        : [...analisis]
+    // Más recientes primero (por fecha de envío, luego por ID)
+    ).sort((a, b) => {
+        const fa = a.analab_fecha_envio ? String(a.analab_fecha_envio) : "";
+        const fb = b.analab_fecha_envio ? String(b.analab_fecha_envio) : "";
+        if (fb !== fa) return fb.localeCompare(fa);
+        return Number(b.analab_analisis_laboratorio) - Number(a.analab_analisis_laboratorio);
+    });
 
     // ── Opciones de fincas ────────────────────────────────────
     const opcionesFincas = fincas.map(f => ({

@@ -27,9 +27,19 @@ export interface ArbolMapa {
     seccion_id: number;
     variedad: string;
     fecha_siembra: string;
-    referencia: string;   // ej: "S1-P3"
+    referencia: string;
     lat: number;
     lng: number;
+    estado_sospechoso?: boolean;
+    anios_produccion?: number;  // tipar_anios_produccion del tipo de árbol (viene del backend)
+}
+
+export interface SeccionStats {
+    seccion_id: number;
+    nombre: string;
+    total: number;
+    enfermos: number;
+    incidencia: number;
 }
 
 export interface MapaFincaResponse {
@@ -37,14 +47,16 @@ export interface MapaFincaResponse {
     finca: Finca;
     perimetro: PuntoPerimetro[];
     arboles: ArbolMapa[];
+    secciones_stats: SeccionStats[];
 }
 
 // Colores por estado — usados en CircleMarker
 export const COLORES_ESTADO: Record<string, string> = {
-    Produccion: "#4a7c59",
-    Crecimiento: "#e67e22",
+    Produccion: "#185FA5",
+    Crecimiento: "#4a7c59",
     Enfermo: "#c0392b",
-    Muerto: "#888888",
+    Muerto: "#333333",
+    Cuarentena: "#c0392b",
 };
 
 // Zoom fallback (el AutoFit lo sobreescribe automáticamente)

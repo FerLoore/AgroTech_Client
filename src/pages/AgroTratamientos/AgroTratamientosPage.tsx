@@ -51,7 +51,7 @@ const CAMPOS = (
     opcionesProductos: CampoFormulario["opciones"],
     opcionesSecciones: CampoFormulario["opciones"],
     opcionesFincas: CampoFormulario["opciones"],
-    tipoActual: string
+    tipoActual: string,
 ): CampoFormulario[] => [
         {
             key: "trata_tipo",
@@ -85,6 +85,17 @@ const CAMPOS = (
             label: "Dosis (Cantidad a descontar)",
             tipo: "text",
             placeholder: "Ej: 10",
+        },
+        {
+            key: "trata_num_aplicaciones",
+            label: "Número de aplicaciones",
+            tipo: "number",
+            placeholder: "Ej: 4",
+        },
+        {
+            key: "trata_fecha_fin",
+            label: "Fecha estimada de fin",
+            tipo: "date",
         },
         // Filtro de Finca (SOLO UI para filtrar alertas)
         ...(tipoActual === "Curativo" ? [{
