@@ -3,12 +3,14 @@ import { TreePine, Rows3, MapPin, HeartPulse, AlertTriangle, ClipboardList, Chec
 import type { StatsSummaryData } from "../types/report.types";
 
 const VERDE      = "#4a7c59";
+const VERDE_CLR  = "#eaf2ec";
 const GRIS       = "#7a9a7a";
 const ROJO       = "#c0392b";
 const NARANJA    = "#e67e22";
 const AMARILLO   = "#b45309";
 const BORDE      = "#d4e4d4";
 const FONDO_CARD = "#fff";
+
 
 const pct = (v: number, t: number) => (t === 0 ? 0 : Math.round((v / t) * 100));
 
@@ -129,10 +131,10 @@ const StatsSummary: React.FC<{ data: StatsSummaryData }> = ({ data }) => {
             </div>
 
             {/* ── Distribución + Secciones críticas ── */}
-            <div data-pdf-avoid="true" style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
+            <div data-pdf-avoid="true" style={{ display: "flex", gap: 16, marginBottom: 20, alignItems: "stretch" }}>
 
                 {/* Distribución por estado */}
-                <div style={{ flex: "1 1 300px", background: FONDO_CARD, border: `1px solid ${BORDE}`, borderRadius: 10, padding: "16px 20px", boxSizing: "border-box" }}>
+                <div style={{ flex: 1, background: FONDO_CARD, border: `1px solid ${BORDE}`, borderRadius: 10, padding: "16px 20px", boxSizing: "border-box" }}>
                     <h4 style={{ margin: "0 0 14px", fontSize: 12, fontWeight: 700, color: VERDE, textTransform: "uppercase", letterSpacing: "0.8px" }}>
                         Distribución por Estado
                     </h4>
@@ -142,31 +144,46 @@ const StatsSummary: React.FC<{ data: StatsSummaryData }> = ({ data }) => {
                 </div>
 
                 {/* Secciones que requieren atención */}
-                <div style={{ flex: "1 1 260px", background: FONDO_CARD, border: `1px solid ${BORDE}`, borderRadius: 10, padding: "16px 20px", boxSizing: "border-box" }}>
-                    <h4 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: VERDE, textTransform: "uppercase", letterSpacing: "0.8px" }}>
+                <div style={{ flex: 1.4, background: FONDO_CARD, border: `1px solid ${BORDE}`, borderRadius: 10, padding: "16px 20px", boxSizing: "border-box" }}>
+                    <h4 style={{ margin: "0 0 14px", fontSize: 12, fontWeight: 700, color: VERDE, textTransform: "uppercase", letterSpacing: "0.8px" }}>
                         Secciones que Requieren Atención
                     </h4>
 
-                    {/* Cabecera */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 56px 64px 56px", fontSize: 11, color: GRIS, textTransform: "uppercase", paddingBottom: 6, borderBottom: `1px solid ${BORDE}`, marginBottom: 4 }}>
+                    {/* Cabecera con más espacio para el nombre */}
+                    <div style={{ display: "grid", gridTemplateColumns: "180px 1fr 1fr 1fr", fontSize: 11, color: "#2d4a2d", fontWeight: 800, textTransform: "uppercase", paddingBottom: 8, borderBottom: `2px solid ${VERDE_CLR}`, marginBottom: 8 }}>
                         <span>Sección</span>
                         <span style={{ textAlign: "center" }}>Total</span>
-                        <span style={{ textAlign: "center" }}>Enfermos</span>
-                        <span style={{ textAlign: "center" }}>Alerta</span>
+                        <span style={{ textAlign: "center" }}>Enf.</span>
+                        <span style={{ textAlign: "center" }}>Alert.</span>
                     </div>
 
                     {surcosCriticos.length === 0 ? (
                         <p style={{ fontSize: 13, color: GRIS, textAlign: "center", margin: "14px 0" }}>Sin secciones críticas ✔</p>
                     ) : surcosCriticos.map((s, i) => (
-                        <div key={s.nombre} style={{ display: "grid", gridTemplateColumns: "1fr 56px 64px 56px", fontSize: 13, padding: "6px 0", alignItems: "center", borderBottom: i < surcosCriticos.length - 1 ? `1px solid #f0f4f0` : "none" }}>
-                            <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.nombre}</span>
-                            <span style={{ textAlign: "center", color: GRIS }}>{s.total}</span>
-                            <span style={{ textAlign: "center", fontWeight: 700, color: s.enfermos > 0 ? NARANJA : GRIS }}>{s.enfermos}</span>
-                            <span style={{ textAlign: "center", fontWeight: 700, color: s.alertas > 0 ? ROJO : GRIS }}>{s.alertas}</span>
+                        <div key={s.nombre} style={{ 
+                            display: "grid", 
+                            gridTemplateColumns: "180px 1fr 1fr 1fr", 
+                            fontSize: 13, 
+                            padding: "8px 0", 
+                            alignItems: "center", 
+                            borderBottom: i < surcosCriticos.length - 1 ? `1px solid #f0f4f0` : "none" 
+                        }}>
+                            <span style={{ 
+                                fontWeight: 700, 
+                                overflow: "hidden", 
+                                textOverflow: "ellipsis", 
+                                whiteSpace: "nowrap",
+                                color: "#1a1a1a"
+                            }} title={s.nombre}>{s.nombre}</span>
+                            <span style={{ textAlign: "center", color: GRIS, fontWeight: 500 }}>{s.total}</span>
+                            <span style={{ textAlign: "center", fontWeight: 800, color: s.enfermos > 0 ? NARANJA : GRIS }}>{s.enfermos}</span>
+                            <span style={{ textAlign: "center", fontWeight: 800, color: s.alertas > 0 ? ROJO : GRIS }}>{s.alertas}</span>
                         </div>
                     ))}
                 </div>
+
             </div>
+
 
             {/* ── Tabla de Árboles Sospechosos ── */}
             {arbolesSOspechosos.length > 0 && (

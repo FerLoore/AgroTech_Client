@@ -1,210 +1,324 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday, addDays, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
-import { Calendar as CalIcon, Plus, Trash2, CheckCircle } from "lucide-react";
-import { getMantenimientos, createMantenimiento, updateMantenimiento, deleteMantenimiento } from "../../api/AgroMantenimiento.api";
+import { 
+    Calendar as CalIcon, Plus, ChevronLeft, ChevronRight, 
+    Droplets, Sprout, Activity, CheckCircle2, Filter, X, AlertCircle
+} from "lucide-react";
+import { getMantenimientos, createMantenimiento, updateMantenimiento } from "../../api/AgroMantenimiento.api";
 import { getAgroSecciones } from "../../api/AgroSeccion.api";
+import { getTratamientos } from "../../api/AgroTratamientos.api";
+import { getAgroFincas } from "../../api/AgroFinca.api";
+import { getAlertas } from "../../api/AgroAlertaSalud.api";
+import { toast } from "sonner";
+import "../AgroTratamientos/TrackingCalendar.css"; 
+
+const WEEKDAYS = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
 
 export default function AgroMantenimientoPage() {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [mantenimientos, setMantenimientos] = useState<any[]>([]);
-  const [secciones, setSecciones] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ secc_seccion: "", man_tipo: "Riego", man_frecuencia_dias: 7, man_ultima_fecha: format(new Date(), "yyyy-MM-dd") });
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [mantRes, seccRes] = await Promise.all([getMantenimientos(), getAgroSecciones()]);
-      setMantenimientos(mantRes.data);
-      if (seccRes.data && seccRes.data.secciones) setSecciones(seccRes.data.secciones);
-    } catch (error) {
-      console.error("Error cargando mantenimientos:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const handleCreate = async (e: any) => {
-    e.preventDefault();
-    try {
-      await createMantenimiento(formData);
-      setShowModal(false);
-      loadData();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if(confirm("¿Eliminar este programa de mantenimiento?")) {
-      await deleteMantenimiento(id);
-      loadData();
-    }
-  };
-
-  const handleMarkDone = async (id: number) => {
-    try {
-      await updateMantenimiento(id, { man_ultima_fecha: new Date().toISOString() });
-      loadData();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // CALENDARIO LÓGICA
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
-  const dateFormat = "d";
-  const days = eachDayOfInterval({ start: startDate, end: endDate });
-
-  const weekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-
-  // Generar eventos proyectados en el calendario (hasta 3 repeticiones futuras o límite del mes)
-  const renderEventsForDay = (day: Date) => {
-    const dayEvents: any[] = [];
-    mantenimientos.forEach(m => {
-      if (!m.man_ultima_fecha) return;
-      let checkDate = new Date(m.man_ultima_fecha);
-      // Avanzamos sumando frecuencia hasta pasar el mes actual
-      while (checkDate <= endDate) {
-        if (isSameDay(day, checkDate)) {
-          dayEvents.push(m);
-        }
-        checkDate = addDays(checkDate, m.man_frecuencia_dias);
-      }
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [selectedDay, setSelectedDay] = useState<Date | null>(new Date());
+    
+    const [mantenimientos, setMantenimientos] = useState<any[]>([]);
+    const [tratamientos, setTratamientos] = useState<any[]>([]);
+    const [alertas, setAlertas] = useState<any[]>([]);
+    const [secciones, setSecciones] = useState<any[]>([]);
+    const [fincas, setFincas] = useState<any[]>([]);
+    
+    const [filtroFinca, setFiltroFinca] = useState<string>("");
+    const [filtroSeccion, setFiltroSeccion] = useState<string>("");
+    
+    const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [formData, setFormData] = useState({ 
+        secc_seccion: "", 
+        man_tipo: "Riego", 
+        man_frecuencia_dias: 7, 
+        man_ultima_fecha: format(new Date(), "yyyy-MM-dd") 
     });
 
-    return dayEvents.map((ev, i) => (
-      <div key={i} style={{ fontSize: 10, padding: "2px 4px", background: ev.man_tipo.toLowerCase().includes("riego") ? "#e0f2fe" : "#fef3c7", color: ev.man_tipo.toLowerCase().includes("riego") ? "#0369a1" : "#b45309", borderRadius: 4, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-        {ev.seccion?.secc_nombre || `Sec. ${ev.secc_seccion}`} - {ev.man_tipo}
-      </div>
-    ));
-  };
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            const [mantRes, seccRes, trataRes, fincasRes, alertRes] = await Promise.all([
+                getMantenimientos(), 
+                getAgroSecciones(),
+                getTratamientos(),
+                getAgroFincas(),
+                getAlertas()
+            ]);
+            
+            setMantenimientos(mantRes.data?.data || mantRes.data || []);
+            if (seccRes.data && seccRes.data.secciones) setSecciones(seccRes.data.secciones);
+            setTratamientos(Array.isArray(trataRes) ? trataRes : []);
+            if (fincasRes.data && fincasRes.data.fincas) setFincas(fincasRes.data.fincas);
+            setAlertas(Array.isArray(alertRes) ? alertRes : []);
+            
+        } catch (error) {
+            console.error("Error cargando datos:", error);
+            toast.error("Error al sincronizar datos");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return (
-    <div style={{ padding: 24, background: "#f2ede4", minHeight: "100vh", fontFamily: "sans-serif" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 600, color: "#2d4a2d", margin: 0 }}>Calendario de Mantenimiento</h1>
-          <p style={{ fontSize: 13, color: "#5F5E5A", marginTop: 4 }}>Organiza y proyecta riegos, fertilizaciones y otros cuidados por sección.</p>
-        </div>
-        <button onClick={() => setShowModal(true)} style={{ background: "#4a7c59", color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-          <Plus size={16} /> Nuevo Programa
-        </button>
-      </div>
+    useEffect(() => {
+        loadData();
+    }, []);
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 20 }}>
-        {/* VISTA CALENDARIO */}
-        <div style={{ background: "#fff", borderRadius: 14, padding: 20, border: "0.5px solid #e4ddd4" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 18, color: "#2d4a2d", textTransform: "capitalize" }}>{format(currentDate, "MMMM yyyy", { locale: es })}</h2>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setCurrentDate(addDays(currentDate, -30))} style={{ padding: "4px 10px", background: "#f5f0e8", border: "1px solid #d4c9b0", borderRadius: 6, cursor: "pointer" }}>&lt;</button>
-              <button onClick={() => setCurrentDate(new Date())} style={{ padding: "4px 10px", background: "#f5f0e8", border: "1px solid #d4c9b0", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>Hoy</button>
-              <button onClick={() => setCurrentDate(addDays(currentDate, 30))} style={{ padding: "4px 10px", background: "#f5f0e8", border: "1px solid #d4c9b0", borderRadius: 6, cursor: "pointer" }}>&gt;</button>
-            </div>
-          </div>
+    const seccionesFiltradas = useMemo(() => {
+        if (!filtroFinca) return secciones;
+        return secciones.filter(s => Number(s.fin_finca) === Number(filtroFinca));
+    }, [secciones, filtroFinca]);
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 8 }}>
-            {weekDays.map(d => (
-              <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 600, color: "#9aaa9a" }}>{d}</div>
-            ))}
-          </div>
-          
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
-            {days.map(day => (
-              <div key={day.toString()} style={{ minHeight: 90, padding: 6, border: "1px solid #f0ece4", borderRadius: 6, background: !isSameMonth(day, monthStart) ? "#fcfbfa" : isToday(day) ? "#f0fdf4" : "#fff" }}>
-                <div style={{ fontSize: 12, fontWeight: isToday(day) ? 600 : 400, color: isToday(day) ? "#166534" : !isSameMonth(day, monthStart) ? "#ccc" : "#5F5E5A", marginBottom: 4 }}>
-                  {format(day, dateFormat)}
+    const mantenimientosFiltrados = useMemo(() => {
+        return mantenimientos.filter(m => {
+            const matchesFinca = !filtroFinca || Number(m.seccion?.fin_finca) === Number(filtroFinca);
+            const matchesSeccion = !filtroSeccion || Number(m.secc_seccion) === Number(filtroSeccion);
+            return matchesFinca && matchesSeccion;
+        });
+    }, [mantenimientos, filtroFinca, filtroSeccion]);
+
+    const tratamientosFiltrados = useMemo(() => {
+        return tratamientos.filter(t => {
+            // Un tratamiento puede venir por Seccion (preventivo) o por Alerta (curativo)
+            const fincaId = t.seccion?.fin_finca || t.alerta?.arbol?.surco?.seccion?.fin_finca;
+            const seccionId = t.secc_seccion || t.alerta?.arbol?.surco?.secc_secciones;
+            
+            const matchesFinca = !filtroFinca || Number(fincaId) === Number(filtroFinca);
+            const matchesSeccion = !filtroSeccion || Number(seccionId) === Number(filtroSeccion);
+            return matchesFinca && matchesSeccion;
+        });
+    }, [tratamientos, filtroFinca, filtroSeccion]);
+
+    const alertasFiltradas = useMemo(() => {
+        return alertas.filter(a => {
+            const fincaId = a.arbol?.surco?.seccion?.fin_finca;
+            const seccionId = a.arbol?.surco?.secc_secciones;
+            const matchesFinca = !filtroFinca || Number(fincaId) === Number(filtroFinca);
+            const matchesSeccion = !filtroSeccion || Number(seccionId) === Number(filtroSeccion);
+            return matchesFinca && matchesSeccion;
+        });
+    }, [alertas, filtroFinca, filtroSeccion]);
+
+    const handleMarkDone = async (id: number) => {
+        try {
+            await updateMantenimiento(id, { man_ultima_fecha: new Date().toISOString() });
+            loadData();
+            toast.success("Tarea ejecutada correctamente");
+        } catch (err) {
+            console.error(err);
+            toast.error("Error al registrar ejecución");
+        }
+    };
+
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 0 });
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
+
+    const monthData = useMemo(() => {
+        return days.map(day => {
+            const dayEvents: any[] = [];
+            
+            mantenimientosFiltrados.forEach(m => {
+                if (!m.man_ultima_fecha) return;
+                let checkDate = new Date(m.man_ultima_fecha);
+                for (let i = 0; i < 50; i++) {
+                    if (isSameDay(day, checkDate)) {
+                        dayEvents.push({ ...m, eventType: 'mantenimiento' });
+                        break;
+                    }
+                    if (checkDate > day) break;
+                    checkDate = addDays(checkDate, m.man_frecuencia_dias);
+                }
+            });
+
+            tratamientosFiltrados.forEach(t => {
+                const inicio = new Date(t.trata_fecha_inicio);
+                const fin = t.trata_fecha_fin ? new Date(t.trata_fecha_fin) : null;
+                // Proyección para tratamientos activos
+                if (isSameDay(day, inicio) || (fin && day >= inicio && day <= fin)) {
+                    dayEvents.push({ ...t, eventType: 'tratamiento' });
+                }
+            });
+
+            alertasFiltradas.forEach(a => {
+                if (isSameDay(day, new Date(a.fecha_deteccion))) {
+                    dayEvents.push({ ...a, eventType: 'alerta' });
+                }
+            });
+
+            return {
+                date: day,
+                events: dayEvents,
+                isCurrentMonth: isSameMonth(day, monthStart),
+                isToday: isToday(day)
+            };
+        });
+    }, [days, mantenimientosFiltrados, tratamientosFiltrados, alertasFiltradas, monthStart]);
+
+    const selectedDayEvents = useMemo(() => {
+        if (!selectedDay) return [];
+        const data = monthData.find(d => isSameDay(d.date, selectedDay));
+        return data ? data.events : [];
+    }, [selectedDay, monthData]);
+
+    const changeMonth = (offset: number) => {
+        setCurrentDate(addDays(currentDate, offset * 30));
+        setSelectedDay(null);
+    };
+
+    const clearFilters = () => {
+        setFiltroFinca("");
+        setFiltroSeccion("");
+    };
+
+    return (
+        <div className="tracking-container" style={{ background: "#f2ede4" }}>
+            <div className="tracking-header">
+                <div>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#2d4a2d", margin: 0 }}>Centro de Control de Tareas</h1>
+                    <p style={{ fontSize: 13, color: "#5F5E5A", marginTop: 4 }}>Seguimiento y ejecución de labores agrícolas y alertas de salud.</p>
                 </div>
-                <div>{renderEventsForDay(day)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* LISTA DE PROGRAMAS ACTIVOS */}
-        <div style={{ background: "#fff", borderRadius: 14, padding: 20, border: "0.5px solid #e4ddd4" }}>
-          <h3 style={{ margin: "0 0 16px 0", fontSize: 15, color: "#2d4a2d", display: "flex", alignItems: "center", gap: 6 }}>
-            <CalIcon size={16} /> Programas Activos
-          </h3>
-
-          {loading ? <p style={{ fontSize: 13, color: "#888" }}>Cargando...</p> : mantenimientos.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "20px 0", color: "#aaa", fontSize: 13 }}>No hay programas configurados.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {mantenimientos.map(m => (
-                <div key={m.man_id} style={{ padding: 12, border: "1px solid #f0ece4", borderRadius: 8, background: "#faf9f7" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "#2d4a2d" }}>
-                      {m.seccion?.secc_nombre || `Sección ${m.secc_seccion}`}
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <div style={{ display: "flex", background: "#fff", borderRadius: 10, padding: "4px 8px", border: "1px solid #e4ddd4", gap: 8, alignItems: "center" }}>
+                        <Filter size={16} color="#7a9a7a" />
+                        <select 
+                            value={filtroFinca} 
+                            onChange={e => { setFiltroFinca(e.target.value); setFiltroSeccion(""); }}
+                            style={{ border: "none", fontSize: 13, color: "#2d4a2d", outline: "none", background: "none" }}
+                        >
+                            <option value="">Todas las Fincas</option>
+                            {fincas.map(f => <option key={f.fin_finca} value={f.fin_finca}>{f.fin_nombre}</option>)}
+                        </select>
+                        <div style={{ width: 1, height: 20, background: "#e4ddd4" }} />
+                        <select 
+                            value={filtroSeccion} 
+                            onChange={e => setFiltroSeccion(e.target.value)}
+                            style={{ border: "none", fontSize: 13, color: "#2d4a2d", outline: "none", background: "none" }}
+                        >
+                            <option value="">Todas las Secciones</option>
+                            {seccionesFiltradas.map(s => <option key={s.secc_seccion} value={s.secc_seccion}>{s.secc_nombre}</option>)}
+                        </select>
+                        {(filtroFinca || filtroSeccion) && (
+                            <button onClick={clearFilters} style={{ background: "none", border: "none", cursor: "pointer", color: "#a03020", display: "flex", alignItems: "center" }}>
+                                <X size={16} />
+                            </button>
+                        )}
                     </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button title="Marcar completado hoy" onClick={() => handleMarkDone(m.man_id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#16a34a", padding: 0 }}><CheckCircle size={15} /></button>
-                      <button title="Eliminar programa" onClick={() => handleDelete(m.man_id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: 0 }}><Trash2 size={15} /></button>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 11, color: "#5F5E5A", display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ background: m.man_tipo.toLowerCase().includes("riego") ? "#e0f2fe" : "#fef3c7", padding: "2px 6px", borderRadius: 4 }}>{m.man_tipo}</span>
-                    <span>cada {m.man_frecuencia_dias} días</span>
-                  </div>
-                  <div style={{ fontSize: 10, color: "#9aaa9a", marginTop: 8 }}>
-                    Próximo: {m.man_proxima_fecha ? format(new Date(m.man_proxima_fecha), "dd MMM, yyyy", { locale: es }) : "N/A"}
-                  </div>
                 </div>
-              ))}
             </div>
-          )}
+
+            <div className="calendar-wrapper">
+                <div className="calendar-main">
+                    <div className="calendar-nav">
+                        <button className="nav-btn" onClick={() => changeMonth(-1)}><ChevronLeft size={20} /></button>
+                        <h2 className="calendar-month-title">{format(currentDate, "MMMM yyyy", { locale: es })}</h2>
+                        <button className="nav-btn" onClick={() => changeMonth(1)}><ChevronRight size={20} /></button>
+                        <button className="nav-btn" onClick={() => setCurrentDate(new Date())} style={{ fontSize: 12, padding: "6px 12px" }}>Hoy</button>
+                    </div>
+
+                    <div className="calendar-grid">
+                        {WEEKDAYS.map(d => <div key={d} className="calendar-weekday">{d}</div>)}
+                        
+                        {monthData.map((d, idx) => (
+                            <div 
+                                key={idx} 
+                                className={`calendar-day ${!d.isCurrentMonth ? 'empty' : ''} ${d.isToday ? 'today' : ''} ${selectedDay && isSameDay(d.date, selectedDay) ? 'selected' : ''}`}
+                                onClick={() => setSelectedDay(d.date)}
+                            >
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span className="day-number">{format(d.date, "d")}</span>
+                                    {d.isToday && <span className="today-badge">Hoy</span>}
+                                </div>
+                                
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 2, marginTop: 4 }}>
+                                    {d.events.slice(0, 3).map((ev, i) => {
+                                        const isRiego = ev.man_tipo?.toLowerCase().includes("riego");
+                                        const isTrata = ev.eventType === 'tratamiento';
+                                        const isAlerta = ev.eventType === 'alerta';
+                                        
+                                        return (
+                                            <div 
+                                                key={i} 
+                                                className={`pill ${isAlerta ? 'pill-critical' : isTrata ? 'pill-pending' : isRiego ? 'pill-projection' : 'pill-revision'}`}
+                                                style={{ width: "100%", fontSize: "9px", display: "flex", alignItems: "center", gap: 4 }}
+                                            >
+                                                {isAlerta ? <AlertCircle size={10} /> : isTrata ? <Activity size={10} /> : isRiego ? <Droplets size={10} /> : <Sprout size={10} />}
+                                                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                                                    {isAlerta ? "Alerta" : (ev.man_tipo || "Tratamiento")}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                    {d.events.length > 3 && <div style={{ fontSize: 9, color: "#9aaa9a" }}>+{d.events.length - 3}</div>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="details-sidebar">
+                    <h3 className="sidebar-title">Tareas del Día</h3>
+                    <p className="sidebar-date">{selectedDay ? format(selectedDay, "eeee d 'de' MMMM", { locale: es }) : "Selecciona un día"}</p>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        {loading ? (
+                            <p style={{ fontSize: 13, color: "#888" }}>Sincronizando...</p>
+                        ) : selectedDayEvents.length === 0 ? (
+                            <div className="empty-state" style={{ padding: "40px 20px" }}>
+                                <CalIcon size={40} />
+                                <p style={{ fontSize: 13 }}>No hay tareas para este día.</p>
+                            </div>
+                        ) : (
+                            selectedDayEvents.map((ev, idx) => {
+                                const isTrata = ev.eventType === 'tratamiento';
+                                const isRiego = ev.man_tipo?.toLowerCase().includes("riego");
+                                const isAlerta = ev.eventType === 'alerta';
+
+                                return (
+                                    <div key={idx} className="confirm-card" style={{ 
+                                        background: isAlerta ? "#fcebeb" : isTrata ? "#fffbeb" : isRiego ? "#e6f1fb" : "#f0fdf4",
+                                        borderColor: isAlerta ? "#fca5a5" : isTrata ? "#fef3c7" : isRiego ? "#bae6fd" : "#bbf7d0"
+                                    }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                                {isAlerta ? <AlertCircle size={18} color="#b91c1c" /> : isTrata ? <Activity size={18} color="#b45309" /> : isRiego ? <Droplets size={18} color="#0369a1" /> : <Sprout size={18} color="#16a34a" />}
+                                                <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1a1a" }}>
+                                                    {isAlerta ? "Alerta de Salud" : isTrata ? "Tratamiento Médico" : ev.man_tipo}
+                                                </span>
+                                            </div>
+                                            {!isTrata && !isAlerta && (
+                                                <button 
+                                                    onClick={() => handleMarkDone(ev.man_id)}
+                                                    style={{ background: "#4a7c59", border: "none", color: "#fff", cursor: "pointer", padding: "4px 8px", borderRadius: 6, fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}
+                                                >
+                                                    <CheckCircle2 size={14} /> Ejecutar
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div style={{ fontSize: 12, color: "#4b5563", marginTop: 8 }}>
+                                            <div style={{ fontWeight: 700, color: "#2d4a2d" }}>
+                                                {isAlerta ? `Árbol #${ev.arb_arbol}` : isTrata ? `Prescripción #${ev.trata_tratamientos}` : (ev.seccion?.secc_nombre || `Sección ${ev.secc_seccion}`)} 
+                                                <span style={{ fontWeight: 400, color: "#9aaa9a", marginLeft: 6 }}>
+                                                    ({isAlerta ? ev.arbol?.surco?.seccion?.secc_nombre : isTrata ? (ev.seccion?.secc_nombre || ev.alerta?.arbol?.surco?.seccion?.secc_nombre) : (ev.seccion?.finca?.fin_nombre || "—")})
+                                                </span>
+                                            </div>
+                                            <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.4, background: "rgba(255,255,255,0.5)", padding: 6, borderRadius: 4 }}>
+                                                {isAlerta ? ev.descripcion_sintoma : isTrata ? ev.trata_observaciones : `Frecuencia: cada ${ev.man_frecuencia_dias} días.`}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-
-      {/* MODAL NUEVO PROGRAMA */}
-      {showModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#fff", padding: 24, borderRadius: 12, width: 400 }}>
-            <h3 style={{ margin: "0 0 16px 0", color: "#2d4a2d" }}>Nuevo Programa</h3>
-            <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              
-              <div>
-                <label style={{ fontSize: 12, color: "#5F5E5A" }}>Sección</label>
-                <select required value={formData.secc_seccion} onChange={e => setFormData({...formData, secc_seccion: e.target.value})} style={{ width: "100%", padding: 8, border: "1px solid #ddd", borderRadius: 6, marginTop: 4 }}>
-                  <option value="">Seleccione una sección</option>
-                  {secciones.map(s => <option key={s.secc_seccion} value={s.secc_seccion}>{s.secc_nombre}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, color: "#5F5E5A" }}>Tipo de Mantenimiento</label>
-                <input required type="text" value={formData.man_tipo} onChange={e => setFormData({...formData, man_tipo: e.target.value})} placeholder="Ej. Riego, Fertilizante..." style={{ width: "100%", padding: 8, border: "1px solid #ddd", borderRadius: 6, marginTop: 4 }} />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, color: "#5F5E5A" }}>Repetir cada (días)</label>
-                <input required type="number" min="1" value={formData.man_frecuencia_dias} onChange={e => setFormData({...formData, man_frecuencia_dias: Number(e.target.value)})} style={{ width: "100%", padding: 8, border: "1px solid #ddd", borderRadius: 6, marginTop: 4 }} />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, color: "#5F5E5A" }}>Fecha del último mantenimiento</label>
-                <input required type="date" value={formData.man_ultima_fecha} onChange={e => setFormData({...formData, man_ultima_fecha: e.target.value})} style={{ width: "100%", padding: 8, border: "1px solid #ddd", borderRadius: 6, marginTop: 4 }} />
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ padding: "8px 16px", border: "none", background: "#f0ece4", borderRadius: 6, cursor: "pointer" }}>Cancelar</button>
-                <button type="submit" style={{ padding: "8px 16px", border: "none", background: "#4a7c59", color: "#fff", borderRadius: 6, cursor: "pointer" }}>Guardar</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    );
 }

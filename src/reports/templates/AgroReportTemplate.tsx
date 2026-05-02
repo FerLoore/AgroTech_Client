@@ -55,16 +55,20 @@ const AgroReportTemplate = forwardRef<HTMLDivElement, Props>(({ data }, ref) => 
     return (
     <div
         ref={ref}
+
         style={{
-            width: 800,
-            padding: "36px 44px",
+            width: 850, // Ligeramente más ancho para mejor resolución de grid
+            padding: "48px 56px", // Márgenes generosos de 32px-48px equivalentes
             background: "#fff",
             fontFamily: "Inter, system-ui, sans-serif",
             color: "#2d4a2d",
             lineHeight: 1.6,
             boxSizing: "border-box",
+            WebkitPrintColorAdjust: "exact",
+            printColorAdjust: "exact" as any,
         }}
     >
+
 
         {/* ══ ENCABEZADO ══════════════════════════════════════════ */}
         <div data-pdf-avoid="true" style={{

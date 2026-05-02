@@ -159,54 +159,47 @@ const TreeHealthCharts: React.FC<{ data: ChartsData }> = ({ data }) => {
 
     return (
         <div style={{ width: "100%", fontFamily: "Inter, system-ui, sans-serif", color: "#2d4a2d" }}>
-
-            {/* Fila: Dona + Top 10 */}
-            <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-
-                {/* ── Dona ── ancho fijo generoso */}
+            <div style={{ display: "flex", gap: 20, alignItems: "stretch" }}>
+                {/* ── Dona ── */}
                 <div style={{
-                    width: 260, flexShrink: 0,
+                    width: 240, flexShrink: 0,
                     background: "#fff", border: `1px solid ${BORDE}`,
-                    borderRadius: 10, padding: "16px 18px",
+                    borderRadius: 10, padding: "16px",
                     boxSizing: "border-box",
+                    display: "flex", flexDirection: "column", alignItems: "center"
                 }}>
                     <h4 style={{
-                        margin: "0 0 12px", fontSize: 13, fontWeight: 700,
+                        margin: "0 0 16px", fontSize: 12, fontWeight: 700,
                         color: VERDE, textTransform: "uppercase", letterSpacing: 0.8,
+                        textAlign: "center", width: "100%"
                     }}>
                         Frecuencia de Síntomas
                     </h4>
                     <DonaChart datos={enfermedadesConColor} />
                 </div>
 
-                {/* ── Top 10 ── ocupa el resto */}
+                {/* ── Top 10 ── */}
                 <div style={{
-                    flex: 1,
-                    background: "#fff", border: `1px solid ${BORDE}`,
+                    flex: 1, background: "#fff", border: `1px solid ${BORDE}`,
                     borderRadius: 10, padding: "16px 18px",
                     boxSizing: "border-box",
                 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                        <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: VERDE, textTransform: "uppercase", letterSpacing: 0.8 }}>
-                            Top 10 — Árboles con más alertas de salud
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                        <h4 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: VERDE, textTransform: "uppercase", letterSpacing: 0.8 }}>
+                            Top 10 — Críticos
                         </h4>
-                        <span style={{
-                            fontSize: 14, fontWeight: 500,
+                        <div style={{
+                            fontSize: 10, fontWeight: 800,
                             background: ROJO, color: "#fff",
-                            padding: "5px 20px",
-                            width: "300px",
-                            height: "30px",
-                            borderRadius: 4,
-                            display: "flex",          /* Permite usar alineación flexible */
-                            alignItems: "center",     /* Centra verticalmente */
-                            justifyContent: "center",
-
+                            padding: "4px 10px", borderRadius: 4,
+                            textTransform: "uppercase", letterSpacing: "0.5px"
                         }}>
                             Requieren atención
-                        </span>
+                        </div>
                     </div>
                     <Top10Tabla arboles={top10Arboles} />
                 </div>
+
             </div>
         </div>
     );

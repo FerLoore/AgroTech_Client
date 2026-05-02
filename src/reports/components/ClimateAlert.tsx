@@ -50,7 +50,10 @@ const ClimateAlert: React.FC<Props> = ({ prediccion }) => {
                                     <td style={{ padding: '10px', fontWeight: 600 }}>
                                         {c.seccion_nombre ?? `Sección ${c.seccion_id}`}
                                     </td>
-                                    <td style={{ padding: '10px', color: '#7a9a7a' }}>{c.fecha}</td>
+                                    <td style={{ padding: '12px 10px', color: '#7a9a7a', whiteSpace: 'nowrap' }}>
+                                        {c.fecha ? new Date(c.fecha).toLocaleDateString('es-ES') : '—'}
+                                    </td>
+
                                     <td style={{ padding: '10px', textAlign: 'center' }}>{c.humedad}</td>
                                     <td style={{ padding: '10px', textAlign: 'center' }}>{c.temperatura}</td>
                                     <td style={{ padding: '10px', textAlign: 'center' }}>{c.precipitacion}</td>

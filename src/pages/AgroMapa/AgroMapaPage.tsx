@@ -12,7 +12,9 @@ import type { LatLng } from "leaflet";
 import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMapa.api";
 import type { Finca, ArbolMapa, PuntoPerimetro, SeccionStats } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
-import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, Flame, FileText } from "lucide-react";
+import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, Flame, FileText, CloudSun, Activity, Trash2, MapPin, Info, BarChart2 } from "lucide-react";
+
+
 import "leaflet.heat";
 import { generatePDF } from "../../reports/core/PDFGenerator";
 import AgroReportTemplate from "../../reports/templates/AgroReportTemplate";
@@ -767,12 +769,19 @@ const AgroMapaPage = () => {
                 });
 
             const conteoSintomas = alertasDictaminadasFinca.reduce<Record<string, number>>(
-                (acc, al) => { const s = (al.descripcion_sintoma ?? "").trim().slice(0, 40) || "Sin descripción"; acc[s] = (acc[s] ?? 0) + 1; return acc; },
+                (acc, al) => { 
+                    const s = (al.descripcion_sintoma ?? "").trim();
+                    if (s.length < 2) return acc; // Ignorar basura como "." o "a"
+                    const key = s.slice(0, 40);
+                    acc[key] = (acc[key] ?? 0) + 1; 
+                    return acc; 
+                },
                 {}
             );
             const frecuenciaEnfermedades = Object.entries(conteoSintomas)
                 .sort(([, a], [, b]) => b - a).slice(0, 8)
                 .map(([nombre, cantidad]) => ({ nombre, cantidad }));
+
 
             const charts: ChartsData = { top10Arboles, frecuenciaEnfermedades };
 
@@ -994,15 +1003,34 @@ const AgroMapaPage = () => {
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 24, gap: 12 }}>
 
-            {/* ── ENCABEZADO ── */}
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-                <div>
-                    <h1 style={{ fontSize: 22, fontWeight: 700, color: "#2d4a2d", margin: 0 }}>Mapa de Finca</h1>
-                    <p style={{ fontSize: 13, color: "#7a9a7a", margin: "2px 0 0" }}>
-                        {finca ? `${finca.fin_nombre} — ${arboles.length} árboles` : "Selecciona una finca"}
-                    </p>
+            {/* ── ENCABEZADO ESTABLE ── */}
+            <div style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "space-between", 
+                gap: 20,
+                minHeight: 60, // Altura mínima para evitar saltos
+                width: "100%"
+            }}>
+                <div style={{ flexShrink: 0, minWidth: 200 }}>
+                    <h1 style={{ fontSize: 22, fontWeight: 800, color: "#2d4a2d", margin: 0, letterSpacing: "-0.5px" }}>Mapa de Finca</h1>
+                    <div style={{ height: 18 }}> {/* Espacio reservado para el subtítulo asíncrono */}
+                        {finca && (
+                            <p style={{ fontSize: 13, color: "#7a9a7a", margin: "2px 0 0", fontWeight: 500 }}>
+                                {finca.fin_nombre} — <span style={{ color: "#4a7c59", fontWeight: 700 }}>{arboles.length}</span> árboles
+                            </p>
+                        )}
+                    </div>
                 </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <div style={{ 
+                    display: "flex", 
+                    gap: 8, 
+                    alignItems: "center", 
+                    justifyContent: "flex-end",
+                    flex: 1,
+                    overflow: "hidden" // Evita que los botones rompan el layout si se desbordan
+                }}>
+
                     <select value={fincaId ?? ""} onChange={e => setFincaId(Number(e.target.value))}
                         style={selectStyle} disabled={estaEnWizard}>
                         {fincas.map(f => <option key={f.fin_finca} value={f.fin_finca}>{f.fin_nombre}</option>)}
@@ -1033,7 +1061,12 @@ const AgroMapaPage = () => {
                         color: modoReporte ? "#fff" : "#7c3aed", borderColor: "#7c3aed",
                         fontWeight: "bold"
                     }}>
-                        {modoReporte ? "📊 Ver Mapa Normal" : "🩺 Modo Reporte Salud"}
+                        {modoReporte ? (
+                            <><BarChart2 size={14} style={{ marginRight: 4 }} /> Ver Mapa Normal</>
+                        ) : (
+                            <><Activity size={14} style={{ marginRight: 4 }} /> Modo Reporte Salud</>
+                        )}
+
                     </button>
 
                     <button onClick={() => setMostrarHeatmap(v => !v)} style={{
@@ -1062,14 +1095,16 @@ const AgroMapaPage = () => {
 
                     {filtroSeccion !== "all" && paso === "idle" && (
                         <button onClick={eliminarTerrenoActual} style={{ ...btnOutline, color: "#c0392b", borderColor: "#c0392b", fontWeight: "bold" }}>
-                            🗑️ Eliminar Terreno
+                            <Trash2 size={14} style={{ marginRight: 4 }} /> Eliminar Terreno
+
                         </button>
                     )}
 
                     {gpsPosition && (
                         <button onClick={() => setCentroManual([gpsPosition.lat, gpsPosition.lng])}
                             style={{ ...btnOutline, background: "#eff6ff", color: "#1d4ed8", borderColor: "#3b82f6", fontWeight: "bold" }}>
-                            📍 Encontrarme
+                            <MapPin size={14} style={{ marginRight: 4 }} /> Encontrarme
+
                         </button>
                     )}
 
@@ -1268,7 +1303,8 @@ const AgroMapaPage = () => {
                         borderRadius: 8, padding: "10px 14px",
                         display: "flex", alignItems: "flex-start", gap: 10,
                     }}>
-                        <span style={{ fontSize: 16, lineHeight: 1 }}>ℹ️</span>
+                        <Info size={18} color="#b45309" />
+
                         <div style={{ fontSize: 12, color: "#7a5a00" }}>
                             <strong>¿Qué es una sección?</strong> Es una subdivisión del terreno
                             (ej: "Sector Norte", "Lote A"). Los árboles generados se asignarán a esta sección.
@@ -1304,7 +1340,8 @@ const AgroMapaPage = () => {
                                 textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2,
                                 display: "flex", alignItems: "center", gap: 6
                             }}>
-                                🌡️ Condiciones climáticas <span style={{ fontWeight: 400, fontSize: 10, color: "#9aaa9a" }}>(opcionales)</span>
+                                <CloudSun size={14} /> CONDICIONES CLIMÁTICAS
+
                             </div>
                             <label style={labelStyle}>Temperatura (°C)</label>
                             <input
@@ -1566,7 +1603,10 @@ const AgroMapaPage = () => {
                                             ))}
                                         </tbody>
                                     </table>
-                                    <button onClick={() => navigate(`/agro-alerta-salud?nuevoArbol=${arbol.id}`)} style={popupBtnStyle}>+ Nueva alerta</button>
+                                    <button onClick={() => navigate(`/agro-alerta-salud?nuevoArbol=${arbol.id}`)} style={popupBtnStyle}>
+                                        <Plus size={12} style={{ marginRight: 4 }} /> Nueva alerta
+                                    </button>
+
                                 </div>
                             </Popup>
                         </CircleMarker>
@@ -1637,9 +1677,11 @@ const selectStyle: React.CSSProperties = {
     borderRadius: 20, background: "#fff", color: "#2d4a2d", cursor: "pointer", outline: "none",
 };
 const btnOutline: React.CSSProperties = {
-    fontSize: 12, padding: "5px 12px", border: "0.5px solid",
+    fontSize: 12, padding: "5px 14px", border: "0.5px solid",
     borderRadius: 20, cursor: "pointer", transition: "all 0.15s",
+    display: "flex", alignItems: "center", gap: 6, justifyContent: "center"
 };
+
 const btnPrimary: React.CSSProperties = {
     fontSize: 13, padding: "8px 18px", border: "none", borderRadius: 8,
     background: "#4a7c59", color: "#fff", cursor: "pointer", fontWeight: 600,

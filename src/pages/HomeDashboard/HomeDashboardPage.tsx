@@ -10,6 +10,9 @@ import { getAgroUsuarios } from "../../api/AgroUsuario.api";
 import { getHistorial } from "../../api/AgroHistorial.api";
 import { getProductos } from "../../api/AgroProducto.api";
 import { getAlertas } from "../../api/AgroAlertaSalud.api";
+import { getMantenimientos } from "../../api/AgroMantenimiento.api";
+import { getTratamientos } from "../../api/AgroTratamientos.api";
+import { Droplets, Sprout, Stethoscope, Activity, Calendar } from "lucide-react";
 
 // ─── tipos mínimos para los datos del dashboard ───────────────────────────────
 interface FincaOption {
@@ -171,6 +174,8 @@ export default function HomeDashboardPage() {
 
   const [mapaDataFinca, setMapaDataFinca] = useState<any>(null);
   const [cargandoMapa, setCargandoMapa] = useState(false);
+  const [mantenimientosDb, setMantenimientosDb] = useState<any[]>([]);
+  const [tratamientosDb, setTratamientosDb] = useState<any[]>([]);
 
   useEffect(() => {
     if (fincaActiva?.id && fincaActiva.id !== 0) {
@@ -229,6 +234,16 @@ export default function HomeDashboardPage() {
         const prod = await getProductos();
         setProductosDb(Array.isArray(prod) ? prod : (prod?.productos || []));
       } catch (e) { console.error("Error productos", e); }
+
+      try {
+        const mant = await getMantenimientos();
+        setMantenimientosDb(mant.data?.data || mant.data || []);
+      } catch (e) { console.error("Error mantenimientos", e); }
+
+      try {
+        const trat = await getTratamientos();
+        setTratamientosDb(trat.data?.data || trat.data || []);
+      } catch (e) { console.error("Error tratamientos", e); }
 
       try {
         const alertas = await getAlertas();
@@ -294,6 +309,44 @@ export default function HomeDashboardPage() {
   const enfArb = arbolesFinca.filter((a: any) => a.estado?.toLowerCase().includes("enferm")).length;
   const muerArb = arbolesFinca.filter((a: any) => a.estado?.toLowerCase().includes("muert")).length;
   const totalAlert = alertasMapeadas.length;
+
+  // --- Mantenimientos y Tratamientos Unificados ---
+  const proximosMantenimientosFull = useMemo(() => {
+    if (!fincaActiva?.id) return [];
+    
+    // 1. Mantenimientos
+    const mants = mantenimientosDb
+      .filter((m: any) => Number(m.fin_finca) === fincaActiva.id)
+      .map((m: any) => ({
+        id: `m-${m.man_mantenimiento}`,
+        tipo: m.man_tipo_mantenimiento || "Riego",
+        seccion: m.secc_nombre || "General",
+        fecha: m.man_fecha_programada,
+        rawDate: new Date(m.man_fecha_programada),
+        icono: m.man_tipo_mantenimiento?.toLowerCase().includes("riego") ? <Droplets size={14} /> : <Sprout size={14} />,
+        color: "#4a7c59"
+      }));
+
+    // 2. Tratamientos
+    const trats = tratamientosDb
+      .filter((t: any) => {
+        // Asumimos que los tratamientos de la finca son los que afectan a árboles de la finca
+        return arbolesFincaIds.has(t.tra_arbol);
+      })
+      .map((t: any) => ({
+        id: `t-${t.tra_tratamiento}`,
+        tipo: `Tratamiento: ${t.tra_nombre_comercial || "Receta"}`,
+        seccion: t.seccion_nombre || "Médico",
+        fecha: t.tra_fecha_inicio,
+        rawDate: new Date(t.tra_fecha_inicio),
+        icono: <Stethoscope size={14} />,
+        color: "#185FA5"
+      }));
+
+    return [...mants, ...trats]
+      .sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime())
+      .slice(0, 6);
+  }, [mantenimientosDb, tratamientosDb, fincaActiva, arbolesFincaIds]);
 
   // --- Generar datos reales para los minigráficos (sparklines) de los últimos 14 días ---
   const last14Days = Array.from({length: 14}).map((_, i) => {
@@ -449,8 +502,7 @@ export default function HomeDashboardPage() {
         {kpisData.map((m) => (
           <div
             key={m.label}
-            onClick={() => navigate(`/agro-${m.mod}`)}
-            style={{ background: "#fff", borderRadius: 12, border: "0.5px solid #e4ddd4", padding: "14px 16px", cursor: "pointer", position: "relative", overflow: "hidden" }}
+            style={{ background: "#fff", borderRadius: 12, border: "0.5px solid #e4ddd4", padding: "14px 16px", position: "relative", overflow: "hidden" }}
           >
             <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", borderRadius: "2px 0 0 2px", background: m.color }} />
             <div style={{ position: "relative", zIndex: 1 }}>
@@ -711,6 +763,51 @@ export default function HomeDashboardPage() {
                 </div>
               );
             })
+          )}
+        </div>
+      </div>
+
+      {/* ── SECCIÓN DE TAREAS PROGRAMADAS ─────────────────────────────────── */}
+      <div style={{ marginTop: 20 }}>
+        <div style={S.card}>
+          <div style={S.cardHd}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Calendar size={18} color="#4a7c59" />
+              <span style={{ ...S.cardTitle, fontSize: 15 }}>Próximos Mantenimientos por Sección</span>
+            </div>
+            <span style={S.cardLink} onClick={() => navigate("/agro-mantenimiento")}>
+              Ir al calendario →
+            </span>
+          </div>
+
+          {proximosMantenimientosFull.length === 0 ? (
+            <div style={{
+              padding: "40px 20px", textAlign: "center", background: "#fcfdfe", borderRadius: 12, border: "1px dashed #d5e5d5"
+            }}>
+              <span style={{ fontSize: 13, color: "#9aaa9a" }}>No hay mantenimientos programados para esta finca.</span>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+              {proximosMantenimientosFull.map((m) => (
+                <div key={m.id} style={{ 
+                  padding: 14, borderRadius: 12, background: "#fff", border: "0.5px solid #e4ddd4",
+                  display: "flex", gap: 12, alignItems: "center", position: "relative"
+                }}>
+                  <div style={{ 
+                    width: 32, height: 32, borderRadius: 8, background: `${m.color}15`, 
+                    display: "flex", alignItems: "center", justifyContent: "center", color: m.color 
+                  }}>
+                    {m.icono}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#2d4a2d" }}>{m.tipo}</div>
+                    <div style={{ fontSize: 11, color: "#9aaa9a" }}>
+                      {m.seccion} · {new Date(m.fecha).toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
