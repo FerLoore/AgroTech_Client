@@ -6,9 +6,9 @@ interface Props {
 }
 
 const RIESGO_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-    alto:  { bg: '#fde8e8', text: '#c0392b', label: 'ALTO' },
+    alto: { bg: '#fde8e8', text: '#c0392b', label: 'ALTO' },
     medio: { bg: '#fff8e6', text: '#b45309', label: 'MEDIO' },
-    bajo:  { bg: '#f0fdf4', text: '#166534', label: 'BAJO' },
+    bajo: { bg: '#f0fdf4', text: '#166534', label: 'BAJO' },
 };
 
 const getRiesgoStyle = (riesgo: string) =>
@@ -25,7 +25,7 @@ const ClimateAlert: React.FC<Props> = ({ prediccion }) => {
                 fontSize: '16px', fontWeight: 700, marginBottom: '15px', color: '#2d4a2d',
             }}>
                 <span style={{ width: '4px', height: '18px', background: '#4a7c59', borderRadius: '2px', flexShrink: 0 }} />
-                Cruce Clima vs. Incidencia de Plagas (Predictivo)
+                Clima
             </h3>
 
             {/* ── Tabla de condiciones climáticas ── */}

@@ -1,10 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getAgroClimas, createAgroClima, updateAgroClima, deleteAgroClima } from '../../api/AgroClima.api';
+import { getAgroSecciones } from '../../api/AgroSeccion.api';
 import type { AgroClima } from './AgroClima.types';
 import { toast } from 'sonner';
 
+export interface SeccionOption {
+    secc_seccion: number;
+    secc_nombre: string;
+    fin_nombre?: string;
+}
+
 export const useAgroClima = () => {
     const [climas, setClimas] = useState<AgroClima[]>([]);
+    const [secciones, setSecciones] = useState<SeccionOption[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>("");
 
@@ -16,12 +24,15 @@ export const useAgroClima = () => {
     const [guardando, setGuardando] = useState<boolean>(false);
     const [formError, setFormError] = useState<string>("");
 
-    const fetchClimas = async () => {
+    const fetchData = async () => {
         setLoading(true);
         try {
-            const response = await getAgroClimas();
-            // Asumiendo que tu backend devuelve { climas: [...] }
-            setClimas(response.data.climas || []);
+            const [climaRes, seccionRes] = await Promise.all([
+                getAgroClimas(),
+                getAgroSecciones(),
+            ]);
+            setClimas(climaRes.data.climas || []);
+            setSecciones(seccionRes.data.secciones || []);
         } catch (err: any) {
             setError(err.message || "Error al obtener los registros climáticos");
         } finally {
@@ -30,13 +41,14 @@ export const useAgroClima = () => {
     };
 
     useEffect(() => {
-        fetchClimas();
+        fetchData();
     }, []);
 
     const climasFiltrados = useMemo(() => {
         return climas.filter(c => 
             String(c.clim_fecha || "").toLowerCase().includes(busqueda.toLowerCase()) ||
-            String(c.clim_temperatura || "").includes(busqueda)
+            String(c.clim_temperatura || "").includes(busqueda) ||
+            String((c as any).secc_nombre || "").toLowerCase().includes(busqueda.toLowerCase())
         );
     }, [climas, busqueda]);
 
@@ -49,7 +61,13 @@ export const useAgroClima = () => {
 
     const onEditar = (item: AgroClima) => {
         setEditando(item);
-        setForm({ ...item });
+        // Mapear secc_seccion → seccionId para que el form lo maneje
+        setForm({ 
+            clim_temperatura: item.clim_temperatura,
+            clim_humedad_relativa: item.clim_humedad_relativa,
+            clim_precipitacion: item.clim_precipitacion,
+            seccionId: (item as any).secc_seccion ?? item.seccionId ?? "",
+        });
         setFormError("");
         setModal(true);
     };
@@ -69,7 +87,7 @@ export const useAgroClima = () => {
                 await createAgroClima(form);
                 toast.success("Registro climático creado exitosamente");
             }
-            await fetchClimas();
+            await fetchData();
             setModal(false);
         } catch (err: any) {
             const msg = err.response?.data?.message || "Error al guardar el clima";
@@ -87,7 +105,7 @@ export const useAgroClima = () => {
                 onClick: async () => {
                     try {
                         await deleteAgroClima(item.clim_clima);
-                        await fetchClimas();
+                        await fetchData();
                         toast.success("Registro climático eliminado correctamente");
                     } catch (err: any) {
                         toast.error("Error al eliminar el registro");
@@ -99,7 +117,7 @@ export const useAgroClima = () => {
     };
 
     return {
-        climas: climasFiltrados, loading, error,
+        climas: climasFiltrados, secciones, loading, error,
         busqueda, setBusqueda,
         modal, editando, form, setForm, guardando, formError,
         onNuevo, onEditar, onEliminar, onGuardar, onCerrar
