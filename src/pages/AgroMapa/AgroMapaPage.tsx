@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import L from "leaflet";
@@ -19,6 +19,7 @@ import AgroReportTemplate from "../../reports/templates/AgroReportTemplate";
 import type { AgroReportData, ChartsData, ClimaticData } from "../../reports/types/report.types";
 import { getAgroClimas } from "../../api/AgroClima.api";
 import html2canvas from "html2canvas";
+import { useRef } from "react";
 
 const { BaseLayer } = LayersControl;
 
@@ -73,9 +74,9 @@ function generarGrilla(poly: { lat: number; lng: number }[], espaciado = 2, latO
     const maxN = Math.ceil((Math.max(...lats) - latOrigen) / paso);
 
     for (let m = minM; m <= maxM; m++) {
-        const lng = lngOrigen + m * paso;
+        let lng = lngOrigen + m * paso;
         for (let n = minN; n <= maxN; n++) {
-            const lat = latOrigen + n * paso;
+            let lat = latOrigen + n * paso;
             if (puntoEnPoligono(lat, lng, poly)) {
                 arboles.push({ lat, lng, surco: m, posicion: n });
             }
@@ -253,6 +254,7 @@ const HeatmapLayer = ({ points }: { points: [number, number, number][] }) => {
     useEffect(() => {
         if (!map || points.length === 0) return;
 
+        // @ts-ignore - leaflet.heat adds heatLayer to L
         const heat = L.heatLayer(points, {
             radius: 30,
             blur: 20,
@@ -363,6 +365,7 @@ const AgroMapaPage = () => {
     // ── Paso sin-seccion: creación inline ───────────────────
     const [seccionForm, setSeccionForm] = useState({ secc_nombre: "", secc_tipo_suelo: "" });
     const [guardandoSeccion, setGuardandoSeccion] = useState(false);
+    const [climaForm, setClimaForm] = useState({ clim_temperatura: "", clim_humedad_relativa: "", clim_precipitacion: "" });
 
 
 
@@ -373,6 +376,7 @@ const AgroMapaPage = () => {
         setArbolesPreview([]);
         setProgreso(0);
         setSeccionForm({ secc_nombre: "", secc_tipo_suelo: "" });
+        setClimaForm({ clim_temperatura: "", clim_humedad_relativa: "", clim_precipitacion: "" });
         setSeccionSeleccionada(null);
         setTipoArbolSeleccionado(null);
         setEspaciadoSeleccionado(2);
@@ -391,7 +395,6 @@ const AgroMapaPage = () => {
             setPerimetro(data.perimetro);
             setSeccionesStats(data.secciones_stats || []);
             return data;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
             if (e?.response?.status === 400) {
                 setArboles([]);
@@ -420,7 +423,6 @@ const AgroMapaPage = () => {
                 setCoordsForm({ lat: "14.6349", lng: "-90.5069" });
                 setPaso("coords");
             }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
             if (e?.response?.status === 400) {
                 setFinca(fincas.find(f => f.fin_finca === id) ?? null);
@@ -530,7 +532,6 @@ const AgroMapaPage = () => {
             // Usá cargarDatosMapa (no cargarMapa) para no resetear el wizard
             await cargarDatosMapa(fincaId);
             setPaso("dibujando"); // ahora sí llega limpio
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (e: any) {
             console.error("Error completo:", e);
             toast.error("Error al guardar las coordenadas: " + (e.response?.data?.message || e.message));
@@ -557,12 +558,32 @@ const AgroMapaPage = () => {
         setGuardandoSeccion(true);
         try {
             const { default: api } = await import("../../api/Axios");
-            await api.post("/agro-seccion", {
+            // 1. Crear la sección
+            const resSeccion = await api.post("/agro-seccion", {
                 secc_nombre: seccionForm.secc_nombre.trim(),
                 fin_finca: fincaId,
                 secc_tipo_suelo: seccionForm.secc_tipo_suelo,
             });
+
+            // 2. Si hay datos de clima, crear también un registro climático para esta sección
+            const nuevaSeccionId = resSeccion.data?.seccion?.secc_seccion;
+            const tieneClima = climaForm.clim_temperatura !== "" || climaForm.clim_humedad_relativa !== "" || climaForm.clim_precipitacion !== "";
+            if (nuevaSeccionId && tieneClima) {
+                try {
+                    await api.post("/agro-clima", {
+                        clim_temperatura: climaForm.clim_temperatura !== "" ? Number(climaForm.clim_temperatura) : null,
+                        clim_humedad_relativa: climaForm.clim_humedad_relativa !== "" ? Number(climaForm.clim_humedad_relativa) : null,
+                        clim_precipitacion: climaForm.clim_precipitacion !== "" ? Number(climaForm.clim_precipitacion) : null,
+                        seccionId: nuevaSeccionId,
+                    });
+                    toast.success("Datos climáticos registrados para la sección.");
+                } catch {
+                    toast.warning("Sección creada, pero no se pudo guardar el clima.");
+                }
+            }
+
             setSeccionForm({ secc_nombre: "", secc_tipo_suelo: "" });
+            setClimaForm({ clim_temperatura: "", clim_humedad_relativa: "", clim_precipitacion: "" });
             // Recargar configuración para que aparezca la sección recién creada
             await cargarConfiguracion(fincaId);
         } catch {
@@ -757,17 +778,25 @@ const AgroMapaPage = () => {
 
             // ── 3. Datos climáticos (módulo predictivo) ───────────────────────────
             const climaRes = await getAgroClimas();
-            const climaRaw: unknown[] = climaRes.data?.climas ?? climaRes.data ?? [];
+            const climaRaw: any[] = climaRes.data?.climas ?? climaRes.data ?? [];
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const alertas_clima: ClimaticData[] = (climaRaw as any[]).map((c: any) => ({
-                humedad:       Number(c.clim_humedad_relativa ?? c.clim_humedad ?? c.humedad ?? 0),
-                temperatura:   Number(c.clim_temperatura ?? c.temperatura ?? 0),
-                precipitacion: Number(c.clim_precipitacion ?? c.precipitacion ?? 0),
-                fecha:         c.clim_fecha ?? c.fecha ?? "",
-                seccion_id:    Number(c.secc_seccion ?? c.seccion_id ?? 0),
-                seccion_nombre: c.secc_nombre ?? c.seccion_nombre,
-            }));
+            // IDs de secciones que pertenecen a esta finca (según árbo les cargados)
+            const seccionesEnFinca = new Set(arboles.map(a => a.seccion_id));
+
+            const alertas_clima: ClimaticData[] = climaRaw
+                .filter((c: any) => {
+                    const sid = Number(c.secc_seccion ?? c.seccion_id ?? 0);
+                    // Si tenemos secciones de la finca, filtramos; si no, mostramos todo
+                    return seccionesEnFinca.size === 0 || seccionesEnFinca.has(sid);
+                })
+                .map((c: any) => ({
+                    humedad:        Number(c.clim_humedad_relativa ?? c.humedad ?? 0),
+                    temperatura:    Number(c.clim_temperatura ?? c.temperatura ?? 0),
+                    precipitacion:  Number(c.clim_precipitacion ?? c.precipitacion ?? 0),
+                    fecha:          c.clim_fecha ?? c.fecha ?? "",
+                    seccion_id:     Number(c.secc_seccion ?? c.seccion_id ?? 0),
+                    seccion_nombre: c.secc_nombre ?? c.seccion_nombre ?? `Sección ${c.secc_seccion ?? ""}`,
+                }));
 
             const correlacionesMap = new Map<string, { condicion: string; riesgo: string; descripcion: string }>();
             for (const c of alertas_clima) {
@@ -886,7 +915,6 @@ const AgroMapaPage = () => {
                 L.latLng(a.lat, a.lng).distanceTo(L.latLng(enfermo.lat, enfermo.lng)) <= 10
             );
             if (estaEnCuarentena) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 return { ...a, estado: "Cuarentena" as any };
             }
         }
@@ -962,8 +990,6 @@ const AgroMapaPage = () => {
         }
         return sum;
     }, [puntosNuevos]);
-
-
 
     return (
         <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: 24, gap: 12 }}>
@@ -1056,9 +1082,6 @@ const AgroMapaPage = () => {
                             + Configurar terreno
                         </button>
                     )}
-                    
-
-
                     {estaEnWizard && (
                         <button onClick={resetWizard} style={{ ...btnOutline, color: "#c0392b", borderColor: "#c0392b" }}>
                             ✕ Cancelar
@@ -1252,8 +1275,9 @@ const AgroMapaPage = () => {
                         </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-                        <div style={{ flex: 2, minWidth: 180 }}>
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                        {/* ── Datos de la sección ── */}
+                        <div style={{ flex: 2, minWidth: 180, display: "flex", flexDirection: "column", gap: 4 }}>
                             <label style={labelStyle}>Nombre de la sección *</label>
                             <input
                                 type="text"
@@ -1272,17 +1296,53 @@ const AgroMapaPage = () => {
                                 style={{ ...inputStyle, width: "100%" }}
                             />
                         </div>
-                        <div style={{ display: "flex", gap: 8 }}>
-                            <button onClick={() => { setPaso("dibujando"); }} style={btnSecondary}>
-                                ← Volver
-                            </button>
-                            <button
-                                onClick={crearSeccionYContinuar}
-                                disabled={guardandoSeccion || !seccionForm.secc_nombre.trim()}
-                                style={{ ...btnPrimary, opacity: (!seccionForm.secc_nombre.trim() || guardandoSeccion) ? 0.6 : 1 }}>
-                                {guardandoSeccion ? "Creando..." : "Crear y continuar →"}
-                            </button>
+
+                        {/* ── Clima opcional ── */}
+                        <div style={{ flex: 2, minWidth: 200, display: "flex", flexDirection: "column", gap: 4 }}>
+                            <div style={{
+                                fontSize: 11, fontWeight: 700, color: "#4a7c59",
+                                textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2,
+                                display: "flex", alignItems: "center", gap: 6
+                            }}>
+                                🌡️ Condiciones climáticas <span style={{ fontWeight: 400, fontSize: 10, color: "#9aaa9a" }}>(opcionales)</span>
+                            </div>
+                            <label style={labelStyle}>Temperatura (°C)</label>
+                            <input
+                                type="number"
+                                value={climaForm.clim_temperatura}
+                                onChange={e => setClimaForm({ ...climaForm, clim_temperatura: e.target.value })}
+                                placeholder='Ej: 24.5'
+                                style={{ ...inputStyle, width: "100%" }}
+                            />
+                            <label style={labelStyle}>Humedad relativa (%)</label>
+                            <input
+                                type="number"
+                                value={climaForm.clim_humedad_relativa}
+                                onChange={e => setClimaForm({ ...climaForm, clim_humedad_relativa: e.target.value })}
+                                placeholder='Ej: 72'
+                                style={{ ...inputStyle, width: "100%" }}
+                            />
+                            <label style={labelStyle}>Precipitación (mm)</label>
+                            <input
+                                type="number"
+                                value={climaForm.clim_precipitacion}
+                                onChange={e => setClimaForm({ ...climaForm, clim_precipitacion: e.target.value })}
+                                placeholder='Ej: 5.0'
+                                style={{ ...inputStyle, width: "100%" }}
+                            />
                         </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                        <button onClick={() => { setPaso("dibujando"); }} style={btnSecondary}>
+                            ← Volver
+                        </button>
+                        <button
+                            onClick={crearSeccionYContinuar}
+                            disabled={guardandoSeccion || !seccionForm.secc_nombre.trim()}
+                            style={{ ...btnPrimary, opacity: (!seccionForm.secc_nombre.trim() || guardandoSeccion) ? 0.6 : 1 }}>
+                            {guardandoSeccion ? "Creando..." : "Crear y continuar →"}
+                        </button>
                     </div>
                 </WizardPanel>
             )}
@@ -1567,7 +1627,6 @@ const AgroMapaPage = () => {
                     />
                 )}
             </div>
-
         </div>
     );
 };

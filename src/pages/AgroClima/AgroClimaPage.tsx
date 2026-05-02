@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { CloudRain } from 'lucide-react'; 
 import CrudTabla, { type ColumnaConfig, type CampoFormulario } from '../../components/CrudTabla';
 import { useAgroClima } from './useAgroClima';
@@ -10,18 +10,27 @@ const columnas: ColumnaConfig[] = [
     { header: 'Temperatura (°C)', key: 'clim_temperatura' },
     { header: 'Humedad (%)', key: 'clim_humedad_relativa' },
     { header: 'Precipitación (mm)', key: 'clim_precipitacion' },
-    { header: 'ID Sección', key: 'seccionId' } // Asegúrate de que coincida con cómo lo devuelve tu backend
-];
-
-const campos: CampoFormulario[] = [
-    { key: 'clim_temperatura', label: 'Temperatura (°C)', tipo: 'number', placeholder: 'Ej. 24.5' },
-    { key: 'clim_humedad_relativa', label: 'Humedad Relativa (%)', tipo: 'number', placeholder: 'Ej. 65.2' },
-    { key: 'clim_precipitacion', label: 'Precipitación (mm)', tipo: 'number', placeholder: 'Ej. 12.0' },
-    { key: 'seccionId', label: 'ID de la Sección (AgroSeccion)', tipo: 'number', placeholder: 'Ej. 1' }
+    { header: 'Sección', key: 'secc_nombre' },
 ];
 
 const AgroClimaPage: React.FC = () => {
     const hookData = useAgroClima();
+
+    // Campos dinámicos: el select de sección usa las secciones reales de la BD
+    const campos = useMemo<CampoFormulario[]>(() => [
+        { key: 'clim_temperatura', label: 'Temperatura (°C)', tipo: 'number', placeholder: 'Ej. 24.5' },
+        { key: 'clim_humedad_relativa', label: 'Humedad Relativa (%)', tipo: 'number', placeholder: 'Ej. 65.2' },
+        { key: 'clim_precipitacion', label: 'Precipitación (mm)', tipo: 'number', placeholder: 'Ej. 12.0' },
+        {
+            key: 'seccionId',
+            label: 'Sección',
+            tipo: 'select',
+            opciones: hookData.secciones.map(s => ({
+                valor: String(s.secc_seccion),
+                label: s.fin_nombre ? `${s.secc_nombre} — ${s.fin_nombre}` : s.secc_nombre,
+            })),
+        },
+    ], [hookData.secciones]);
 
     return (
         <CrudTabla<AgroClima>
@@ -52,7 +61,7 @@ const AgroClimaPage: React.FC = () => {
             onEliminar={hookData.onEliminar}
             onGuardar={hookData.onGuardar}
             onCerrar={hookData.onCerrar}
-            labelEliminar="Eliminar" // Sobrescribimos el botón para que diga "Eliminar" en vez de "Desactivar"
+            labelEliminar="Eliminar"
         />
     );
 };
