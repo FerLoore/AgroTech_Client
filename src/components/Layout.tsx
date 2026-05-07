@@ -46,6 +46,7 @@ const MENU = [
             { label: "Alertas de Salud", ruta: "/agro-alerta-salud", icono: AlertTriangle },
             { label: "Análisis Lab", ruta: "/agro-analisis-laboratorio", icono: FlaskConical },
             { label: "Tratamientos", ruta: "/agro-tratamientos", icono: Syringe },
+            { label: "Reportería", ruta: "/reporteria", icono: ClipboardList },
             { label: "Timeline Árbol", ruta: "/agro-arbol-timeline", icono: History },
         ]
     },

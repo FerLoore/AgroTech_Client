@@ -9,6 +9,7 @@ import { getAgroUsuarios } from "../../api/AgroUsuario.api";
 import { getHistorial } from "../../api/AgroHistorial.api";
 import { getProductos } from "../../api/AgroProducto.api";
 import { getAlertas } from "../../api/AgroAlertaSalud.api";
+import { getReportes } from "../../api/AgroReportes.api";
 
 // ─── tipos mínimos para los datos del dashboard ───────────────────────────────
 interface FincaOption {
@@ -166,6 +167,7 @@ export default function HomeDashboardPage() {
   const [historialDb, setHistorialDb] = useState<any[]>([]);
   const [alertasDb, setAlertasDb] = useState<any[]>([]);
   const [productosDb, setProductosDb] = useState<any[]>([]);
+  const [reportesDb, setReportesDb] = useState<any[]>([]);
   const [vistaInventario, setVistaInventario] = useState<"arboles" | "productos">("arboles");
 
   const [mapaDataFinca, setMapaDataFinca] = useState<any>(null);
@@ -233,6 +235,11 @@ export default function HomeDashboardPage() {
         const alertas = await getAlertas();
         setAlertasDb(Array.isArray(alertas) ? alertas : (alertas?.alertas || []));
       } catch (e) { console.error("Error alertas", e); }
+
+      try {
+        const reportesData = await getReportes();
+        setReportesDb(reportesData?.reportes || []);
+      } catch (e) { console.error("Error reportes", e); }
     };
     cargarDashData();
 
@@ -530,8 +537,8 @@ export default function HomeDashboardPage() {
         </div>
       </div>
 
-      {/* ── BOTTOM GRID: historial + alertas ───────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      {/* ── BOTTOM GRID: historial + alertas + reportes ───────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
 
         {/* card ÚLTIMOS CAMBIOS DE ESTADO */}
         <div style={S.card}>
@@ -635,6 +642,63 @@ export default function HomeDashboardPage() {
                     <div style={{ fontSize: 12, color: "#1a1a1a", lineHeight: 1.35 }}>{a.descripcion} — árbol {a.arbol}</div>
                     <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>
                       Sección {a.seccion}{a.patogeno ? ` · ${a.patogeno}` : ""} · {a.cuando}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* card REPORTES RECIENTES */}
+        <div style={S.card}>
+          <div style={S.cardHd}>
+            <span style={S.cardTitle}>Reportes recientes</span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => navigate("/reporteria")}
+                style={{ ...S.cardLink, background: "#f0f7ec", color: "#27500A", border: "none" }}
+              >
+                + Nuevo
+              </button>
+              <span style={S.cardLink} onClick={() => navigate("/reporteria")}>ver todos →</span>
+            </div>
+          </div>
+
+          {reportesDb.length === 0 ? (
+            <div style={{
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              padding: "30px 10px", textAlign: "center", background: "#fcfdfe", borderRadius: 12, marginTop: 8, border: "1px dashed #d5e5d5"
+            }}>
+              <div style={{ background: "#eef5ee", borderRadius: "50%", padding: 12, marginBottom: 12 }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6ca66c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "#2d4a2d", marginBottom: 4 }}>Sin reportes</span>
+              <span style={{ fontSize: 11, color: "#9aaa9a", maxWidth: "80%", lineHeight: 1.4 }}>
+                Aún no hay reportes generados.
+              </span>
+            </div>
+          ) : (
+            reportesDb.slice(0, 5).map((r: any) => {
+              const rawDate = String(r.repo_fecha ?? "").split("T")[0];
+              const [y, m, d] = (rawDate || "2000-01-01").split("-");
+              return (
+                <div
+                  key={r.repo_reporte}
+                  onClick={() => navigate("/reporteria")}
+                  style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "9px 0", borderBottom: "0.5px solid #f8f4f0", cursor: "pointer" }}
+                >
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4a7c59", marginTop: 4, flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: 12, color: "#1a1a1a", lineHeight: 1.35 }}>{r.repo_tipo}</div>
+                    <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>
+                      {d}/{m}/{y} · Por {r.repo_usuario_nombre || "Sistema"}
                     </div>
                   </div>
                 </div>

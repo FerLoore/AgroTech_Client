@@ -12,13 +12,8 @@ import type { LatLng } from "leaflet";
 import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMapa.api";
 import type { Finca, ArbolMapa, PuntoPerimetro, SeccionStats } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
-import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, Flame, FileText } from "lucide-react";
+import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, Flame } from "lucide-react";
 import "leaflet.heat";
-import { generatePDF } from "../../reports/core/PDFGenerator";
-import AgroReportTemplate from "../../reports/templates/AgroReportTemplate";
-import type { AgroReportData, ChartsData, ClimaticData } from "../../reports/types/report.types";
-import { getAgroClimas } from "../../api/AgroClima.api";
-import html2canvas from "html2canvas";
 import { useRef } from "react";
 
 const { BaseLayer } = LayersControl;
@@ -698,211 +693,6 @@ const AgroMapaPage = () => {
         });
     };
 
-    // ─── Exportación PDF ──────────────────────────────────────
-    const exportarPDF = async () => {
-        if (!finca || isExporting) return;
-        setIsExporting(true);
-        toast.info("Generando reporte fitosanitario...", { duration: 2000 });
-
-        try {
-            // ── 1. Captura del mapa Leaflet ───────────────────────────────────────
-            const mapContainer = document.querySelector(".leaflet-container") as HTMLElement;
-            if (!mapContainer) throw new Error("Mapa no encontrado");
-
-            const mapCanvas = await html2canvas(mapContainer, {
-                useCORS: true,
-                logging: false,
-                scale: 1,
-            });
-            const snapshot = mapCanvas.toDataURL("image/png");
-
-            // ── 2. Alertas + análisis de laboratorio (gráficos) ──────────────────
-            let alertasSalud: Array<{
-                alertsalud_id: number;
-                arb_arbol: number;
-                descripcion_sintoma?: string;
-            }> = [];
-            let analisisLab: Array<{
-                alert_alerta_salud: number;
-                analab_fecha_resultado?: string | null;
-            }> = [];
-
-            try {
-                const { default: api } = await import("../../api/Axios");
-                const [resAlertas, resAnalisis] = await Promise.all([
-                    api.get("/agro-alerta-salud"),
-                    api.get("/agro-analisis-laboratorio"),
-                ]);
-                alertasSalud = Array.isArray(resAlertas.data)
-                    ? resAlertas.data
-                    : (resAlertas.data.alertas ?? []);
-                analisisLab = Array.isArray(resAnalisis.data)
-                    ? resAnalisis.data
-                    : (resAnalisis.data.analisis ?? resAnalisis.data ?? []);
-            } catch {
-                alertasSalud = [];
-                analisisLab  = [];
-            }
-
-            const idsDictaminadas = new Set(
-                analisisLab
-                    .filter(a => a.analab_fecha_resultado)
-                    .map(a => Number(a.alert_alerta_salud))
-            );
-
-            const idsArbolesEnFinca = new Set(arboles.map(a => a.id));
-            const alertasFinca = alertasSalud.filter(al => idsArbolesEnFinca.has(al.arb_arbol));
-            const alertasDictaminadasFinca = alertasFinca.filter(al => idsDictaminadas.has(al.alertsalud_id));
-
-            const conteoAlertasPorArbol = alertasFinca.reduce<Record<number, number>>(
-                (acc, al) => { acc[al.arb_arbol] = (acc[al.arb_arbol] ?? 0) + 1; return acc; },
-                {}
-            );
-            const top10Arboles = Object.entries(conteoAlertasPorArbol)
-                .sort(([, a], [, b]) => b - a).slice(0, 10)
-                .map(([idStr, totalAlertas]) => {
-                    const id = Number(idStr);
-                    const arb = arboles.find(a => a.id === id);
-                    return { arbol_id: id, referencia: arb?.referencia ?? `#${id}`, seccion: arb?.seccion_nombre ?? "—", surco: arb?.numero_surco ?? 0, totalAlertas, estado: arb?.estado ?? "—" };
-                });
-
-            const conteoSintomas = alertasDictaminadasFinca.reduce<Record<string, number>>(
-                (acc, al) => { const s = (al.descripcion_sintoma ?? "").trim().slice(0, 40) || "Sin descripción"; acc[s] = (acc[s] ?? 0) + 1; return acc; },
-                {}
-            );
-            const frecuenciaEnfermedades = Object.entries(conteoSintomas)
-                .sort(([, a], [, b]) => b - a).slice(0, 8)
-                .map(([nombre, cantidad]) => ({ nombre, cantidad }));
-
-            const charts: ChartsData = { top10Arboles, frecuenciaEnfermedades };
-
-            // ── 3. Datos climáticos (módulo predictivo) ───────────────────────────
-            const climaRes = await getAgroClimas();
-            const climaRaw: any[] = climaRes.data?.climas ?? climaRes.data ?? [];
-
-            // IDs de secciones que pertenecen a esta finca (según árbo les cargados)
-            const seccionesEnFinca = new Set(arboles.map(a => a.seccion_id));
-
-            const alertas_clima: ClimaticData[] = climaRaw
-                .filter((c: any) => {
-                    const sid = Number(c.secc_seccion ?? c.seccion_id ?? 0);
-                    // Si tenemos secciones de la finca, filtramos; si no, mostramos todo
-                    return seccionesEnFinca.size === 0 || seccionesEnFinca.has(sid);
-                })
-                .map((c: any) => ({
-                    humedad:        Number(c.clim_humedad_relativa ?? c.humedad ?? 0),
-                    temperatura:    Number(c.clim_temperatura ?? c.temperatura ?? 0),
-                    precipitacion:  Number(c.clim_precipitacion ?? c.precipitacion ?? 0),
-                    fecha:          c.clim_fecha ?? c.fecha ?? "",
-                    seccion_id:     Number(c.secc_seccion ?? c.seccion_id ?? 0),
-                    seccion_nombre: c.secc_nombre ?? c.seccion_nombre ?? `Sección ${c.secc_seccion ?? ""}`,
-                }));
-
-            const correlacionesMap = new Map<string, { condicion: string; riesgo: string; descripcion: string }>();
-            for (const c of alertas_clima) {
-                if (c.humedad > 80)       correlacionesMap.set("humedad-critica",  { condicion: "Humedad crítica",  riesgo: "alto",  descripcion: "Alta probabilidad de Roya en 3 días" });
-                else if (c.humedad >= 70) correlacionesMap.set("humedad-elevada",  { condicion: "Humedad elevada",  riesgo: "medio", descripcion: "Monitorear árboles en sección afectada" });
-                if (c.temperatura > 30)   correlacionesMap.set("temperatura-alta", { condicion: "Temperatura alta", riesgo: "medio", descripcion: "Condiciones favorables para plagas" });
-                if (c.precipitacion > 10) correlacionesMap.set("lluvia-intensa",   { condicion: "Lluvia intensa",   riesgo: "alto",  descripcion: "Riesgo de hongos y pudrición radicular" });
-            }
-
-            // ── 4. Objeto completo del reporte ────────────────────────────────────
-            const nuevoReportData: AgroReportData = {
-                finca: {
-                    id: finca.fin_finca,
-                    nombre: finca.fin_nombre,
-                    ubicacion: finca.fin_ubicacion,
-                },
-                fecha: new Date().toLocaleDateString("es-GT"),
-                autor: "Administrador AgroTech",
-
-                mapa: {
-                    snapshot,
-                    stats: renderPoligonos.map(p => ({
-                        seccion_id: p.seccionId,
-                        nombre: p.nombre,
-                        total: p.stats?.total ?? 0,
-                        enfermos: p.stats?.enfermos ?? 0,
-                        incidencia: p.incidencia,
-                    })),
-                    modo: mostrarHeatmap ? "Heatmap" : "Choropleth",
-                },
-
-                estadisticas: {
-                    totalArboles: arboles.length,
-                    totalSurcos: [...new Set(arboles.map(a => a.numero_surco))].length,
-                    totalSecciones: [...new Set(arboles.map(a => a.seccion_id))].length,
-                    arbolesEnfermos: arboles.filter(a => a.estado === "Enfermo").length,
-                    arbolesEnAlerta: arboles.filter(a => a.estado_sospechoso).length,
-                    distribucionEstados: [
-                        { estado: "Crecimiento", cantidad: arboles.filter(a => a.estado === "Crecimiento").length },
-                        { estado: "Produccion",  cantidad: arboles.filter(a => a.estado === "Produccion").length },
-                        { estado: "Enfermo",     cantidad: arboles.filter(a => a.estado === "Enfermo").length },
-                        { estado: "Muerto",      cantidad: arboles.filter(a => a.estado === "Muerto").length },
-                    ],
-                    surcosCriticos: seccionesStats
-                        .map(s => ({
-                            nombre: s.nombre,
-                            total: s.total,
-                            enfermos: s.enfermos,
-                            alertas: arboles.filter(a => a.seccion_id === s.seccion_id && a.estado_sospechoso).length,
-                        }))
-                        .filter(s => s.enfermos > 0 || s.alertas > 0)
-                        .sort((a, b) => (b.enfermos + b.alertas) - (a.enfermos + a.alertas))
-                        .slice(0, 5),
-                    arbolesSOspechosos: arboles
-                        .filter(a => a.estado_sospechoso)
-                        .map(a => {
-                            const siembra = new Date(a.fecha_siembra);
-                            const aniosTranscurridos = (Date.now() - siembra.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-                            const aniosEsperados = a.anios_produccion ?? 8;
-                            return {
-                                arbol_id: a.id,
-                                referencia: a.referencia,
-                                seccion: a.seccion_nombre,
-                                surco: a.numero_surco,
-                                variedad: a.variedad,
-                                fecha_siembra: a.fecha_siembra,
-                                anios_transcurridos: Math.round(aniosTranscurridos * 10) / 10,
-                                anios_esperados: aniosEsperados,
-                                exceso_anios: Math.round((aniosTranscurridos - aniosEsperados) * 10) / 10,
-                            };
-                        })
-                        .sort((a, b) => b.exceso_anios - a.exceso_anios)
-                        .slice(0, 20),
-                },
-
-                charts,
-
-                prediccion: {
-                    alertas_clima,
-                    correlaciones: Array.from(correlacionesMap.values()),
-                },
-            };
-
-            setReportData(nuevoReportData);
-
-            // ── 8. Renderizar template y generar PDF ──────────────────────────────
-            //       600 ms = suficiente para que React hidrate el template oculto
-            setTimeout(async () => {
-                if (reportRef.current) {
-                    const ok = await generatePDF(
-                        reportRef.current,
-                        `Reporte_Fitosanitario_${finca.fin_nombre.replace(/\s+/g, "_")}`,
-                    );
-                    if (ok) toast.success("✓ Reporte generado con éxito");
-                    else toast.error("Error al generar el PDF");
-                    setIsExporting(false);
-                }
-            }, 600);
-
-        } catch (err) {
-            console.error(err);
-            toast.error("Error al capturar el mapa para el reporte");
-            setIsExporting(false);
-        }
-    };
-
     // ─── Datos derivados ──────────────────────────────────────
     const seccionesUnicas = [...new Set(arboles.map(a => a.seccion_nombre))];
     const arbolesEnfermosBD = arboles.filter(a => a.estado === "Enfermo");
@@ -1046,18 +836,14 @@ const AgroMapaPage = () => {
                         {mostrarHeatmap ? "Ocultar Heatmap" : "Ver Heatmap de Focos"}
                     </button>
 
-                    <button
-                        onClick={exportarPDF}
-                        disabled={isExporting || !finca}
-                        style={{
-                            ...btnOutline,
-                            background: "#2d4a2d",
-                            color: "#fff", borderColor: "#2d4a2d",
-                            fontWeight: "bold", opacity: isExporting ? 0.7 : 1
-                        }}
-                    >
-                        <FileText size={14} style={{ display: "inline", marginRight: 4 }} />
-                        {isExporting ? "Generando..." : "Exportar PDF"}
+                    <button onClick={() => setMostrarHeatmap(v => !v)} style={{
+                        ...btnOutline,
+                        background: mostrarHeatmap ? "#f97316" : "transparent",
+                        color: mostrarHeatmap ? "#fff" : "#f97316", borderColor: "#f97316",
+                        fontWeight: "bold"
+                    }}>
+                        <Flame size={14} style={{ display: "inline", marginRight: 4 }} />
+                        {mostrarHeatmap ? "Ocultar Heatmap" : "Ver Heatmap de Focos"}
                     </button>
 
                     {filtroSeccion !== "all" && paso === "idle" && (

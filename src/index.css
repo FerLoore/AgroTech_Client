@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+.custom-agrotech-table .p-datatable-thead > tr > th {
+    background-color: #2D4A2D !important;
+    color: white !important;
+    padding: 1rem !important;
+    font-weight: 600 !important;
+}
+
+.custom-agrotech-table .p-datatable-tbody > tr:nth-child(even) {
+    background-color: #F0F5F0 !important;
+}
+
+.custom-agrotech-table .p-datatable-tbody > tr:nth-child(odd) {
+    background-color: white !important;
+}
+
+.custom-agrotech-table .p-datatable-tbody > tr > td {
+    padding: 1rem !important;
+}
