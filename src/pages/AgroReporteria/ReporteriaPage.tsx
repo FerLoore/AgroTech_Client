@@ -244,7 +244,7 @@ export default function ReporteriaPage() {
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24, marginBottom: 32 }}>
                         <Card style={{ borderRadius: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 20, padding: "8px 0" }}>
-                                <div style={{ background: "#f4f7f4", padding: 16, borderRadius: "50%", color: "#4a7c59" }}><i className="pi pi-tree" style={{ fontSize: 32 }}></i></div>
+                                <div style={{ background: "#f4f7f4", padding: 16, borderRadius: "50%", color: "#4a7c59" }}><i className="pi pi-list" style={{ fontSize: 32 }}></i></div>
                                 <div>
                                     <div style={{ fontSize: 14, color: "#666", fontWeight: 700, textTransform: "uppercase" }}>Árboles Filtrados</div>
                                     <div style={{ fontSize: 36, fontWeight: 900, color: "#1a1a1a" }}>{kpis.total}</div>
