@@ -1,5 +1,149 @@
 @import "tailwindcss";
 
+/* ─── Reset base ─────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Responsividad global — todas las vistas ───────────────── */
+/*
+  La estrategia es que el contenido principal NUNCA se
+  desborde horizontalmente. Cada vista usa padding adaptativo
+  según el ancho disponible. Las tablas hacen scroll horizontal
+  en pantallas pequeñas en lugar de romperse.
+*/
+
+/* Contenedor de página — controla ancho máximo y padding lateral */
+.page-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 32px;
+}
+
+/* Tablas: scroll horizontal en pantallas chicas */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Grids de KPIs — adaptativo, nunca desborda */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+/* Grid principal (mapa + panel lateral) */
+.main-split-grid {
+  display: grid;
+  grid-template-columns: 1fr minmax(260px, 340px);
+  gap: 16px;
+}
+
+/* Grid de tarjetas inferiores */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* Fila de filtros — siempre wrappea */
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ─── Breakpoint: tablets (< 1024px) ────────────────────────── */
+@media (max-width: 1024px) {
+  .page-container {
+    padding: 20px 20px;
+  }
+
+  .main-split-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Breakpoint: móviles (< 768px) ─────────────────────────── */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 16px 14px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .main-split-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Breakpoint: pantallas muy pequeñas (< 480px) ──────────── */
+@media (max-width: 480px) {
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ─── CrudTabla: tabla con scroll horizontal ─────────────────── */
+.crud-table-container {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgba(74,124,89,0.08);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.crud-table-container table {
+  width: 100%;
+  min-width: 600px;  /* evita que la tabla se comprima demasiado */
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+/* ─── Scrollbar personalizado (webkit) ───────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f0ece4;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c8d8c0;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a7c59;
+}
+
+/* ─── Sidebar / Layout: hide-scroll ─────────────────────────── */
+.hide-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── PrimeReact custom table (existente) ───────────────────── */
 .custom-agrotech-table .p-datatable-thead > tr > th {
     background-color: #2D4A2D !important;
     color: white !important;

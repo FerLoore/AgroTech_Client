@@ -20,12 +20,7 @@ interface FincaOption {
 }
 
 
-// ─── datos de ejemplo (reemplazar con llamadas API reales) ────────────────────
-const defaultFincas: FincaOption[] = [
-  { id: 1, nombre: "Cargando fincas...", color: "#4a7c59" },
-];
-
-// Se usarán estados de base de datos en su lugar
+// Sin datos quemados — se cargan 100% desde la base de datos
 
 // ─── helpers de badge ─────────────────────────────────────────────────────────
 const BADGE_STYLES: Record<string, { bg: string; color: string }> = {
@@ -156,8 +151,8 @@ function MapaPreview({ mapaData, cargandoMapa }: { mapaData: any, cargandoMapa: 
 export default function HomeDashboardPage() {
   const navigate = useNavigate();
 
-  const [fincas, setFincas] = useState<FincaOption[]>(defaultFincas);
-  const [fincaActiva, setFincaActiva] = useState<FincaOption>(defaultFincas[0]);
+  const [fincas, setFincas] = useState<FincaOption[]>([]);
+  const [fincaActiva, setFincaActiva] = useState<FincaOption | null>(null);
   const [ddVisible, setDdVisible] = useState(false);
   const [filtro, setFiltro] = useState<"todos" | "enfermo" | "produccion">("todos");
   const [saludo, setSaludo] = useState("Buen día");
@@ -346,11 +341,22 @@ export default function HomeDashboardPage() {
     cardLink: { fontSize: 11, color: "#4a7c59", cursor: "pointer", padding: "4px 10px", borderRadius: 6, border: "0.5px solid #c8d8c0" } as React.CSSProperties,
   };
 
+  if (fincaActiva === null && fincas.length === 0) {
+    return (
+      <div style={{ ...S.db, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <div style={{ textAlign: "center", color: "#7a9a7a" }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🌿</div>
+          <p style={{ fontSize: 15, fontWeight: 500 }}>Cargando panel...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={S.db} onClick={() => setDdVisible(false)}>
 
       {/* ── TOPBAR ─────────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
+      <div className="filters-row" style={{ justifyContent: "space-between", marginBottom: 22 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 500, color: "#2d4a2d" }}>{saludo}, {nombreUsuario}</div>
@@ -363,8 +369,8 @@ export default function HomeDashboardPage() {
               onClick={() => setDdVisible(!ddVisible)}
               style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "0.5px solid #cdd8c8", borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 13, color: "#2d4a2d", fontWeight: 500 }}
             >
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: fincaActiva.color, display: "inline-block" }} />
-              {fincaActiva.nombre}
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: fincaActiva?.color ?? "#4a7c59", display: "inline-block" }} />
+              {fincaActiva?.nombre ?? "Sin finca"}
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a7c59" strokeWidth="2.5" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg>
             </div>
             {ddVisible && (
@@ -373,7 +379,7 @@ export default function HomeDashboardPage() {
                   <div
                     key={f.id}
                     onClick={() => { setFincaActiva(f); setDdVisible(false); }}
-                    style={{ padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, color: "#2d4a2d", display: "flex", alignItems: "center", gap: 8, background: f.id === fincaActiva.id ? "#e8f3de" : "transparent", fontWeight: f.id === fincaActiva.id ? 500 : 400 }}
+                    style={{ padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, color: "#2d4a2d", display: "flex", alignItems: "center", gap: 8, background: f.id === fincaActiva?.id ? "#e8f3de" : "transparent", fontWeight: f.id === fincaActiva?.id ? 500 : 400 }}
                   >
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: f.color, display: "inline-block" }} />
                     {f.nombre}
@@ -398,7 +404,7 @@ export default function HomeDashboardPage() {
       </div>
 
       {/* ── MÉTRICAS KPI ───────────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0,1fr))", gap: 10, marginBottom: 18 }}>
+      <div className="kpi-grid" style={{ marginBottom: 18 }}>
         {kpisData.map((m) => (
           <div
             key={m.label}
@@ -423,7 +429,7 @@ export default function HomeDashboardPage() {
       </div>
 
       {/* ── MAIN GRID: mapa + inventario ───────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16, marginBottom: 16 }}>
+      <div className="main-split-grid" style={{ marginBottom: 16 }}>
 
         {/* card VISTA DE FINCA */}
         <div style={S.card}>
@@ -455,7 +461,7 @@ export default function HomeDashboardPage() {
                     if (arbolEnSeccion) ultimaSeccionNombre = arbolEnSeccion.seccion_nombre;
                   }
                 }
-                navigate("/agro-mapa", { state: { fincaId: fincaActiva.id, seccionNombre: ultimaSeccionNombre } });
+                navigate("/agro-mapa", { state: { fincaId: fincaActiva?.id, seccionNombre: ultimaSeccionNombre } });
               }}
               style={{
                 width: "100%",
@@ -538,7 +544,7 @@ export default function HomeDashboardPage() {
       </div>
 
       {/* ── BOTTOM GRID: historial + alertas + reportes ───────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+      <div className="cards-grid">
 
         {/* card ÚLTIMOS CAMBIOS DE ESTADO */}
         <div style={S.card}>

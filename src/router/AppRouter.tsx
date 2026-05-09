@@ -44,7 +44,6 @@ const AppRouter = () => {
                     <Route path="/agro-auditoria" element={<AgroAuditoriaPage />} />
                     <Route path="/agro-mapa" element={<AgroMapaPage />} />
                     <Route path="/agro-arbol-timeline" element={<ArbolTimelinePage />} />
-                    <Route path="/home-dashboard" element={<HomeDashboardPage />} />
                     <Route path="/reporteria" element={<ReporteriaPage />} />
                 </Routes>
             </Layout>

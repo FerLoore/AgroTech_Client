@@ -225,11 +225,8 @@ const CrudTabla = <T extends Record<string, unknown>>({
                     Los encabezados se generan desde el array COLUMNAS.
                     Las filas se generan iterando `datos` (ya filtrados).
                 ─────────────────────────────────────────────────── */}
-                <div style={{
-                    background: "#fff", borderRadius: 16, overflow: "hidden",
-                    boxShadow: "0 2px 16px rgba(74,124,89,0.08)"
-                }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                <div className="crud-table-container">
+                    <table>
                         <thead>
                             <tr style={{ background: "#e8f0e0" }}>
                                 {/* Encabezados dinámicos desde COLUMNAS */}
@@ -386,22 +383,27 @@ const CrudTabla = <T extends Record<string, unknown>>({
             {modal && onGuardar && onCerrar && (
                 <div style={{
                     position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-                    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    zIndex: 200, padding: "16px",
                 }}>
                     <div style={{
-                        background: "#fff", borderRadius: 20, padding: 32,
-                        width: "100%", maxWidth: 440,
-                        boxShadow: "0 8px 40px rgba(0,0,0,0.18)"
+                        background: "#fff", borderRadius: 20,
+                        width: "100%", maxWidth: "min(440px, 100%)",
+                        maxHeight: "90vh",
+                        display: "flex", flexDirection: "column",
+                        boxShadow: "0 8px 40px rgba(0,0,0,0.18)",
+                        overflow: "hidden",
                     }}>
-                        {/* Encabezado del modal */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+                        {/* Encabezado del modal — fijo arriba */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "24px 28px 0", flexShrink: 0 }}>
                             <Icono size={20} color="#4a7c59" />
                             <h2 style={{ fontSize: 18, fontWeight: 700, color: "#2d4a2d", margin: 0 }}>
-                                {/* editando != null = modo editar, null = modo crear */}
                                 {editando ? "Editar registro" : `Nuevo — ${titulo}`}
                             </h2>
                         </div>
 
+                        {/* Cuerpo con scroll si hay muchos campos */}
+                        <div style={{ flex: 1, overflowY: "auto", padding: "20px 28px", WebkitOverflowScrolling: "touch" as any }}>
                         {/* Inputs dinámicos desde CAMPOS */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                             {campos.map(campo => (
@@ -449,9 +451,15 @@ const CrudTabla = <T extends Record<string, unknown>>({
                             {/* Error de validación o de API — viene del hook */}
                             {formError && <p style={{ color: "#c0392b", fontSize: 12, margin: 0 }}>{formError}</p>}
                         </div>
+                        </div>{/* fin scroll body */}
 
-                        {/* Botones del modal */}
-                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 28 }}>
+                        {/* Botones del modal — fijos abajo */}
+                        <div style={{
+                            display: "flex", justifyContent: "flex-end", gap: 10,
+                            padding: "16px 28px 24px",
+                            borderTop: "1px solid #f0ece4",
+                            flexShrink: 0,
+                        }}>
                             <button onClick={onCerrar} style={{
                                 padding: "10px 20px", fontSize: 14, background: "#f0ece4",
                                 color: "#6b8c6b", border: "none", borderRadius: 10, cursor: "pointer"

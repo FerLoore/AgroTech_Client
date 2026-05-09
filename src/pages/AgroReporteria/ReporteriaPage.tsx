@@ -35,6 +35,8 @@ export default function ReporteriaPage() {
     const [loading, setLoading] = useState(false);
     
     const [showModal, setShowModal] = useState(false);
+    const [paginaReportes, setPaginaReportes] = useState(0);
+    const REPORTES_POR_PAGINA = 5;
     const contentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -57,12 +59,12 @@ export default function ReporteriaPage() {
                 setClimas(cliData);
                 setLoading(false);
             });
-            getReportes(Number(filtroFinca)).then(res => setReportes(res.reportes || []));
+            getReportes(Number(filtroFinca)).then(res => { setReportes(res.reportes || []); setPaginaReportes(0); });
         } else {
             setArboles([]);
             setAlertas([]);
             setClimas([]);
-            getReportes().then(res => setReportes(res.reportes || []));
+            getReportes().then(res => { setReportes(res.reportes || []); setPaginaReportes(0); });
         }
     }, [filtroFinca]);
 
@@ -384,8 +386,39 @@ export default function ReporteriaPage() {
 
             {/* TABLA HISTORIAL */}
             <div style={{ background: "white", padding: 20, borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", marginTop: 24 }}>
-                <h3 style={{ margin: "0 0 16px", color: "#2d4a2d", display: "flex", alignItems: "center", gap: 8 }}><i className="pi pi-list" style={{ fontSize: 20 }}></i> Historial de Reportes Generados</h3>
-                <DataTable value={reportes} emptyMessage="No hay reportes generados." size="normal" rowHover className="custom-agrotech-table">
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                    <h3 style={{ margin: 0, color: "#2d4a2d", display: "flex", alignItems: "center", gap: 8 }}>
+                        <i className="pi pi-list" style={{ fontSize: 20 }}></i>
+                        Historial de Reportes Generados
+                    </h3>
+                    <span style={{
+                        background: "#f0f7ec", color: "#2d4a2d",
+                        fontSize: 12, fontWeight: 600,
+                        padding: "4px 12px", borderRadius: 20,
+                        border: "1px solid #c8d8c0"
+                    }}>
+                        {reportes.length} {reportes.length === 1 ? "reporte" : "reportes"}
+                    </span>
+                </div>
+                <DataTable
+                    value={reportes}
+                    emptyMessage="No hay reportes generados."
+                    size="normal"
+                    rowHover
+                    className="custom-agrotech-table"
+                    paginator
+                    rows={REPORTES_POR_PAGINA}
+                    first={paginaReportes}
+                    onPage={(e) => setPaginaReportes(e.first)}
+                    paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+                    currentPageReportTemplate="Mostrando {first}–{last} de {totalRecords} reportes"
+                    paginatorLeft={
+                        <span style={{ fontSize: 12, color: "#7a9a7a", padding: "0 8px" }}>
+                            Mostrando {Math.min(paginaReportes + 1, reportes.length)}–{Math.min(paginaReportes + REPORTES_POR_PAGINA, reportes.length)} de {reportes.length}
+                        </span>
+                    }
+                    paginatorRight={<span />}
+                >
                     <Column field="repo_fecha" header="Fecha" body={(data) => new Date(data.repo_fecha).toLocaleString()}></Column>
                     <Column field="repo_tipo" header="Tipo"></Column>
                     <Column field="repo_usuario_nombre" header="Usuario"></Column>

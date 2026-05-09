@@ -10,6 +10,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import type { LatLng } from "leaflet";
 import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMapa.api";
+import { getArbolesEnCuarentena } from "../../api/AgroArbol.api";
 import type { Finca, ArbolMapa, PuntoPerimetro, SeccionStats } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
 import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, Flame } from "lucide-react";
@@ -335,6 +336,8 @@ const AgroMapaPage = () => {
     const [filtroEstado, setFiltroEstado] = useState("all");
     const [filtroSeccion, setFiltroSeccion] = useState(location.state?.seccionNombre || "all");
     const [cuarentena, setCuarentena] = useState(false);
+    const [cuarentenaIds, setCuarentenaIds] = useState<Set<number>>(new Set());
+    const [cargandoCuarentena, setCargandoCuarentena] = useState(false);
     const [modoReporte, setModoReporte] = useState(false);
     const [mostrarHeatmap, setMostrarHeatmap] = useState(false);
     const [seccionesStats, setSeccionesStats] = useState<SeccionStats[]>([]);
@@ -697,16 +700,11 @@ const AgroMapaPage = () => {
     const seccionesUnicas = [...new Set(arboles.map(a => a.seccion_nombre))];
     const arbolesEnfermosBD = arboles.filter(a => a.estado === "Enfermo");
 
-    // Lógica de Cuarentena Dinámica: todo árbol a <= 10m de un enfermo es Cuarentena (si está activado)
+    // Lógica de Cuarentena: usa los IDs calculados por el backend (Opción A)
     const arbolesConEstadoEfectivo = arboles.map(a => {
         if (a.estado === "Enfermo") return a;
-        if (cuarentena) {
-            const estaEnCuarentena = arbolesEnfermosBD.some(enfermo =>
-                L.latLng(a.lat, a.lng).distanceTo(L.latLng(enfermo.lat, enfermo.lng)) <= 10
-            );
-            if (estaEnCuarentena) {
-                return { ...a, estado: "Cuarentena" as any };
-            }
+        if (cuarentena && cuarentenaIds.has(a.id)) {
+            return { ...a, estado: "Cuarentena" as any };
         }
         return a;
     });
@@ -811,11 +809,35 @@ const AgroMapaPage = () => {
                             {e === "all" ? "Todos" : e}
                         </button>
                     ))}
-                    <button onClick={() => setCuarentena(v => !v)} style={{
-                        ...btnOutline,
-                        background: cuarentena ? "#c0392b" : "transparent",
-                        color: cuarentena ? "#fff" : "#c0392b", borderColor: "#c0392b",
-                    }}>Cuarentena</button>
+                    <button
+                        onClick={async () => {
+                            const next = !cuarentena;
+                            setCuarentena(next);
+                            if (next && fincaId) {
+                                setCargandoCuarentena(true);
+                                try {
+                                    const ids = await getArbolesEnCuarentena(fincaId);
+                                    setCuarentenaIds(new Set(ids));
+                                } catch {
+                                    toast.error("Error al calcular cuarentena desde el servidor");
+                                    setCuarentenaIds(new Set());
+                                } finally {
+                                    setCargandoCuarentena(false);
+                                }
+                            } else {
+                                setCuarentenaIds(new Set());
+                            }
+                        }}
+                        disabled={cargandoCuarentena}
+                        style={{
+                            ...btnOutline,
+                            background: cuarentena ? "#c0392b" : "transparent",
+                            color: cuarentena ? "#fff" : "#c0392b", borderColor: "#c0392b",
+                            opacity: cargandoCuarentena ? 0.6 : 1,
+                        }}
+                    >
+                        {cargandoCuarentena ? "Calculando..." : "Cuarentena"}
+                    </button>
 
                     <button onClick={() => setModoReporte(v => !v)} style={{
                         ...btnOutline,
@@ -824,16 +846,6 @@ const AgroMapaPage = () => {
                         fontWeight: "bold"
                     }}>
                         {modoReporte ? "📊 Ver Mapa Normal" : "🩺 Modo Reporte Salud"}
-                    </button>
-
-                    <button onClick={() => setMostrarHeatmap(v => !v)} style={{
-                        ...btnOutline,
-                        background: mostrarHeatmap ? "#f97316" : "transparent",
-                        color: mostrarHeatmap ? "#fff" : "#f97316", borderColor: "#f97316",
-                        fontWeight: "bold"
-                    }}>
-                        <Flame size={14} style={{ display: "inline", marginRight: 4 }} />
-                        {mostrarHeatmap ? "Ocultar Heatmap" : "Ver Heatmap de Focos"}
                     </button>
 
                     <button onClick={() => setMostrarHeatmap(v => !v)} style={{

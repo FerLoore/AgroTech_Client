@@ -41,3 +41,10 @@ export const deleteArbol = async (id: number) => {
     const res = await api.delete(`/agro-arboles/${id}`);
     return res.data;
 };
+
+// GET cuarentena — Opción A (solo lectura, sin escribir en BD)
+// Devuelve los IDs de árboles que están a ≤ 10m de un árbol enfermo
+export const getArbolesEnCuarentena = async (fincaId: number): Promise<number[]> => {
+    const res = await api.get(`/agro-arboles/cuarentena/${fincaId}`);
+    return res.data.arboles_cuarentena ?? [];
+};

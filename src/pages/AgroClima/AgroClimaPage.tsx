@@ -6,7 +6,20 @@ import type { AgroClima } from './AgroClima.types';
 
 const columnas: ColumnaConfig[] = [
     { header: 'ID', key: 'clim_clima' },
-    { header: 'Fecha', key: 'clim_fecha' },
+    {
+        header: 'Fecha',
+        key: 'clim_fecha',
+        render: (valor) => {
+            if (!valor) return '—';
+            const fecha = new Date(valor);
+            if (isNaN(fecha.getTime())) return String(valor);
+            return fecha.toLocaleDateString('es-GT', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+            });
+        }
+    },
     { header: 'Temperatura (°C)', key: 'clim_temperatura' },
     { header: 'Humedad (%)', key: 'clim_humedad_relativa' },
     { header: 'Precipitación (mm)', key: 'clim_precipitacion' },
