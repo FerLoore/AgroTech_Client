@@ -54,7 +54,7 @@ export interface MapaFincaResponse {
 export const COLORES_ESTADO: Record<string, string> = {
     Produccion: "#185FA5",
     Crecimiento: "#4a7c59",
-    Enfermo: "#c0392b",
+    Enfermo: "#d89924ff",
     Muerto: "#333333",
     Cuarentena: "#c0392b",
 };

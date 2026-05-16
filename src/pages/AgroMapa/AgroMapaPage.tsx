@@ -1228,7 +1228,7 @@ const AgroMapaPage = () => {
                 {[
                     { label: "Total", val: stats.total, color: "#2d4a2d" },
                     { label: "Producción", val: stats.produccion, color: "#185FA5" },
-                    { label: "Enfermos", val: stats.enfermos, color: "#c0392b" },
+                    { label: "Enfermos", val: stats.enfermos, color: "#d89911ff" },
                     { label: "Crecimiento", val: stats.crecimiento, color: "#4a7c59" },
                     ...(cuarentena ? [{ label: "Cuarentena", val: stats.cuarentena, color: "#c0392b" }] : []),
                 ].map(s => (
@@ -1375,6 +1375,16 @@ const AgroMapaPage = () => {
                                         </tbody>
                                     </table>
                                     <button onClick={() => navigate(`/agro-alerta-salud?nuevoArbol=${arbol.id}`)} style={popupBtnStyle}>+ Nueva alerta</button>
+                                    <button
+                                        onClick={() => navigate("/agro-arbol-timeline", { state: { arbolId: String(arbol.id) } })}
+                                        style={{
+                                            ...popupBtnStyle,
+                                            marginTop: 6,
+                                            background: "linear-gradient(135deg, #4a7c59 0%, #2d6a4a 100%)",
+                                        }}
+                                    >
+                                        🕒 Ver timeline
+                                    </button>
                                     {arbol.estado === "Crecimiento" && (
                                         <button
                                             onClick={() => pasarAProduccion(arbol.id)}
