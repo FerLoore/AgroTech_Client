@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { getAgroFincas } from "../../api/AgroFinca.api";
 import { getAlertas } from "../../api/AgroAlertaSalud.api";
 import { getMapaFinca } from "../../api/agroFincaMapa.api";
@@ -6,7 +6,7 @@ import { getAgroClimas } from "../../api/AgroClima.api";
 import { getReportes, deleteReporte, downloadReportePdf } from "../../api/AgroReportes.api";
 import { toast } from "sonner";
 import NuevoReporteModal from "./NuevoReporteModal";
-import api from "../../api/Axios";
+
 
 import { Dropdown } from "primereact/dropdown";
 import { Chart } from "primereact/chart";
@@ -30,7 +30,7 @@ export default function ReporteriaPage() {
 
     const [arboles, setArboles] = useState<any[]>([]);
     const [alertas, setAlertas] = useState<any[]>([]);
-    const [climas, setClimas] = useState<any[]>([]);
+    const [, setClimas] = useState<any[]>([]);
     const [reportes, setReportes] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     
@@ -48,9 +48,9 @@ export default function ReporteriaPage() {
         if (filtroFinca !== "all") {
             setLoading(true);
             Promise.all([
-                getMapaFinca(Number(filtroFinca)).catch(() => ({})),
-                getAlertas().catch(() => ({})),
-                getAgroClimas().catch(() => ({}))
+                getMapaFinca(Number(filtroFinca)).catch(() => ({ arboles: [] } as { arboles: any[] })),
+                getAlertas().catch(() => ({ data: { alertas: [] } } as { data: { alertas: any[]; [k: string]: any } })),
+                getAgroClimas().catch(() => ({ data: { climas: [] } } as { data: { climas: any[]; [k: string]: any } }))
             ]).then(([mapRes, alRes, cliRes]) => {
                 setArboles(mapRes?.arboles || []);
                 const alData = Array.isArray(alRes) ? alRes : (alRes?.data?.alertas || alRes?.data || []);
@@ -96,7 +96,7 @@ export default function ReporteriaPage() {
         
         const labels = Object.keys(conteo);
         const data = Object.values(conteo);
-        const documentStyle = getComputedStyle(document.documentElement);
+
         
         return {
             labels,
@@ -365,7 +365,7 @@ export default function ReporteriaPage() {
                                 <div style={{ background: "#f4f7f4", padding: "10px 16px", borderBottom: "1px solid #eaeaea" }}>
                                     <h4 style={{ margin: 0, color: "#444", fontSize: 14 }}>Secciones que Requieren Atención</h4>
                                 </div>
-                                <DataTable value={seccionesAtencion} emptyMessage="No hay secciones con árboles enfermos." size="small" rowHover className="custom-agrotech-table">
+                                <DataTable value={seccionesAtencion as any[]} emptyMessage="No hay secciones con árboles enfermos." size="small" rowHover className="custom-agrotech-table">
                                     <Column field="nombre" header="Sección" body={(data) => <span style={{ fontWeight: 600 }}>{data.nombre}</span>}></Column>
                                     <Column field="total" header="Total" align="center"></Column>
                                     <Column field="enfermos" header="Enf." body={(data) => <span style={{ fontWeight: "bold", color: "#e67e22" }}>{data.enfermos}</span>} align="center"></Column>

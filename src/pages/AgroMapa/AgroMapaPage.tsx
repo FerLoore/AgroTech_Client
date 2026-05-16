@@ -10,12 +10,12 @@ import {
 import "leaflet/dist/leaflet.css";
 import type { LatLng } from "leaflet";
 import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMapa.api";
-import { getArbolesEnCuarentena } from "../../api/AgroArbol.api";
+import { getArbolesEnCuarentena, updateArbol } from "../../api/AgroArbol.api";
 import type { Finca, ArbolMapa, PuntoPerimetro, SeccionStats } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
 import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, Flame } from "lucide-react";
 import "leaflet.heat";
-import { useRef } from "react";
+
 
 const { BaseLayer } = LayersControl;
 
@@ -315,9 +315,6 @@ const WizardPanel = ({
 const AgroMapaPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const reportRef = useRef<HTMLDivElement>(null);
-    const [isExporting, setIsExporting] = useState(false);
-    const [reportData, setReportData] = useState<AgroReportData | null>(null);
 
     // ── Datos generales ──────────────────────────────────────
     const [fincas, setFincas] = useState<Finca[]>([]);
@@ -696,9 +693,22 @@ const AgroMapaPage = () => {
         });
     };
 
+    // ─── Pasar árbol a Producción ─────────────────────────────
+    const pasarAProduccion = async (arbolId: number) => {
+        try {
+            await updateArbol(arbolId, { arb_estado: "Produccion" });
+            // Actualización optimista en memoria
+            setArboles(prev => prev.map(a =>
+                a.id === arbolId ? { ...a, estado: "Produccion" } : a
+            ));
+            toast.success("✓ Árbol marcado como Productivo");
+        } catch {
+            toast.error("Error al actualizar el estado del árbol");
+        }
+    };
+
     // ─── Datos derivados ──────────────────────────────────────
     const seccionesUnicas = [...new Set(arboles.map(a => a.seccion_nombre))];
-    const arbolesEnfermosBD = arboles.filter(a => a.estado === "Enfermo");
 
     // Lógica de Cuarentena: usa los IDs calculados por el backend (Opción A)
     const arbolesConEstadoEfectivo = arboles.map(a => {
@@ -1365,6 +1375,18 @@ const AgroMapaPage = () => {
                                         </tbody>
                                     </table>
                                     <button onClick={() => navigate(`/agro-alerta-salud?nuevoArbol=${arbol.id}`)} style={popupBtnStyle}>+ Nueva alerta</button>
+                                    {arbol.estado === "Crecimiento" && (
+                                        <button
+                                            onClick={() => pasarAProduccion(arbol.id)}
+                                            style={{
+                                                ...popupBtnStyle,
+                                                marginTop: 6,
+                                                background: "linear-gradient(135deg, #185FA5 0%, #2980b9 100%)",
+                                            }}
+                                        >
+                                            Productivo
+                                        </button>
+                                    )}
                                 </div>
                             </Popup>
                         </CircleMarker>
@@ -1416,15 +1438,7 @@ const AgroMapaPage = () => {
                 )}
             </div>
 
-            {/* ── TEMPLATE OCULTO PARA PDF ── */}
-            <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
-                {reportData && (
-                    <AgroReportTemplate
-                        ref={reportRef}
-                        data={reportData}
-                    />
-                )}
-            </div>
+
         </div>
     );
 };
