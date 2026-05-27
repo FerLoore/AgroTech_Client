@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 
 
 const CAMPOS = (opcionesTipoArbol: any[], opcionesSecciones: any[], opcionesSurcos: any[]): CampoFormulario[] => [
-    { key: "arb_posicion_surco", label: "Posición", tipo: "number", requerido: true },
+    { key: "arb_posicion_surco", label: "Posición", tipo: "number", requerido: true, rule: "numero" },
     { key: "arb_fecha_siembra", label: "Fecha Siembra", tipo: "date", requerido: true },
     {
         key: "tipar_tipo_arbol", label: "Tipo Árbol", tipo: "select", requerido: true,

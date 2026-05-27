@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FlaskConical, ClipboardCheck, TreePine, AlertCircle, Database, Pencil, Filter, Trash2 } from "lucide-react";
 import { useRegistroAnalisis } from "./useRegistroAnalisis";
+import Input from "../../components/Input";
 
 // ── Estilos compartidos ───────────────────────────────────────
 const INPUT_CLS = "w-full mt-1.5 px-3 py-2.5 text-sm border-[1.5px] border-[#c8d8c0] rounded-lg bg-[#f9f6f0] text-[#2d4a2d] outline-none focus:border-[#4a7c59] transition-colors";
@@ -232,12 +233,13 @@ const AgroAnalisisLaboratorioPage = () => {
                                         {/* Laboratorio */}
                                         <div className="col-span-2">
                                             <label className={LABEL_CLS}>Nombre del laboratorio *</label>
-                                            <input
+                                            <Input
                                                 type="text"
                                                 value={form.analab_laboratorio_nombre}
                                                 onChange={e => setForm({ ...form, analab_laboratorio_nombre: e.target.value })}
                                                 placeholder="Ej. Laboratorio Flores"
                                                 className={INPUT_CLS}
+                                                rule="texto_descriptivo"
                                             />
                                         </div>
 
@@ -269,12 +271,13 @@ const AgroAnalisisLaboratorioPage = () => {
                                                 <div className="flex flex-col gap-3 mt-3">
                                                     <div>
                                                         <label className={LABEL_CLS}>Nombre del patógeno *</label>
-                                                        <input
+                                                        <Input
                                                             type="text"
                                                             value={patogenoCustom}
                                                             onChange={e => setPatogenoCustom(e.target.value)}
                                                             placeholder="Ej: Fusarium, Mosca blanca..."
                                                             className={INPUT_CLS}
+                                                            rule="texto_descriptivo"
                                                             autoFocus
                                                         />
                                                     </div>
@@ -297,22 +300,24 @@ const AgroAnalisisLaboratorioPage = () => {
                                         {/* Fecha envío */}
                                         <div>
                                             <label className={LABEL_CLS}>Fecha de envío *</label>
-                                            <input
+                                            <Input
                                                 type="date"
                                                 value={form.analab_fecha_envio}
                                                 onChange={e => setForm({ ...form, analab_fecha_envio: e.target.value })}
                                                 className={INPUT_CLS}
+                                                rule="fecha"
                                             />
                                         </div>
 
                                         {/* Fecha resultado */}
                                         <div>
                                             <label className={LABEL_CLS}>Fecha de resultado</label>
-                                            <input
+                                            <Input
                                                 type="date"
                                                 value={form.analab_fecha_resultado}
                                                 onChange={e => setForm({ ...form, analab_fecha_resultado: e.target.value })}
                                                 className={INPUT_CLS}
+                                                rule="fecha"
                                             />
                                         </div>
 

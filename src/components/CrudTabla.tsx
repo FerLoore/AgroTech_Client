@@ -14,9 +14,11 @@
 //   3. Pasar el estado y funciones del hook
 // ============================================================
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import Input from "./Input";
+import { FIELD_RULES } from "../utils/inputRules";
 
 // ============================================================
 // TIPOS EXPORTADOS
@@ -29,10 +31,13 @@ import type { LucideIcon } from "lucide-react";
 export interface CampoFormulario {
     key: string;                                      // nombre del campo en el form (ej: "rol_nombre")
     label: string;                                      // texto encima del input
-    tipo: "text" | "number" | "select" | "textarea" | "date";  // tipo de input a renderizar
+    tipo: "text" | "number" | "select" | "textarea" | "date" | "email" | "password" | "tel";  // tipo de input a renderizar
     placeholder?: string;                                      // texto de ayuda dentro del input
     opciones?: { valor: string; label: string }[];          // solo para tipo "select"
     requerido?: boolean;                                     // marca visual (la validación real va en el hook)
+    allowSpecial?: boolean;                                  // data-allow-special="true"
+    textareaFree?: boolean;                                  // data-type="textarea-free"
+    rule?: string;                                           // data-rule for custom input rules validation
 }
 
 // ------------------------------------------------------------
@@ -133,9 +138,41 @@ const CrudTabla = <T extends Record<string, unknown>>({
     page, totalPages, onNextPage, onPrevPage
 }: CrudTablaProps<T>) => {
 
-    // Estado local — solo afecta el hover visual de las filas
-    // No necesita vivir en el hook porque no impacta la lógica de negocio
-    const [hoveredRow, setHoveredRow] = useState<unknown>(null);
+     // Estado local — solo afecta el hover visual de las filas
+     // No necesita vivir en el hook porque no impacta la lógica de negocio
+     const [hoveredRow, setHoveredRow] = useState<unknown>(null);
+     const [localFormError, setLocalFormError] = useState<string>("");
+
+     // Clear local error when form values change or modal closes/opens
+     useEffect(() => {
+         setLocalFormError("");
+     }, [form, modal]);
+
+     const handleGuardarConValidacion = () => {
+         setLocalFormError("");
+
+         for (const campo of campos) {
+             const valor = String(form[campo.key] ?? "").trim();
+
+             if (campo.requerido && !valor) {
+                 setLocalFormError(`El campo "${campo.label}" es obligatorio.`);
+                 return;
+             }
+
+             if (campo.rule && valor) {
+                 const ruleConfig = FIELD_RULES[campo.rule];
+                 if (ruleConfig) {
+                     const testRegex = new RegExp(ruleConfig.allowed);
+                     if (!testRegex.test(valor)) {
+                         setLocalFormError(`El campo "${campo.label}" es inválido. ${ruleConfig.errorMsg}`);
+                         return;
+                     }
+                 }
+             }
+         }
+
+         onGuardar?.();
+     };
 
     // ── Estados de carga y error ──────────────────────────────
     // Se muestran en lugar de la tabla completa
@@ -172,8 +209,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
                         <div>
                             <h1 style={{ fontSize: 24, fontWeight: 700, color: "#2d4a2d", margin: 0 }}>{titulo}</h1>
                             <p style={{ fontSize: 13, color: "#7a9a7a", marginTop: 2 }}>
-
-
+                                {subtitulo}
                             </p>
                             {onHistorial && (
                                 <p style={{ fontSize: 13, color: "#575757ff", margin: "4px 0 0" }}>
@@ -427,29 +463,24 @@ const CrudTabla = <T extends Record<string, unknown>>({
                                                 <option key={op.valor} value={op.valor}>{op.label}</option>
                                             ))}
                                         </select>
-                                    ) : campo.tipo === "textarea" ? (
-                                        <textarea
-                                            value={String(form[campo.key] ?? "")}
-                                            onChange={e => setForm({ ...form, [campo.key]: e.target.value })}
-                                            placeholder={campo.placeholder}
-                                            rows={3}
-                                            style={{ ...inputStyle, resize: "vertical" }}
-                                        />
                                     ) : (
-                                        // "text" o "number"
-                                        <input
+                                        <Input
                                             type={campo.tipo}
                                             value={String(form[campo.key] ?? "")}
                                             onChange={e => setForm({ ...form, [campo.key]: e.target.value })}
                                             placeholder={campo.placeholder}
-                                            style={inputStyle}
+                                            style={campo.tipo === "textarea" ? { ...inputStyle, resize: "vertical" } : inputStyle}
+                                            rows={campo.tipo === "textarea" ? 3 : undefined}
+                                            allowSpecial={campo.allowSpecial}
+                                            textareaFree={campo.textareaFree}
+                                            rule={campo.rule}
                                         />
                                     )}
                                 </div>
                             ))}
 
-                            {/* Error de validación o de API — viene del hook */}
-                            {formError && <p style={{ color: "#c0392b", fontSize: 12, margin: 0 }}>{formError}</p>}
+                            {/* Error de validación o de API — viene del hook o local */}
+                            {(localFormError || formError) && <p style={{ color: "#c0392b", fontSize: 12, margin: 0 }}>{localFormError || formError}</p>}
                         </div>
                         </div>{/* fin scroll body */}
 
@@ -464,7 +495,7 @@ const CrudTabla = <T extends Record<string, unknown>>({
                                 padding: "10px 20px", fontSize: 14, background: "#f0ece4",
                                 color: "#6b8c6b", border: "none", borderRadius: 10, cursor: "pointer"
                             }}>Cancelar</button>
-                            <button onClick={onGuardar} disabled={guardando} style={{
+                            <button onClick={handleGuardarConValidacion} disabled={guardando} style={{
                                 padding: "10px 20px", fontSize: 14, background: "#4a7c59",
                                 color: "#fff", border: "none", borderRadius: 10,
                                 fontWeight: 600, cursor: "pointer",

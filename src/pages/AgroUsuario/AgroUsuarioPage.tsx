@@ -33,14 +33,14 @@ const AgroUsuarioPage: React.FC = () => {
     ], [hookData.roles]);
 
     const campos = useMemo<CampoFormulario[]>(() => [
-        { key: 'usu_nombre', label: 'Nombre Completo', tipo: 'text', placeholder: 'Ej. Juan Pérez' },
+        { key: 'usu_nombre', label: 'Nombre Completo', tipo: 'text', placeholder: 'Ej. Juan Pérez', rule: 'nombre_persona' },
         {
             key: 'rol_rol',
             label: 'Rol',
             tipo: 'select',
             opciones: hookData.roles.map(r => ({ valor: String(r.rol_rol), label: r.rol_nombre })),
         },
-        { key: 'usu_especialidad', label: 'Especialidad', tipo: 'text', placeholder: 'Ej. Agrónomo' },
+        { key: 'usu_especialidad', label: 'Especialidad', tipo: 'text', placeholder: 'Ej. Agrónomo', rule: 'texto_descriptivo' },
     ], [hookData.roles]);
 
     return (

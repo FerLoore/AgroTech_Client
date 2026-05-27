@@ -54,13 +54,15 @@ const CAMPOS: CampoFormulario[] = [
         label:       "Nombre",
         tipo:        "text",
         placeholder: "Ej: Auditor",
-        requerido:   true
+        requerido:   true,
+        rule:        "nombre_rol"
     },
     {
         key:         "rol_descripcion",
         label:       "Descripción",
         tipo:        "text",
-        placeholder: "Descripción opcional"
+        placeholder: "Descripción opcional",
+        rule:        "texto_descriptivo"
     },
     {
         key:       "rol_permiso",

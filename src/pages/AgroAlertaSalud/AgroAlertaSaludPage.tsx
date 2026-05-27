@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TriangleAlert, Plus, Pencil, Trash2, FlaskConical } from "lucide-react";
 import { useAgroAlertaSalud } from "./UseAgroAlertaSalud";
 import type { EstadoAlerta } from "./UseAgroAlertaSalud";
 import { createAnalisisLaboratorio } from "../../api/agroAnalisisLaboratorio.api";
 import { toast } from "sonner";
+import Input from "../../components/Input";
+import { FIELD_RULES } from "../../utils/inputRules";
 
 // ── Badge por estado ──────────────────────────────────────────
 const ESTADO_BADGE: Record<EstadoAlerta, { clase: string }> = {
@@ -47,6 +49,38 @@ const AgroAlertaSaludPage = () => {
     const [pagina,        setPagina]        = useState(1);
     const POR_PAGINA = 10;
 
+    const [localFormError, setLocalFormError] = useState<string>("");
+
+    useEffect(() => {
+        setLocalFormError("");
+    }, [form, modal]);
+
+    const handleGuardarConValidacion = () => {
+        setLocalFormError("");
+
+        for (const campo of CAMPOS) {
+            const valor = String((form as any)[campo.key] ?? "").trim();
+
+            if (campo.requerido && !valor) {
+                setLocalFormError(`El campo "${campo.label}" es obligatorio.`);
+                return;
+            }
+
+            if ("rule" in campo && campo.rule && valor) {
+                const ruleConfig = FIELD_RULES[campo.rule];
+                if (ruleConfig) {
+                    const testRegex = new RegExp(ruleConfig.allowed);
+                    if (!testRegex.test(valor)) {
+                        setLocalFormError(`El campo "${campo.label}" es inválido. ${ruleConfig.errorMsg}`);
+                        return;
+                    }
+                }
+            }
+        }
+
+        handleGuardar();
+    };
+
     const hoy = () => new Date().toISOString().split("T")[0];
 
     const handleEnviarALab = async (alertsalud_id: number) => {
@@ -86,8 +120,8 @@ const AgroAlertaSaludPage = () => {
     // Campos del formulario modal
     const CAMPOS = [
         { key: "alertsalud_fecha_deteccion",     label: "Fecha de detección",  tipo: "date",   requerido: true  },
-        { key: "alertsalud_descripcion_sintoma",  label: "Descripción síntoma", tipo: "text",   placeholder: "Ej: Hojas con manchas", requerido: false },
-        { key: "alertsalud_foto",                label: "Foto",                 tipo: "text",   placeholder: "Ej: foto.jpg", requerido: false },
+        { key: "alertsalud_descripcion_sintoma",  label: "Descripción síntoma", tipo: "text",   placeholder: "Ej: Hojas con manchas", requerido: false, rule: "texto_descriptivo" },
+        { key: "alertsalud_foto",                label: "Foto",                 tipo: "text",   placeholder: "Ej: foto.jpg", requerido: false, rule: "texto_descriptivo" },
         { key: "arb_arbol",   label: "Árbol",   tipo: "select", requerido: true, opciones: opcionesArboles  },
         { key: "usu_usuario", label: "Usuario", tipo: "select", requerido: true, opciones: opcionesUsuarios },
     ] as const;
@@ -352,19 +386,20 @@ const AgroAlertaSaludPage = () => {
                                             ))}
                                         </select>
                                     ) : (
-                                        <input
+                                        <Input
                                             type={campo.tipo}
                                             value={String((form as any)[campo.key] ?? "")}
                                             onChange={e => setForm({ ...form, [campo.key]: e.target.value } as any)}
                                             placeholder={"placeholder" in campo ? campo.placeholder : undefined}
                                             className={INPUT_CLS}
+                                            rule={"rule" in campo ? campo.rule : undefined}
                                         />
                                     )}
                                 </div>
                             ))}
 
-                            {formError && (
-                                <p className="text-red-600 text-xs m-0">{formError}</p>
+                            {(localFormError || formError) && (
+                                <p className="text-red-600 text-xs m-0">{localFormError || formError}</p>
                             )}
                         </div>
 
@@ -377,7 +412,7 @@ const AgroAlertaSaludPage = () => {
                                 Cancelar
                             </button>
                             <button
-                                onClick={handleGuardar}
+                                onClick={handleGuardarConValidacion}
                                 disabled={guardando}
                                 className="px-5 py-2.5 text-sm font-semibold bg-[#4a7c59] text-white rounded-[10px] border-none cursor-pointer hover:bg-[#3d6b4a] transition-colors disabled:opacity-60"
                             >

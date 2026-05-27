@@ -6,6 +6,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { History, Sprout, RefreshCw, AlertTriangle, FlaskConical, TreePine, ChevronDown, Search } from "lucide-react";
+import Input from "../../components/Input";
 import { useArbolTimeline } from "./useArbolTimeline";
 import type { TipoEvento } from "./useArbolTimeline";
 import { calcularEdad } from "../AgroArbol/useAgroArbol";
@@ -136,15 +137,15 @@ const TreeSelect = ({ arbolId, setArbolId, opcionesArboles }: { arbolId: string,
                     {/* Buscador interno */}
                     <div className="p-3 border-b border-[#f0ece4] flex gap-3 items-center bg-[#fdfdfc]">
                         <Search size={16} className="text-[#aaa] shrink-0" />
-                        <input 
-                            type="text" 
-                            className="w-full bg-transparent border-none outline-none text-sm text-[#2d4a2d] font-medium placeholder-[#aaa]" 
-                            placeholder="Buscar por ID (Ej. 27) o estado (Ej. Crecimiento)..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            autoFocus
-                        />
+                <Input 
+                    type="text" 
+                    className="w-full bg-transparent border-none outline-none text-sm text-[#2d4a2d] font-medium placeholder-[#aaa]" 
+                    placeholder="Buscar por ID (Ej. 27) o estado (Ej. Crecimiento)..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                />
                     </div>
 
                     {/* Lista de opciones */}

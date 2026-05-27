@@ -12,6 +12,8 @@ import { getProductos } from "../../api/AgroProducto.api";
 import { getSurcos } from "../../api/AgroSurco.api";
 import { getAgroSecciones } from "../../api/AgroSeccion.api";
 import { toast } from "sonner";
+import Input from "../../components/Input";
+import { FIELD_RULES } from "../../utils/inputRules";
 import "./TrackingCalendar.css";
 
 const WEEKDAYS = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
@@ -567,6 +569,43 @@ const AgroTratamientoTracking = () => {
                 toast.error("Complete los campos de la receta");
                 return;
             }
+
+            // --- SUBMIT-TIME REGEX VALIDATIONS ---
+            const ruleNum = FIELD_RULES.numero;
+            if (ruleNum) {
+                if (!new RegExp(ruleNum.allowed).test(String(recipeForm.dosis))) {
+                    toast.error(`Dosis inválida. ${ruleNum.errorMsg}`);
+                    return;
+                }
+                if (!new RegExp(ruleNum.allowed).test(String(recipeForm.num_aplicaciones))) {
+                    toast.error(`Número de aplicaciones inválido. ${ruleNum.errorMsg}`);
+                    return;
+                }
+            }
+
+            const ruleText = FIELD_RULES.texto_descriptivo;
+            if (ruleText) {
+                if (recipeForm.tipo_aplicacion && !new RegExp(ruleText.allowed).test(recipeForm.tipo_aplicacion)) {
+                    toast.error(`Tipo de aplicación inválido. ${ruleText.errorMsg}`);
+                    return;
+                }
+                if (recipeForm.frecuencia && !new RegExp(ruleText.allowed).test(recipeForm.frecuencia)) {
+                    toast.error(`Frecuencia inválida. ${ruleText.errorMsg}`);
+                    return;
+                }
+            }
+
+            const ruleFecha = FIELD_RULES.fecha;
+            if (ruleFecha) {
+                if (recipeForm.fecha_inicio && !new RegExp(ruleFecha.allowed).test(recipeForm.fecha_inicio)) {
+                    toast.error(`Fecha de inicio inválida. ${ruleFecha.errorMsg}`);
+                    return;
+                }
+                if (recipeForm.fecha_fin && !new RegExp(ruleFecha.allowed).test(recipeForm.fecha_fin)) {
+                    toast.error(`Fecha de fin inválida. ${ruleFecha.errorMsg}`);
+                    return;
+                }
+            }
         }
 
         setIsSavingRecipe(true);
@@ -767,11 +806,13 @@ const AgroTratamientoTracking = () => {
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Notas Adicionales</label>
-                                    <textarea
+                                    <Input
+                                        type="textarea"
                                         className="form-textarea"
                                         placeholder="Describa el resultado del tratamiento..."
                                         value={dictamenForm.notas}
                                         onChange={e => setDictamenForm({ ...dictamenForm, notas: e.target.value })}
+                                        textareaFree={true}
                                     />
                                 </div>
                                 <button
@@ -825,11 +866,11 @@ const AgroTratamientoTracking = () => {
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
                                     <div className="form-group">
                                         <label className="form-label">Fecha Inicio</label>
-                                        <input type="date" className="form-select" value={recipeForm.fecha_inicio} onChange={e => setRecipeForm({ ...recipeForm, fecha_inicio: e.target.value })} />
+                                        <Input type="date" className="form-select" value={recipeForm.fecha_inicio} onChange={e => setRecipeForm({ ...recipeForm, fecha_inicio: e.target.value })} rule="fecha" />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">Fecha Fin (Est.)</label>
-                                        <input type="date" className="form-select" value={recipeForm.fecha_fin} onChange={e => setRecipeForm({ ...recipeForm, fecha_fin: e.target.value })} />
+                                        <Input type="date" className="form-select" value={recipeForm.fecha_fin} onChange={e => setRecipeForm({ ...recipeForm, fecha_fin: e.target.value })} rule="fecha" />
                                     </div>
                                 </div>
 
@@ -846,18 +887,19 @@ const AgroTratamientoTracking = () => {
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
                                     <div className="form-group">
                                         <label className="form-label">Aplicación</label>
-                                        <input
+                                        <Input
                                             type="text"
                                             className="form-select"
                                             placeholder="Ej. Aspersión, Riego, Foliar..."
                                             value={recipeForm.tipo_aplicacion}
                                             onChange={e => setRecipeForm({ ...recipeForm, tipo_aplicacion: e.target.value })}
+                                            rule="texto_descriptivo"
                                         />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">Dosis y Unidad</label>
                                         <div style={{ display: "flex", gap: "4px" }}>
-                                            <input type="text" className="form-select" placeholder="Can." style={{ width: "60px" }} value={recipeForm.dosis} onChange={e => setRecipeForm({ ...recipeForm, dosis: e.target.value })} />
+                                            <Input type="text" className="form-select" placeholder="Can." style={{ width: "60px" }} value={recipeForm.dosis} onChange={e => setRecipeForm({ ...recipeForm, dosis: e.target.value })} rule="numero" />
                                             {recipeForm.producto && (
                                                 <div style={{ display: "flex", alignItems: "center", padding: "0 10px", background: "#f3f4f6", borderRadius: "4px", fontSize: "14px", border: "1px solid #d1d5db", color: "#4b5563", fontWeight: 600 }}>
                                                     {recipeForm.unidad}
@@ -890,7 +932,7 @@ const AgroTratamientoTracking = () => {
                                         </button>
                                     </div>
                                     {showCustomFreqInput && (
-                                        <input
+                                        <Input
                                             type="text"
                                             className="form-select"
                                             placeholder="Especifique frecuencia (ej: cada 3 días)"
@@ -898,6 +940,7 @@ const AgroTratamientoTracking = () => {
                                             value={recipeForm.frecuencia}
                                             onChange={e => setRecipeForm({ ...recipeForm, frecuencia: e.target.value })}
                                             autoFocus
+                                            rule="texto_descriptivo"
                                         />
                                     )}
                                 </div>
@@ -905,13 +948,13 @@ const AgroTratamientoTracking = () => {
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
                                     <div className="form-group">
                                         <label className="form-label">Num. Aplicaciones</label>
-                                        <input type="number" className="form-select" value={recipeForm.num_aplicaciones} onChange={e => setRecipeForm({ ...recipeForm, num_aplicaciones: Number(e.target.value) })} />
+                                        <Input type="number" className="form-select" value={recipeForm.num_aplicaciones} onChange={e => setRecipeForm({ ...recipeForm, num_aplicaciones: Number(e.target.value) })} rule="numero" />
                                     </div>
                                 </div>
 
                                 <div className="form-group" style={{ marginBottom: "16px" }}>
                                     <label className="form-label">Notas de Receta</label>
-                                    <textarea className="form-textarea" style={{ minHeight: "60px" }} value={recipeForm.notas} onChange={e => setRecipeForm({ ...recipeForm, notas: e.target.value })} />
+                                    <Input type="textarea" className="form-textarea" style={{ minHeight: "60px" }} value={recipeForm.notas} onChange={e => setRecipeForm({ ...recipeForm, notas: e.target.value })} textareaFree={true} />
                                 </div>
 
                                 <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "12px", borderRadius: "8px", marginBottom: "8px" }}>

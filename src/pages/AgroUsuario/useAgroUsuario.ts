@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getAgroUsuarios, createAgroUsuario, updateAgroUsuario, deleteAgroUsuario } from '../../api/AgroUsuario.api';
 import { getRoles } from '../../api/Agrorol.api';
 import type { AgroUsuario } from './AgroUsuario.types';
-import type { Rol } from '../AgroRol/AgroRol.types';
+import type { Rol } from '../AgroRol/agroRol.types';
 import { toast } from 'sonner';
 
 export const useAgroUsuario = () => {

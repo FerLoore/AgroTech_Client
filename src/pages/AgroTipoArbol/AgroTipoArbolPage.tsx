@@ -24,24 +24,28 @@ const CAMPOS: CampoFormulario[] = [
         tipo:        "text",
         placeholder: "Ej: Mango",
         requerido:   true,
+        rule:        "nombre_persona"
     },
     {
         key:         "tipar_nombre_cientifico",
         label:       "Nombre Científico",
         tipo:        "text",
         placeholder: "Ej: Mangifera indica",
+        rule:        "nombre_persona"
     },
     {
         key:         "tipar_anios_produccion",
         label:       "Años de Producción",
         tipo:        "number",
         placeholder: "Ej: 8 (default)",
+        rule:        "numero"
     },
     {
         key:         "tipar_descripcion",
         label:       "Descripción",
         tipo:        "textarea",
         placeholder: "Descripción opcional del tipo de árbol",
+        rule:        "descripcion"
     },
 ];
 

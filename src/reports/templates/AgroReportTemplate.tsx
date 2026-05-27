@@ -1,5 +1,5 @@
 import React, { forwardRef } from "react";
-import { Map, BarChart2, ClipboardList } from "lucide-react";
+import { Map, BarChart2 } from "lucide-react";
 import type { AgroReportData } from "../types/report.types";
 import logo from "../../assets/AGROTECHLOGOsinfondo.png";
 import StatsSummary from "../components/StatsSummary";

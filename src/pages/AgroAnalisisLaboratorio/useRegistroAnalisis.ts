@@ -28,6 +28,7 @@ import { getSurcos } from "../../api/AgroSurco.api";
 import { getAgroSecciones } from "../../api/AgroSeccion.api";
 import { getAgroFincas } from "../../api/AgroFinca.api";
 import { toast } from "sonner";
+import { FIELD_RULES } from "../../utils/inputRules";
 
 // ── Tipos ────────────────────────────────────────────────────
 
@@ -256,6 +257,35 @@ export const useRegistroAnalisis = () => {
         if (!form.analab_fecha_envio) {
             setFormError("La fecha de envío es requerida");
             return;
+        }
+
+        // --- SUBMIT-TIME REGEX VALIDATIONS ---
+        const ruleLab = FIELD_RULES.texto_descriptivo;
+        if (ruleLab && !new RegExp(ruleLab.allowed).test(form.analab_laboratorio_nombre.trim())) {
+            setFormError(`El nombre del laboratorio es inválido. ${ruleLab.errorMsg}`);
+            return;
+        }
+
+        if (patogenoNombre?.trim()) {
+            const rulePat = FIELD_RULES.texto_descriptivo;
+            if (rulePat && !new RegExp(rulePat.allowed).test(patogenoNombre.trim())) {
+                setFormError(`El nombre del patógeno es inválido. ${rulePat.errorMsg}`);
+                return;
+            }
+        }
+
+        const ruleFechaEnv = FIELD_RULES.fecha;
+        if (ruleFechaEnv && !new RegExp(ruleFechaEnv.allowed).test(form.analab_fecha_envio)) {
+            setFormError(`La fecha de envío es inválida. ${ruleFechaEnv.errorMsg}`);
+            return;
+        }
+
+        if (form.analab_fecha_resultado) {
+            const ruleFechaRes = FIELD_RULES.fecha;
+            if (ruleFechaRes && !new RegExp(ruleFechaRes.allowed).test(form.analab_fecha_resultado)) {
+                setFormError(`La fecha de resultado es inválida. ${ruleFechaRes.errorMsg}`);
+                return;
+            }
         }
 
         try {

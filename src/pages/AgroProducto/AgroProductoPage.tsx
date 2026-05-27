@@ -1,4 +1,3 @@
-import React from "react";
 import { Package } from "lucide-react";
 import { useAgroProducto } from "./UseAgroProducto";
 import { TIPO_PRODUCTO } from "./AgroProducto.types";
@@ -49,8 +48,9 @@ const CAMPOS: CampoFormulario[] = [
         key:         "produ_nombre",
         label:       "Nombre",
         tipo:        "text",
-        placeholder: "Ej: Mancozeb 80%",
+        placeholder: "Ej: Mancozeb 80",
         requerido:   true,
+        rule:        "texto_descriptivo"
     },
     {
         key:       "produ_tipo",
@@ -69,25 +69,29 @@ const CAMPOS: CampoFormulario[] = [
         key:         "produ_concentracion",
         label:       "Concentración",
         tipo:        "text",
-        placeholder: "Ej: 80%",
+        placeholder: "Ej: 80",
+        rule:        "texto_descriptivo"
     },
     {
         key:         "produ_unidad",
         label:       "Unidad",
         tipo:        "text",
         placeholder: "Ej: kg, L, ml",
+        rule:        "codigo"
     },
     {
         key:         "produ_stock_actual",
         label:       "Stock Inicial",
         tipo:        "number",
         placeholder: "0",
+        rule:        "numero"
     },
     {
         key:         "produ_stock_minimo",
         label:       "Stock Mínimo (Alerta)",
         tipo:        "number",
         placeholder: "0",
+        rule:        "numero"
     },
 ];
 

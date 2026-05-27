@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Input from "../../components/Input";
 import { ClipboardList, Filter, LayoutGrid, Table as TableIcon } from "lucide-react";
 import { useAgroTratamientos } from "./UseAgroTratamientos";
 import CrudTabla from "../../components/CrudTabla";
@@ -85,12 +86,14 @@ const CAMPOS = (
             label: "Dosis (Cantidad a descontar)",
             tipo: "text",
             placeholder: "Ej: 10",
+            rule: "numero"
         },
         {
             key: "trata_num_aplicaciones",
             label: "Número de aplicaciones",
             tipo: "number",
             placeholder: "Ej: 4",
+            rule: "numero"
         },
         {
             key: "trata_fecha_fin",
@@ -132,6 +135,7 @@ const CAMPOS = (
             label: "Observaciones",
             tipo: "text",
             placeholder: "Ej: Aplicación inicial",
+            rule: "texto_descriptivo"
         },
     ];
 
@@ -151,6 +155,7 @@ const AgroTratamientosPage = () => {
         loading,
         error,
         busqueda, setBusqueda,
+        setPagina,
         filtroEstado, setFiltroEstado,
         filtroProducto, setFiltroProducto,
         filtroFechaDesde, setFiltroFechaDesde,
@@ -264,15 +269,30 @@ const AgroTratamientosPage = () => {
                         ))}
                     </select>
 
-                    <input
+                    <Input
+                        type="text"
+                        rule="texto_descriptivo"
+                        placeholder="Buscar..."
+                        value={busqueda}
+                        onChange={e => { setBusqueda(e.target.value); setPagina(1); }}
+                        style={{
+                            flex: 1, minWidth: 200, padding: "10px 16px", fontSize: 14,
+                            border: "1.5px solid #c8d8c0", borderRadius: 10,
+                            background: "#fff", color: "#2d4a2d", outline: "none"
+                        }}
+                    />
+
+                    <Input
                         type="date"
+                        rule="fecha"
                         value={filtroFechaDesde}
                         onChange={e => setFiltroFechaDesde(e.target.value)}
                         style={selectStyle}
                     />
                     <span style={{ color: "#7a9a7a", fontSize: "12px" }}>—</span>
-                    <input
+                    <Input
                         type="date"
+                        rule="fecha"
                         value={filtroFechaHasta}
                         onChange={e => setFiltroFechaHasta(e.target.value)}
                         style={selectStyle}

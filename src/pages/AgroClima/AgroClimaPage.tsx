@@ -39,9 +39,9 @@ const AgroClimaPage: React.FC = () => {
         : `${desde + 1}–${Math.min(desde + POR_PAGINA, hookData.climas.length)}`;
 
     const campos = useMemo<CampoFormulario[]>(() => [
-        { key: 'clim_temperatura', label: 'Temperatura (°C)', tipo: 'number', placeholder: 'Ej. 24.5' },
-        { key: 'clim_humedad_relativa', label: 'Humedad Relativa (%)', tipo: 'number', placeholder: 'Ej. 65.2' },
-        { key: 'clim_precipitacion', label: 'Precipitación (mm)', tipo: 'number', placeholder: 'Ej. 12.0' },
+        { key: 'clim_temperatura', label: 'Temperatura (°C)', tipo: 'number', placeholder: 'Ej. 24.5', rule: 'numero' },
+        { key: 'clim_humedad_relativa', label: 'Humedad Relativa (%)', tipo: 'number', placeholder: 'Ej. 65.2', rule: 'numero' },
+        { key: 'clim_precipitacion', label: 'Precipitación (mm)', tipo: 'number', placeholder: 'Ej. 12.0', rule: 'numero' },
         {
             key: 'seccionId',
             label: 'Sección',

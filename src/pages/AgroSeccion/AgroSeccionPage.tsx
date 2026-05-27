@@ -26,8 +26,8 @@ const AgroSeccionPage: React.FC = () => {
         : `${desde + 1}–${Math.min(desde + POR_PAGINA, hookData.secciones.length)}`;
 
     const campos = useMemo<CampoFormulario[]>(() => [
-        { key: 'secc_nombre', label: 'Nombre de la Sección', tipo: 'text', placeholder: 'Ej. Sección Norte' },
-        { key: 'secc_tipo_suelo', label: 'Tipo de Suelo', tipo: 'text', placeholder: 'Ej. Franco Arcilloso' },
+        { key: 'secc_nombre', label: 'Nombre de la Sección', tipo: 'text', placeholder: 'Ej. Sección Norte', rule: 'texto_descriptivo' },
+        { key: 'secc_tipo_suelo', label: 'Tipo de Suelo', tipo: 'text', placeholder: 'Ej. Franco Arcilloso', rule: 'texto_descriptivo' },
         {
             key: 'fin_finca',
             label: 'Finca',

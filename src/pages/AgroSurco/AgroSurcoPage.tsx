@@ -48,9 +48,9 @@ const AgroSurcoPage = () => {
     const mostrando     = surcosFiltrados.length === 0 ? "0" : `${desde + 1}–${Math.min(desde + POR_PAGINA, surcosFiltrados.length)}`;
 
     const CAMPOS: CampoFormulario[] = [
-        { key: "sur_numero_surco", label: "Número", tipo: "number", requerido: true },
-        { key: "sur_orientacion", label: "Orientación", tipo: "text" },
-        { key: "sur_espaciamiento", label: "Espaciamiento", tipo: "number", requerido: true },
+        { key: "sur_numero_surco", label: "Número", tipo: "number", requerido: true, rule: "numero" },
+        { key: "sur_orientacion", label: "Orientación", tipo: "text", rule: "texto_descriptivo" },
+        { key: "sur_espaciamiento", label: "Espaciamiento", tipo: "number", requerido: true, rule: "numero" },
         {
             key: "secc_secciones",
             label: "Sección",

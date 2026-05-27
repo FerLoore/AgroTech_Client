@@ -13,7 +13,8 @@ import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMa
 import { getArbolesEnCuarentena, updateArbol } from "../../api/AgroArbol.api";
 import type { Finca, ArbolMapa, PuntoPerimetro, SeccionStats } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
-import { Leaf, Layers, Ruler, Expand, FolderTree, TreePine, Plus, Flame } from "lucide-react";
+import { History, Sprout, RefreshCw, AlertTriangle, FlaskConical, TreePine, ChevronDown, Search } from "lucide-react";
+import Input from "../../components/Input";
 import "leaflet.heat";
 
 
@@ -805,6 +806,12 @@ const AgroMapaPage = () => {
                         style={selectStyle} disabled={estaEnWizard}>
                         {fincas.map(f => <option key={f.fin_finca} value={f.fin_finca}>{f.fin_nombre}</option>)}
                     </select>
+<Input
+    type="date"
+    value={filtroFechaDesde}
+    onChange={e => { setFiltroFechaDesde(e.target.value); setPagina(1); }}
+    className={INPUT_CLS}
+/>
                     <select value={filtroSeccion} onChange={e => setFiltroSeccion(e.target.value)} style={selectStyle}>
                         <option value="all">Todas las secciones</option>
                         {seccionesUnicas.map(s => <option key={s} value={s}>{s}</option>)}
@@ -908,15 +915,27 @@ const AgroMapaPage = () => {
                     <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
                         <div>
                             <label style={labelStyle}>Latitud</label>
-                            <input type="number" step="0.00001" value={coordsForm.lat}
-                                onChange={e => setCoordsForm({ ...coordsForm, lat: e.target.value })}
-                                placeholder="Ej: 14.63492" style={inputStyle} />
+                            <Input
+    type="number"
+    step="0.00001"
+    value={coordsForm.lat}
+    onChange={e => setCoordsForm({ ...coordsForm, lat: e.target.value })}
+    placeholder="Ej: 14.63492"
+    style={inputStyle}
+    rule="numero"
+/>
                         </div>
                         <div>
                             <label style={labelStyle}>Longitud</label>
-                            <input type="number" step="0.00001" value={coordsForm.lng}
-                                onChange={e => setCoordsForm({ ...coordsForm, lng: e.target.value })}
-                                placeholder="Ej: -90.50689" style={inputStyle} />
+                            <Input
+    type="number"
+    step="0.00001"
+    value={coordsForm.lng}
+    onChange={e => setCoordsForm({ ...coordsForm, lng: e.target.value })}
+    placeholder="Ej: -90.50689"
+    style={inputStyle}
+    rule="numero"
+/>
                         </div>
                         <button onClick={guardarCoords}
                             disabled={guardandoCoords || !coordsForm.lat || !coordsForm.lng}
@@ -1040,12 +1059,16 @@ const AgroMapaPage = () => {
                         <div style={{ minWidth: 160 }}>
                             <label style={labelStyle}>Espaciado entre árboles</label>
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <input
-                                    type="number" min={1} max={10} step={0.5}
-                                    value={espaciadoSeleccionado}
-                                    onChange={e => setEspaciadoSeleccionado(Number(e.target.value))}
-                                    style={{ ...inputStyle, width: 80 }}
-                                />
+<Input
+    type="number"
+    min={1}
+    max={10}
+    step={0.5}
+    value={espaciadoSeleccionado}
+    onChange={e => setEspaciadoSeleccionado(Number(e.target.value))}
+    style={{ ...inputStyle, width: 80 }}
+    rule="numero"
+/>
                                 <span style={{ fontSize: 13, color: "#7a9a7a" }}>metros</span>
                             </div>
                         </div>
@@ -1087,22 +1110,24 @@ const AgroMapaPage = () => {
                         {/* ── Datos de la sección ── */}
                         <div style={{ flex: 2, minWidth: 180, display: "flex", flexDirection: "column", gap: 4 }}>
                             <label style={labelStyle}>Nombre de la sección *</label>
-                            <input
-                                type="text"
-                                value={seccionForm.secc_nombre}
-                                onChange={e => setSeccionForm({ ...seccionForm, secc_nombre: e.target.value })}
-                                placeholder='Ej: "Sector Norte", "Lote A"'
-                                style={{ ...inputStyle, width: "100%" }}
-                                autoFocus
-                            />
+<Input
+    type="text"
+    value={seccionForm.secc_nombre}
+    onChange={e => setSeccionForm({ ...seccionForm, secc_nombre: e.target.value })}
+    placeholder='Ej: "Sector Norte", "Lote A"'
+    style={{ ...inputStyle, width: "100%" }}
+    autoFocus
+    rule="texto_descriptivo"
+/>
                             <label style={labelStyle}>Tipo de suelo</label>
-                            <input
-                                type="text"
-                                value={seccionForm.secc_tipo_suelo}
-                                onChange={e => setSeccionForm({ ...seccionForm, secc_tipo_suelo: e.target.value })}
-                                placeholder='Ej: "Franco Arcilloso"'
-                                style={{ ...inputStyle, width: "100%" }}
-                            />
+<Input
+    type="text"
+    value={seccionForm.secc_tipo_suelo}
+    onChange={e => setSeccionForm({ ...seccionForm, secc_tipo_suelo: e.target.value })}
+    placeholder='Ej: "Franco Arcilloso"'
+    style={{ ...inputStyle, width: "100%" }}
+    rule="texto_descriptivo"
+/>
                         </div>
 
                         {/* ── Clima opcional ── */}
@@ -1115,29 +1140,32 @@ const AgroMapaPage = () => {
                                 🌡️ Condiciones climáticas <span style={{ fontWeight: 400, fontSize: 10, color: "#9aaa9a" }}>(opcionales)</span>
                             </div>
                             <label style={labelStyle}>Temperatura (°C)</label>
-                            <input
-                                type="number"
-                                value={climaForm.clim_temperatura}
-                                onChange={e => setClimaForm({ ...climaForm, clim_temperatura: e.target.value })}
-                                placeholder='Ej: 24.5'
-                                style={{ ...inputStyle, width: "100%" }}
-                            />
+<Input
+    type="number"
+    value={climaForm.clim_temperatura}
+    onChange={e => setClimaForm({ ...climaForm, clim_temperatura: e.target.value })}
+    placeholder='Ej: 24.5'
+    style={{ ...inputStyle, width: "100%" }}
+    rule="numero"
+/>
                             <label style={labelStyle}>Humedad relativa (%)</label>
-                            <input
-                                type="number"
-                                value={climaForm.clim_humedad_relativa}
-                                onChange={e => setClimaForm({ ...climaForm, clim_humedad_relativa: e.target.value })}
-                                placeholder='Ej: 72'
-                                style={{ ...inputStyle, width: "100%" }}
-                            />
+<Input
+    type="number"
+    value={climaForm.clim_humedad_relativa}
+    onChange={e => setClimaForm({ ...climaForm, clim_humedad_relativa: e.target.value })}
+    placeholder='Ej: 72'
+    style={{ ...inputStyle, width: "100%" }}
+    rule="numero"
+/>
                             <label style={labelStyle}>Precipitación (mm)</label>
-                            <input
-                                type="number"
-                                value={climaForm.clim_precipitacion}
-                                onChange={e => setClimaForm({ ...climaForm, clim_precipitacion: e.target.value })}
-                                placeholder='Ej: 5.0'
-                                style={{ ...inputStyle, width: "100%" }}
-                            />
+<Input
+    type="number"
+    value={climaForm.clim_precipitacion}
+    onChange={e => setClimaForm({ ...climaForm, clim_precipitacion: e.target.value })}
+    placeholder='Ej: 5.0'
+    style={{ ...inputStyle, width: "100%" }}
+    rule="numero"
+/>
                         </div>
                     </div>
 

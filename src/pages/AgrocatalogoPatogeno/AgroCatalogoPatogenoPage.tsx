@@ -31,12 +31,14 @@ const CAMPOS: CampoFormulario[] = [
         tipo:        "text",
         placeholder: "Ej: Oídio",
         requerido:   true,
+        rule:        "nombre_persona"
     },
     {
         key:         "catpato_nombre_cientifico",
         label:       "Nombre Científico",
         tipo:        "text",
         placeholder: "Ej: Podosphaera xanthii",
+        rule:        "nombre_persona"
     },
     {
         key:       "catpato_tipo",
