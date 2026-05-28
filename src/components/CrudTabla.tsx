@@ -15,7 +15,7 @@
 // ============================================================
 
 import React, { useState, useEffect } from "react";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, X, Check } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Input from "./Input";
 import { FIELD_RULES } from "../utils/inputRules";
@@ -107,11 +107,6 @@ interface CrudTablaProps<T extends Record<string, unknown>> {
     onHistorial?: (item: T) => void;
     labelEliminar?: string;
     extraFilters?: React.ReactNode;          // Componentes adicionales para filtrar
-    // Paginación opcional
-    page?: number;
-    totalPages?: number;
-    onNextPage?: () => void;
-    onPrevPage?: () => void;
 }
 
 // ============================================================
@@ -135,7 +130,6 @@ const CrudTabla = <T extends Record<string, unknown>>({
     modal, editando, form, setForm, guardando, formError,
     onNuevo, onEditar, onEliminar, onGuardar, onCerrar, onHistorial, labelEliminar = "Desactivar",
     extraFilters,
-    page, totalPages, onNextPage, onPrevPage
 }: CrudTablaProps<T>) => {
 
      // Estado local — solo afecta el hover visual de las filas
@@ -147,6 +141,15 @@ const CrudTabla = <T extends Record<string, unknown>>({
      useEffect(() => {
          setLocalFormError("");
      }, [form, modal]);
+
+     const [pagina, setPagina] = useState(1);
+     useEffect(() => { setPagina(1); }, [busqueda]);
+
+     const POR_PAGINA = 10;
+     const totalPaginas = Math.max(1, Math.ceil(datos.length / POR_PAGINA));
+     const paginaActual = Math.min(pagina, totalPaginas);
+     const desde = (paginaActual - 1) * POR_PAGINA;
+     const datosPagina = datos.slice(desde, desde + POR_PAGINA);
 
      const handleGuardarConValidacion = () => {
          setLocalFormError("");
@@ -287,14 +290,14 @@ const CrudTabla = <T extends Record<string, unknown>>({
                         </thead>
                         <tbody>
                             {/* Sin resultados */}
-                            {datos.length === 0 ? (
+                            {datosPagina.length === 0 ? (
                                 <tr>
                                     <td colSpan={columnas.length + ((onEditar || onEliminar) ? 1 : 0)}
                                         style={{ textAlign: "center", padding: 40, color: "#aaa" }}>
                                         No se encontraron registros
                                     </td>
                                 </tr>
-                            ) : datos.map((item, i) => (
+                            ) : datosPagina.map((item, i) => (
                                 <tr key={String(item[idKey])}
                                     // hover visual — solo estado local, no afecta el hook
                                     onClick={() => onHistorial?.(item)}
@@ -373,33 +376,36 @@ const CrudTabla = <T extends Record<string, unknown>>({
                         </tbody>
                     </table>
                 </div>
-                {page !== undefined && totalPages !== undefined && (
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16 }}>
-                        <p style={{ color: "#7a9a7a", fontSize: 14 }}>Página {page} de {totalPages}</p>
-                        <div style={{ display: "flex", gap: 10 }}>
-                            <button
-                                onClick={onPrevPage}
-                                disabled={page <= 1}
-                                style={{
-                                    padding: "8px 16px", borderRadius: 8, border: "1px solid #c8d8c0",
-                                    background: page <= 1 ? "#f9f6f0" : "#fff", color: page <= 1 ? "#aaa" : "#4a7c59",
-                                    cursor: page <= 1 ? "not-allowed" : "pointer"
-                                }}
-                            >
-                                Anterior
-                            </button>
-                            <button
-                                onClick={onNextPage}
-                                disabled={page >= totalPages}
-                                style={{
-                                    padding: "8px 16px", borderRadius: 8, border: "1px solid #c8d8c0",
-                                    background: page >= totalPages ? "#f9f6f0" : "#fff", color: page >= totalPages ? "#aaa" : "#4a7c59",
-                                    cursor: page >= totalPages ? "not-allowed" : "pointer"
-                                }}
-                            >
-                                Siguiente
-                            </button>
-                        </div>
+                {totalPaginas > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16, paddingBottom: 32 }}>
+                        <button
+                            onClick={() => setPagina(p => Math.max(1, p - 1))}
+                            disabled={paginaActual === 1}
+                            style={{
+                                padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: 'none', cursor: paginaActual === 1 ? 'default' : 'pointer',
+                                background: '#e8f0e0', color: '#4a7c59',
+                                opacity: paginaActual === 1 ? 0.4 : 1,
+                            }}
+                        >Anterior</button>
+                        {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(n => (
+                            <button key={n} onClick={() => setPagina(n)} style={{
+                                padding: '6px 12px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: 'none', cursor: 'pointer',
+                                background: n === paginaActual ? '#4a7c59' : '#e8f0e0',
+                                color: n === paginaActual ? '#fff' : '#4a7c59',
+                            }}>{n}</button>
+                        ))}
+                        <button
+                            onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                            disabled={paginaActual === totalPaginas}
+                            style={{
+                                padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: 'none', cursor: paginaActual === totalPaginas ? 'default' : 'pointer',
+                                background: '#e8f0e0', color: '#4a7c59',
+                                opacity: paginaActual === totalPaginas ? 0.4 : 1,
+                            }}
+                        >Siguiente</button>
                     </div>
                 )}
             </div>
@@ -493,16 +499,17 @@ const CrudTabla = <T extends Record<string, unknown>>({
                         }}>
                             <button onClick={onCerrar} style={{
                                 padding: "10px 20px", fontSize: 14, background: "#f0ece4",
-                                color: "#6b8c6b", border: "none", borderRadius: 10, cursor: "pointer"
-                            }}>Cancelar</button>
+                                color: "#6b8c6b", border: "none", borderRadius: 10, cursor: "pointer",
+                                display: "flex", alignItems: "center", gap: 6
+                            }}><X size={14} /> Cancelar</button>
                             <button onClick={handleGuardarConValidacion} disabled={guardando} style={{
                                 padding: "10px 20px", fontSize: 14, background: "#4a7c59",
                                 color: "#fff", border: "none", borderRadius: 10,
                                 fontWeight: 600, cursor: "pointer",
-                                opacity: guardando ? 0.6 : 1  // visual de "esperando"
+                                opacity: guardando ? 0.6 : 1,
+                                display: "flex", alignItems: "center", gap: 6
                             }}>
-                                {/* Texto cambia según contexto */}
-                                {guardando ? "Guardando..." : editando ? "Actualizar" : "Crear"}
+                                {guardando ? "Guardando..." : <><Check size={14} /> {editando ? "Actualizar" : "Crear"}</>}
                             </button>
                         </div>
                     </div>

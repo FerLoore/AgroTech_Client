@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
     Calendar, CheckCircle2, ChevronLeft, ChevronRight, ClipboardEdit,
-    TreePalm, AlertTriangle, Info
+    TreePalm, AlertTriangle, Info, Save, X, ArrowLeft, ThumbsUp, ThumbsDown
 } from "lucide-react";
 import { getAgroFincas } from "../../api/AgroFinca.api";
 import { getArboles, updateArbol } from "../../api/AgroArbol.api";
@@ -817,10 +817,11 @@ const AgroTratamientoTracking = () => {
                                 </div>
                                 <button
                                     className="btn-save"
+                                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
                                     onClick={handleSaveDictamen}
                                     disabled={isSavingDictamen}
                                 >
-                                    {isSavingDictamen ? "Guardando..." : "Guardar Dictamen"}
+                                    {isSavingDictamen ? "Guardando..." : <><Save size={14} /> Guardar Dictamen</>}
                                 </button>
                             </div>
                         )}
@@ -843,15 +844,15 @@ const AgroTratamientoTracking = () => {
                                             setRecipeForm({ ...recipeForm, resultado: "Positivo" });
                                             setRecipeStep(2);
                                         }}
-                                        style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1.5px solid", cursor: "pointer", background: "#fff", borderColor: "#e5e7eb", color: "#374151" }}
+                                        style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1.5px solid", cursor: "pointer", background: "#fff", borderColor: "#e5e7eb", color: "#374151", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
                                     >
-                                        Positivo
+                                        <ThumbsUp size={14} /> Positivo
                                     </button>
                                     <button
                                         onClick={() => setRecipeForm({ ...recipeForm, resultado: "Negativo" })}
-                                        style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1.5px solid", cursor: "pointer", background: recipeForm.resultado === "Negativo" ? "#f0fdf4" : "#fff", borderColor: recipeForm.resultado === "Negativo" ? "#22c55e" : "#e5e7eb", color: recipeForm.resultado === "Negativo" ? "#15803d" : "#374151" }}
+                                        style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1.5px solid", cursor: "pointer", background: recipeForm.resultado === "Negativo" ? "#f0fdf4" : "#fff", borderColor: recipeForm.resultado === "Negativo" ? "#22c55e" : "#e5e7eb", color: recipeForm.resultado === "Negativo" ? "#15803d" : "#374151", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
                                     >
-                                        Negativo
+                                        <ThumbsDown size={14} /> Negativo
                                     </button>
                                 </div>
                                 {recipeForm.resultado === "Negativo" && (
@@ -859,7 +860,7 @@ const AgroTratamientoTracking = () => {
                                         Confirmar Resultado Negativo
                                     </button>
                                 )}
-                                <button className="btn-edit" style={{ width: "100%", textAlign: "center", marginTop: 0 }} onClick={resetRecipeFlow}>Cancelar</button>
+                                <button className="btn-edit" style={{ width: "100%", textAlign: "center", marginTop: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }} onClick={resetRecipeFlow}><X size={14} /> Cancelar</button>
                             </div>
                         ) : (
                             <div className="flow-step">
@@ -992,7 +993,7 @@ const AgroTratamientoTracking = () => {
                                     <button className="btn-save" style={{ flex: 2 }} onClick={handleSaveRecipe} disabled={isSavingRecipe}>
                                         {isSavingRecipe ? "Guardando..." : "Guardar y Crear Tratamiento"}
                                     </button>
-                                    <button className="btn-edit" style={{ flex: 1, marginTop: 0 }} onClick={() => setRecipeStep(1)}>Atrás</button>
+                                    <button className="btn-edit" style={{ flex: 1, marginTop: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }} onClick={() => setRecipeStep(1)}><ArrowLeft size={14} /> Atrás</button>
                                 </div>
                             </div>
                         )}

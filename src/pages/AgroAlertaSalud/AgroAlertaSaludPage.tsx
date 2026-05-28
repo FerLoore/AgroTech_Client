@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TriangleAlert, Plus, Pencil, Trash2, FlaskConical } from "lucide-react";
+import { TriangleAlert, Plus, Pencil, Trash2, FlaskConical, X, Check } from "lucide-react";
 import { useAgroAlertaSalud } from "./UseAgroAlertaSalud";
 import type { EstadoAlerta } from "./UseAgroAlertaSalud";
 import { createAnalisisLaboratorio } from "../../api/agroAnalisisLaboratorio.api";
@@ -318,36 +318,35 @@ const AgroAlertaSaludPage = () => {
 
                 {/* ── Paginación ──────────────────────────────────────── */}
                 {totalPaginas > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-4">
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16, paddingBottom: 32 }}>
                         <button
                             onClick={() => setPagina(p => Math.max(1, p - 1))}
                             disabled={paginaActual === 1}
-                            className="px-3 py-1.5 text-sm font-semibold rounded-lg border-none cursor-pointer bg-[#e8f0e0] text-[#4a7c59] hover:bg-[#d4e6d4] disabled:opacity-40 disabled:cursor-default transition-colors"
-                        >
-                            Anterior
-                        </button>
-
+                            style={{
+                                padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: 'none', cursor: paginaActual === 1 ? 'default' : 'pointer',
+                                background: '#e8f0e0', color: '#4a7c59',
+                                opacity: paginaActual === 1 ? 0.4 : 1,
+                            }}
+                        >Anterior</button>
                         {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(n => (
-                            <button
-                                key={n}
-                                onClick={() => setPagina(n)}
-                                className={`px-3 py-1.5 text-sm font-semibold rounded-lg border-none cursor-pointer transition-colors ${
-                                    n === paginaActual
-                                        ? "bg-[#4a7c59] text-white"
-                                        : "bg-[#e8f0e0] text-[#4a7c59] hover:bg-[#d4e6d4]"
-                                }`}
-                            >
-                                {n}
-                            </button>
+                            <button key={n} onClick={() => setPagina(n)} style={{
+                                padding: '6px 12px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: 'none', cursor: 'pointer',
+                                background: n === paginaActual ? '#4a7c59' : '#e8f0e0',
+                                color: n === paginaActual ? '#fff' : '#4a7c59',
+                            }}>{n}</button>
                         ))}
-
                         <button
                             onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
                             disabled={paginaActual === totalPaginas}
-                            className="px-3 py-1.5 text-sm font-semibold rounded-lg border-none cursor-pointer bg-[#e8f0e0] text-[#4a7c59] hover:bg-[#d4e6d4] disabled:opacity-40 disabled:cursor-default transition-colors"
-                        >
-                            Siguiente
-                        </button>
+                            style={{
+                                padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: 'none', cursor: paginaActual === totalPaginas ? 'default' : 'pointer',
+                                background: '#e8f0e0', color: '#4a7c59',
+                                opacity: paginaActual === totalPaginas ? 0.4 : 1,
+                            }}
+                        >Siguiente</button>
                     </div>
                 )}
 
@@ -407,16 +406,16 @@ const AgroAlertaSaludPage = () => {
                         <div className="flex justify-end gap-2.5 mt-7">
                             <button
                                 onClick={cerrarModal}
-                                className="px-5 py-2.5 text-sm bg-[#f0ece4] text-[#6b8c6b] rounded-[10px] border-none cursor-pointer hover:bg-[#e5e0d8] transition-colors"
+                                className="flex items-center gap-1.5 px-5 py-2.5 text-sm bg-[#f0ece4] text-[#6b8c6b] rounded-[10px] border-none cursor-pointer hover:bg-[#e5e0d8] transition-colors"
                             >
-                                Cancelar
+                                <X size={14} /> Cancelar
                             </button>
                             <button
                                 onClick={handleGuardarConValidacion}
                                 disabled={guardando}
-                                className="px-5 py-2.5 text-sm font-semibold bg-[#4a7c59] text-white rounded-[10px] border-none cursor-pointer hover:bg-[#3d6b4a] transition-colors disabled:opacity-60"
+                                className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold bg-[#4a7c59] text-white rounded-[10px] border-none cursor-pointer hover:bg-[#3d6b4a] transition-colors disabled:opacity-60"
                             >
-                                {guardando ? "Guardando..." : editando ? "Actualizar" : "Crear"}
+                                {guardando ? "Guardando..." : <><Check size={14} /> {editando ? "Actualizar" : "Crear"}</>}
                             </button>
                         </div>
                     </div>

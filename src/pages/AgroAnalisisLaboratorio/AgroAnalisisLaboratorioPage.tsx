@@ -483,34 +483,35 @@ const AgroAnalisisLaboratorioPage = () => {
 
                 {/* Controles de paginación */}
                 {totalPaginasAn > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-4">
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16, paddingBottom: 32 }}>
                         <button
                             onClick={() => setPaginaAnalisis(p => Math.max(1, p - 1))}
                             disabled={paginaAn === 1}
-                            className="px-3 py-1.5 text-sm font-semibold rounded-lg border-none cursor-pointer bg-[#e8f0e0] text-[#4a7c59] hover:bg-[#d4e6d4] disabled:opacity-40 disabled:cursor-default transition-colors"
-                        >
-                            Anterior
-                        </button>
+                            style={{
+                                padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: 'none', cursor: paginaAn === 1 ? 'default' : 'pointer',
+                                background: '#e8f0e0', color: '#4a7c59',
+                                opacity: paginaAn === 1 ? 0.4 : 1,
+                            }}
+                        >Anterior</button>
                         {Array.from({ length: totalPaginasAn }, (_, i) => i + 1).map(n => (
-                            <button
-                                key={n}
-                                onClick={() => setPaginaAnalisis(n)}
-                                className={`px-3 py-1.5 text-sm font-semibold rounded-lg border-none cursor-pointer transition-colors ${
-                                    n === paginaAn
-                                        ? "bg-[#4a7c59] text-white"
-                                        : "bg-[#e8f0e0] text-[#4a7c59] hover:bg-[#d4e6d4]"
-                                }`}
-                            >
-                                {n}
-                            </button>
+                            <button key={n} onClick={() => setPaginaAnalisis(n)} style={{
+                                padding: '6px 12px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: 'none', cursor: 'pointer',
+                                background: n === paginaAn ? '#4a7c59' : '#e8f0e0',
+                                color: n === paginaAn ? '#fff' : '#4a7c59',
+                            }}>{n}</button>
                         ))}
                         <button
                             onClick={() => setPaginaAnalisis(p => Math.min(totalPaginasAn, p + 1))}
                             disabled={paginaAn === totalPaginasAn}
-                            className="px-3 py-1.5 text-sm font-semibold rounded-lg border-none cursor-pointer bg-[#e8f0e0] text-[#4a7c59] hover:bg-[#d4e6d4] disabled:opacity-40 disabled:cursor-default transition-colors"
-                        >
-                            Siguiente
-                        </button>
+                            style={{
+                                padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: 'none', cursor: paginaAn === totalPaginasAn ? 'default' : 'pointer',
+                                background: '#e8f0e0', color: '#4a7c59',
+                                opacity: paginaAn === totalPaginasAn ? 0.4 : 1,
+                            }}
+                        >Siguiente</button>
                     </div>
                 )}
                 </div>
