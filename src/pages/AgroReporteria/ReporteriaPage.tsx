@@ -35,9 +35,14 @@ export default function ReporteriaPage() {
     const [loading, setLoading] = useState(false);
     
     const [showModal, setShowModal] = useState(false);
-    const [paginaReportes, setPaginaReportes] = useState(0);
-    const REPORTES_POR_PAGINA = 5;
+    const [paginaReportes, setPaginaReportes] = useState(1);
+    const REPORTES_POR_PAGINA = 10;
     const contentRef = useRef<HTMLDivElement>(null);
+
+    const totalPaginasReportes = Math.max(1, Math.ceil(reportes.length / REPORTES_POR_PAGINA));
+    const paginaActualReportes = Math.min(paginaReportes, totalPaginasReportes);
+    const desdeReportes = (paginaActualReportes - 1) * REPORTES_POR_PAGINA;
+    const datosPaginaReportes = reportes.slice(desdeReportes, desdeReportes + REPORTES_POR_PAGINA);
 
     useEffect(() => {
         getAgroFincas().then(res => setFincas(res.data?.fincas || []));
@@ -59,12 +64,12 @@ export default function ReporteriaPage() {
                 setClimas(cliData);
                 setLoading(false);
             });
-            getReportes(Number(filtroFinca)).then(res => { setReportes(res.reportes || []); setPaginaReportes(0); });
+            getReportes(Number(filtroFinca)).then(res => { setReportes(res.reportes || []); setPaginaReportes(1); });
         } else {
             setArboles([]);
             setAlertas([]);
             setClimas([]);
-            getReportes().then(res => { setReportes(res.reportes || []); setPaginaReportes(0); });
+            getReportes().then(res => { setReportes(res.reportes || []); setPaginaReportes(1); });
         }
     }, [filtroFinca]);
 
@@ -401,29 +406,49 @@ export default function ReporteriaPage() {
                     </span>
                 </div>
                 <DataTable
-                    value={reportes}
+                    value={datosPaginaReportes}
                     emptyMessage="No hay reportes generados."
                     size="normal"
                     rowHover
                     className="custom-agrotech-table"
-                    paginator
-                    rows={REPORTES_POR_PAGINA}
-                    first={paginaReportes}
-                    onPage={(e) => setPaginaReportes(e.first)}
-                    paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-                    currentPageReportTemplate="Mostrando {first}–{last} de {totalRecords} reportes"
-                    paginatorLeft={
-                        <span style={{ fontSize: 12, color: "#7a9a7a", padding: "0 8px" }}>
-                            Mostrando {Math.min(paginaReportes + 1, reportes.length)}–{Math.min(paginaReportes + REPORTES_POR_PAGINA, reportes.length)} de {reportes.length}
-                        </span>
-                    }
-                    paginatorRight={<span />}
                 >
                     <Column field="repo_fecha" header="Fecha" body={(data) => new Date(data.repo_fecha).toLocaleString()}></Column>
                     <Column field="repo_tipo" header="Tipo"></Column>
                     <Column field="repo_usuario_nombre" header="Usuario"></Column>
                     <Column header="Acciones" body={accionesBodyTemplate}></Column>
                 </DataTable>
+                {totalPaginasReportes > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16, paddingBottom: 8 }}>
+                        <button
+                            onClick={() => setPaginaReportes(p => Math.max(1, p - 1))}
+                            disabled={paginaActualReportes === 1}
+                            style={{
+                                padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: 'none', cursor: paginaActualReportes === 1 ? 'default' : 'pointer',
+                                background: '#e8f0e0', color: '#4a7c59',
+                                opacity: paginaActualReportes === 1 ? 0.4 : 1,
+                            }}
+                        >Anterior</button>
+                        {Array.from({ length: totalPaginasReportes }, (_, i) => i + 1).map(n => (
+                            <button key={n} onClick={() => setPaginaReportes(n)} style={{
+                                padding: '6px 12px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: 'none', cursor: 'pointer',
+                                background: n === paginaActualReportes ? '#4a7c59' : '#e8f0e0',
+                                color: n === paginaActualReportes ? '#fff' : '#4a7c59',
+                            }}>{n}</button>
+                        ))}
+                        <button
+                            onClick={() => setPaginaReportes(p => Math.min(totalPaginasReportes, p + 1))}
+                            disabled={paginaActualReportes === totalPaginasReportes}
+                            style={{
+                                padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                                border: 'none', cursor: paginaActualReportes === totalPaginasReportes ? 'default' : 'pointer',
+                                background: '#e8f0e0', color: '#4a7c59',
+                                opacity: paginaActualReportes === totalPaginasReportes ? 0.4 : 1,
+                            }}
+                        >Siguiente</button>
+                    </div>
+                )}
             </div>
 
             {showModal && (

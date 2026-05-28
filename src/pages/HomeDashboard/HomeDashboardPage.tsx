@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
 import { MapContainer, TileLayer, Polygon, CircleMarker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { Map, Plus, FlaskConical, Cloud, Bug } from "lucide-react";
 
 import { getAgroFincas } from "../../api/AgroFinca.api";
 import { getMapaFinca } from "../../api/agroFincaMapa.api";
@@ -474,9 +475,13 @@ export default function HomeDashboardPage() {
                 fontWeight: 500,
                 cursor: "pointer",
                 letterSpacing: ".3px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
               }}
             >
-              Abrir mapa completo →
+              <Map size={13} /> Abrir mapa completo
             </button>
           </div>
         </div>
@@ -518,10 +523,10 @@ export default function HomeDashboardPage() {
             <div style={{ fontSize: 10, color: "#9aaa9a", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 10 }}>Accesos rápidos</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {[
-                { label: "+ Nuevo Tratamiento", mod: "tratamientos", neutral: false },
-                { label: "Análisis Laboratorio", mod: "analisis-laboratorio", neutral: true },
-                { label: "Clima Local", mod: "clima", neutral: true },
-                { label: "Catálogo Patógenos", mod: "catalogo-patogeno", neutral: true },
+                { label: "Nuevo Tratamiento", mod: "tratamientos", neutral: false, icon: Plus },
+                { label: "Análisis Laboratorio", mod: "analisis-laboratorio", neutral: true, icon: FlaskConical },
+                { label: "Clima Local", mod: "clima", neutral: true, icon: Cloud },
+                { label: "Catálogo Patógenos", mod: "catalogo-patogeno", neutral: true, icon: Bug },
               ].map((a) => (
                 <button
                   key={a.label}
@@ -533,9 +538,10 @@ export default function HomeDashboardPage() {
                     fontSize: 11, fontWeight: 500,
                     color: a.neutral ? "#5F5E5A" : "#27500A",
                     cursor: "pointer", textAlign: "center",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                   }}
                 >
-                  {a.label}
+                  <a.icon size={12} /> {a.label}
                 </button>
               ))}
             </div>
@@ -663,9 +669,9 @@ export default function HomeDashboardPage() {
             <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={() => navigate("/reporteria")}
-                style={{ ...S.cardLink, background: "#f0f7ec", color: "#27500A", border: "none" }}
+                style={{ ...S.cardLink, background: "#f0f7ec", color: "#27500A", border: "none", display: "flex", alignItems: "center", gap: 4 }}
               >
-                + Nuevo
+                <Plus size={11} /> Nuevo
               </button>
               <span style={S.cardLink} onClick={() => navigate("/reporteria")}>ver todos →</span>
             </div>

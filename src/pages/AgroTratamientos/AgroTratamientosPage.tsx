@@ -155,7 +155,6 @@ const AgroTratamientosPage = () => {
         loading,
         error,
         busqueda, setBusqueda,
-        setPagina,
         filtroEstado, setFiltroEstado,
         filtroProducto, setFiltroProducto,
         filtroFechaDesde, setFiltroFechaDesde,
@@ -274,7 +273,7 @@ const AgroTratamientosPage = () => {
                         rule="texto_descriptivo"
                         placeholder="Buscar..."
                         value={busqueda}
-                        onChange={e => { setBusqueda(e.target.value); setPagina(1); }}
+                        onChange={e => setBusqueda(e.target.value)}
                         style={{
                             flex: 1, minWidth: 200, padding: "10px 16px", fontSize: 14,
                             border: "1.5px solid #c8d8c0", borderRadius: 10,
