@@ -13,7 +13,7 @@ import { getMapaFinca, getFincas, guardarPerimetro } from "../../api/agroFincaMa
 import { getArbolesEnCuarentena, updateArbol } from "../../api/AgroArbol.api";
 import type { Finca, ArbolMapa, PuntoPerimetro, SeccionStats } from "./agroMapa.types";
 import { COLORES_ESTADO, ZOOM_INICIAL } from "./agroMapa.types";
-import { History, Sprout, RefreshCw, AlertTriangle, FlaskConical, TreePine, ChevronDown, Search } from "lucide-react";
+import { History, Sprout, RefreshCw, AlertTriangle, FlaskConical, TreePine, ChevronDown, Search, Flame, Plus, Leaf, Layers, Ruler, Expand, FolderTree, Map, Stethoscope, Trash2, MapPin, X, Check, Info, Thermometer } from "lucide-react";
 import Input from "../../components/Input";
 import "leaflet.heat";
 
@@ -806,12 +806,6 @@ const AgroMapaPage = () => {
                         style={selectStyle} disabled={estaEnWizard}>
                         {fincas.map(f => <option key={f.fin_finca} value={f.fin_finca}>{f.fin_nombre}</option>)}
                     </select>
-<Input
-    type="date"
-    value={filtroFechaDesde}
-    onChange={e => { setFiltroFechaDesde(e.target.value); setPagina(1); }}
-    className={INPUT_CLS}
-/>
                     <select value={filtroSeccion} onChange={e => setFiltroSeccion(e.target.value)} style={selectStyle}>
                         <option value="all">Todas las secciones</option>
                         {seccionesUnicas.map(s => <option key={s} value={s}>{s}</option>)}
@@ -860,31 +854,66 @@ const AgroMapaPage = () => {
                         ...btnOutline,
                         background: modoReporte ? "#7c3aed" : "transparent",
                         color: modoReporte ? "#fff" : "#7c3aed", borderColor: "#7c3aed",
-                        fontWeight: "bold"
+                        fontWeight: "bold",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px"
                     }}>
-                        {modoReporte ? "📊 Ver Mapa Normal" : "🩺 Modo Reporte Salud"}
+                        {modoReporte ? (
+                            <>
+                                <Map size={14} />
+                                Ver Mapa Normal
+                            </>
+                        ) : (
+                            <>
+                                <Stethoscope size={14} />
+                                Modo Reporte Salud
+                            </>
+                        )}
                     </button>
 
                     <button onClick={() => setMostrarHeatmap(v => !v)} style={{
                         ...btnOutline,
                         background: mostrarHeatmap ? "#f97316" : "transparent",
                         color: mostrarHeatmap ? "#fff" : "#f97316", borderColor: "#f97316",
-                        fontWeight: "bold"
+                        fontWeight: "bold",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px"
                     }}>
-                        <Flame size={14} style={{ display: "inline", marginRight: 4 }} />
+                        <Flame size={14} />
                         {mostrarHeatmap ? "Ocultar Heatmap" : "Ver Heatmap de Focos"}
                     </button>
 
                     {filtroSeccion !== "all" && paso === "idle" && (
-                        <button onClick={eliminarTerrenoActual} style={{ ...btnOutline, color: "#c0392b", borderColor: "#c0392b", fontWeight: "bold" }}>
-                            🗑️ Eliminar Terreno
+                        <button onClick={eliminarTerrenoActual} style={{
+                            ...btnOutline,
+                            color: "#c0392b",
+                            borderColor: "#c0392b",
+                            fontWeight: "bold",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px"
+                        }}>
+                            <Trash2 size={14} />
+                            Eliminar Terreno
                         </button>
                     )}
 
                     {gpsPosition && (
                         <button onClick={() => setCentroManual([gpsPosition.lat, gpsPosition.lng])}
-                            style={{ ...btnOutline, background: "#eff6ff", color: "#1d4ed8", borderColor: "#3b82f6", fontWeight: "bold" }}>
-                            📍 Encontrarme
+                            style={{
+                                ...btnOutline,
+                                background: "#eff6ff",
+                                color: "#1d4ed8",
+                                borderColor: "#3b82f6",
+                                fontWeight: "bold",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px"
+                            }}>
+                            <MapPin size={14} />
+                            Encontrarme
                         </button>
                     )}
 
@@ -893,13 +922,28 @@ const AgroMapaPage = () => {
                         <button onClick={() => {
                             if (!finca?.fin_latitud_origen) { setPaso("coords"); }
                             else { setPuntosNuevos([]); setPaso("dibujando"); }
-                        }} style={{ ...btnPrimary, background: "#185FA5" }}>
-                            + Configurar terreno
+                        }} style={{
+                            ...btnPrimary,
+                            background: "#185FA5",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px"
+                        }}>
+                            <Plus size={14} />
+                            Configurar terreno
                         </button>
                     )}
                     {estaEnWizard && (
-                        <button onClick={resetWizard} style={{ ...btnOutline, color: "#c0392b", borderColor: "#c0392b" }}>
-                            ✕ Cancelar
+                        <button onClick={resetWizard} style={{
+                            ...btnOutline,
+                            color: "#c0392b",
+                            borderColor: "#c0392b",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px"
+                        }}>
+                            <X size={14} />
+                            Cancelar
                         </button>
                     )}
                 </div>
@@ -956,13 +1000,31 @@ const AgroMapaPage = () => {
                             background: puntosNuevos.length >= 3 ? "#185FA5" : "#aaa",
                             color: "#fff", borderRadius: 20, padding: "3px 14px",
                             fontSize: 12, fontWeight: 600, transition: "background 0.2s",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px"
                         }}>
                             {puntosNuevos.length} punto{puntosNuevos.length !== 1 ? "s" : ""}
-                            {puntosNuevos.length < 3 ? " (mínimo 3)" : " ✓"}
+                            {puntosNuevos.length < 3 ? (
+                                " (mínimo 3)"
+                            ) : (
+                                <Check size={12} style={{ marginLeft: 2 }} />
+                            )}
                         </span>
                         {perimetroTotal > 0 && (
-                            <span style={{ fontSize: 13, fontWeight: 700, color: "#185FA5", background: "#f0f7ff", padding: "4px 12px", borderRadius: 8 }}>
-                                📏 Perímetro: {perimetroTotal < 1000 ? `${perimetroTotal.toFixed(1)}m` : `${(perimetroTotal / 1000).toFixed(2)}km`}
+                            <span style={{
+                                fontSize: 13,
+                                fontWeight: 700,
+                                color: "#185FA5",
+                                background: "#f0f7ff",
+                                padding: "4px 12px",
+                                borderRadius: 8,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px"
+                            }}>
+                                <Ruler size={14} />
+                                Perímetro: {perimetroTotal < 1000 ? `${perimetroTotal.toFixed(1)}m` : `${(perimetroTotal / 1000).toFixed(2)}km`}
                             </span>
                         )}
                         <button onClick={() => setPuntosNuevos(p => p.slice(0, -1))}
@@ -1099,7 +1161,7 @@ const AgroMapaPage = () => {
                         borderRadius: 8, padding: "10px 14px",
                         display: "flex", alignItems: "flex-start", gap: 10,
                     }}>
-                        <span style={{ fontSize: 16, lineHeight: 1 }}>ℹ️</span>
+                        <Info size={16} color="#b45309" style={{ marginTop: 2, flexShrink: 0 }} />
                         <div style={{ fontSize: 12, color: "#7a5a00" }}>
                             <strong>¿Qué es una sección?</strong> Es una subdivisión del terreno
                             (ej: "Sector Norte", "Lote A"). Los árboles generados se asignarán a esta sección.
@@ -1137,7 +1199,8 @@ const AgroMapaPage = () => {
                                 textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2,
                                 display: "flex", alignItems: "center", gap: 6
                             }}>
-                                🌡️ Condiciones climáticas <span style={{ fontWeight: 400, fontSize: 10, color: "#9aaa9a" }}>(opcionales)</span>
+                                <Thermometer size={14} />
+                                Condiciones climáticas <span style={{ fontWeight: 400, fontSize: 10, color: "#9aaa9a" }}>(opcionales)</span>
                             </div>
                             <label style={labelStyle}>Temperatura (°C)</label>
 <Input
@@ -1215,11 +1278,22 @@ const AgroMapaPage = () => {
                             ))}
                         </div>
                         <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
-                            <button onClick={() => { setPaso("configurar"); setArbolesPreview([]); }} style={btnSecondary}>
-                                ← Reconfigurar
+                            <button onClick={() => { setPaso("configurar"); setArbolesPreview([]); }} style={{
+                                ...btnSecondary,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px"
+                            }}>
+                                Reconfigurar
                             </button>
-                            <button onClick={confirmarGuardar} style={btnPrimary}>
-                                ✓ Guardar en BD
+                            <button onClick={confirmarGuardar} style={{
+                                ...btnPrimary,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px"
+                            }}>
+                                <Check size={14} />
+                                Guardar en BD
                             </button>
                         </div>
                     </div>
@@ -1402,16 +1476,28 @@ const AgroMapaPage = () => {
                                             ))}
                                         </tbody>
                                     </table>
-                                    <button onClick={() => navigate(`/agro-alerta-salud?nuevoArbol=${arbol.id}`)} style={popupBtnStyle}>+ Nueva alerta</button>
+                                    <button onClick={() => navigate(`/agro-alerta-salud?nuevoArbol=${arbol.id}`)} style={{
+                                        ...popupBtnStyle,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "4px"
+                                    }}>
+                                        <Plus size={11} /> Nueva alerta
+                                    </button>
                                     <button
                                         onClick={() => navigate("/agro-arbol-timeline", { state: { arbolId: String(arbol.id) } })}
                                         style={{
                                             ...popupBtnStyle,
                                             marginTop: 6,
                                             background: "linear-gradient(135deg, #4a7c59 0%, #2d6a4a 100%)",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "4px"
                                         }}
                                     >
-                                        🕒 Ver timeline
+                                        <History size={11} /> Ver timeline
                                     </button>
                                     {arbol.estado === "Crecimiento" && (
                                         <button
