@@ -550,7 +550,21 @@ const AgroMapaPage = () => {
 
     // ─── Paso sin-seccion: crear sección y volver a config ───
     const crearSeccionYContinuar = async () => {
-        if (!fincaId || !seccionForm.secc_nombre.trim()) return;
+        if (!seccionForm.secc_nombre.trim() || !fincaId) return;
+
+        if (climaForm.clim_temperatura !== "" && Number(climaForm.clim_temperatura) === 0) {
+            toast.error("La temperatura no puede ser 0");
+            return;
+        }
+        if (climaForm.clim_humedad_relativa !== "" && Number(climaForm.clim_humedad_relativa) === 0) {
+            toast.error("La humedad relativa no puede ser 0");
+            return;
+        }
+        if (climaForm.clim_precipitacion !== "" && Number(climaForm.clim_precipitacion) === 0) {
+            toast.error("La precipitación no puede ser 0");
+            return;
+        }
+
         setGuardandoSeccion(true);
         try {
             const { default: api } = await import("../../api/Axios");

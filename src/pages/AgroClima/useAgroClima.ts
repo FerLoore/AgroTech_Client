@@ -77,6 +77,18 @@ export const useAgroClima = () => {
     };
 
     const onGuardar = async () => {
+        if (form.clim_temperatura !== undefined && form.clim_temperatura !== "" && Number(form.clim_temperatura) === 0) {
+            setFormError("La temperatura no puede ser 0");
+            return;
+        }
+        if (form.clim_humedad_relativa !== undefined && form.clim_humedad_relativa !== "" && Number(form.clim_humedad_relativa) === 0) {
+            setFormError("La humedad relativa no puede ser 0");
+            return;
+        }
+        if (form.clim_precipitacion !== undefined && form.clim_precipitacion !== "" && Number(form.clim_precipitacion) === 0) {
+            setFormError("La precipitación no puede ser 0");
+            return;
+        }
         setGuardando(true);
         setFormError("");
         try {
