@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
     ShieldCheck, TreeDeciduous, Bug, Package,
@@ -64,6 +64,12 @@ const Layout = ({ children }: LayoutProps) => {
     const [tooltip, setTooltip] = useState<{ label: string; y: number } | null>(null);
     const navigate = useNavigate();
     const location = useLocation();
+
+    useEffect(() => {
+        if (location.pathname !== "/") {
+            navigate("/");
+        }
+    }, []);
 
     const sw = collapsed ? COLLAPSED_W : SIDEBAR_W;
     const paginaActual = MENU.flatMap(g => g.items).find(i => i.ruta === location.pathname)?.label ?? "Inicio";

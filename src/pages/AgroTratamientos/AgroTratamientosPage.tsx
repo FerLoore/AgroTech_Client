@@ -269,19 +269,6 @@ const AgroTratamientosPage = () => {
                     </select>
 
                     <Input
-                        type="text"
-                        rule="texto_descriptivo"
-                        placeholder="Buscar..."
-                        value={busqueda}
-                        onChange={e => setBusqueda(e.target.value)}
-                        style={{
-                            flex: 1, minWidth: 200, padding: "10px 16px", fontSize: 14,
-                            border: "1.5px solid #c8d8c0", borderRadius: 10,
-                            background: "#fff", color: "#2d4a2d", outline: "none"
-                        }}
-                    />
-
-                    <Input
                         type="date"
                         rule="fecha"
                         value={filtroFechaDesde}
