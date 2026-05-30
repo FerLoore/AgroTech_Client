@@ -1137,11 +1137,14 @@ const AgroMapaPage = () => {
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
 <Input
     type="number"
-    min={1}
+    min={0.5}
     max={10}
     step={0.5}
     value={espaciadoSeleccionado}
     onChange={e => setEspaciadoSeleccionado(Number(e.target.value))}
+    onKeyDown={e => {
+        if (e.key === '0' && (e.currentTarget as HTMLInputElement).value === '') e.preventDefault();
+    }}
     style={{ ...inputStyle, width: 80 }}
     rule="numero"
 />

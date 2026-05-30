@@ -286,6 +286,10 @@ export const useRegistroAnalisis = () => {
                 setFormError(`La fecha de resultado es inválida. ${ruleFechaRes.errorMsg}`);
                 return;
             }
+            if (form.analab_fecha_envio && form.analab_fecha_resultado < form.analab_fecha_envio) {
+                setFormError("La fecha de resultado no puede ser anterior a la fecha de envío");
+                return;
+            }
         }
 
         try {
