@@ -66,6 +66,10 @@ export const useAgroFinca = () => {
     };
 
     const onGuardar = async () => {
+        if (form.fin_hectarea !== undefined && form.fin_hectarea !== "" && Number(form.fin_hectarea) <= 0) {
+            setFormError("Las hectáreas deben ser mayores a 0");
+            return;
+        }
         setGuardando(true);
         setFormError("");
         try {
