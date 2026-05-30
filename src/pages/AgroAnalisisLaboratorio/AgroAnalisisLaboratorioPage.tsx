@@ -318,6 +318,7 @@ const AgroAnalisisLaboratorioPage = () => {
                                                 onChange={e => setForm({ ...form, analab_fecha_resultado: e.target.value })}
                                                 className={INPUT_CLS}
                                                 rule="fecha"
+                                                min={form.analab_fecha_envio || undefined}
                                             />
                                         </div>
 
