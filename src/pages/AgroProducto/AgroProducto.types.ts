@@ -26,7 +26,7 @@ export const PRODUCTO_FORM_INICIAL: ProductoFormData = {
     produ_concentracion: "",
     produ_unidad:        "",
     produ_stock_actual:  0,
-    produ_stock_minimo:  0,
+    produ_stock_minimo:  1,
 };
 
 export const TIPO_PRODUCTO: Record<string, { label: string; bg: string; text: string }> = {

@@ -69,6 +69,10 @@ export const useAgroProducto = () => {
             setFormError("El tipo de producto es requerido");
             return;
         }
+        if (Number(form.produ_stock_minimo) <= 0) {
+            setFormError("El stock mínimo debe ser mayor a 0");
+            return;
+        }
 
         try {
             setGuardando(true);

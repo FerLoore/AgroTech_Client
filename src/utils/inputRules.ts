@@ -30,6 +30,12 @@ export const FIELD_RULES: Record<string, FieldRuleConfig> = {
         forbidden: /[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s.,\-]/g,
         errorMsg: "Solo letras, números, espacios y puntuación básica (. , -)."
     },
+    concentracion: {
+        allowed: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s.,\-%]*$/,
+        character: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s.,\-%]$/,
+        forbidden: /[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s.,\-%]/g,
+        errorMsg: "Solo letras, números, espacios, puntuación básica (. , -) y signo de porcentaje (%)."
+    },
     descripcion: {
         allowed: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s.,\-]*$/,
         character: /^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s.,\-]$/,

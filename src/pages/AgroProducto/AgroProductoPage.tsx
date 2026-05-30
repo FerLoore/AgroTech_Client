@@ -69,8 +69,8 @@ const CAMPOS: CampoFormulario[] = [
         key:         "produ_concentracion",
         label:       "Concentración",
         tipo:        "text",
-        placeholder: "Ej: 80",
-        rule:        "texto_descriptivo"
+        placeholder: "Ej: 80%",
+        rule:        "concentracion"
     },
     {
         key:         "produ_unidad",
