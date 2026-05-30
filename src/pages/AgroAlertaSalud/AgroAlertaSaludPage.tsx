@@ -121,7 +121,7 @@ const AgroAlertaSaludPage = () => {
     const CAMPOS = [
         { key: "alertsalud_fecha_deteccion",     label: "Fecha de detección",  tipo: "date",   requerido: true  },
         { key: "alertsalud_descripcion_sintoma",  label: "Descripción síntoma", tipo: "text",   placeholder: "Ej: Hojas con manchas", requerido: false, rule: "texto_descriptivo" },
-        { key: "alertsalud_foto",                label: "Foto",                 tipo: "text",   placeholder: "Ej: foto.jpg", requerido: false, rule: "texto_descriptivo" },
+        { key: "alertsalud_foto",                label: "Observación visual",   tipo: "text",   placeholder: "Ej: Manchas amarillas en el borde de las hojas", requerido: false, rule: "texto_descriptivo" },
         { key: "arb_arbol",   label: "Árbol",   tipo: "select", requerido: true, opciones: opcionesArboles  },
         { key: "usu_usuario", label: "Usuario", tipo: "select", requerido: true, opciones: opcionesUsuarios },
     ] as const;
