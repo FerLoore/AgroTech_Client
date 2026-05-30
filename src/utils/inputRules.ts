@@ -72,6 +72,18 @@ export const FIELD_RULES: Record<string, FieldRuleConfig> = {
         forbidden: /[^0-9.]/g,
         errorMsg: "Solo se permiten números y punto decimal."
     },
+    numero_mayor_cero: {
+        allowed: /^(?=.*[1-9])[0-9.]*$/,
+        character: /^[0-9.]$/,
+        forbidden: /[^0-9.]/g,
+        errorMsg: "El valor debe ser mayor a 0."
+    },
+    numero_no_cero: {
+        allowed: /^(?=.*[1-9])-?[0-9.]*$/,
+        character: /^[0-9.\-]$/,
+        forbidden: /[^0-9.\-]/g,
+        errorMsg: "El valor no puede ser 0."
+    },
     cantidad: {
         allowed: /^[0-9.]*$/,
         character: /^[0-9.]$/,

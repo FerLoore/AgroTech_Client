@@ -8,6 +8,7 @@ export interface UseInputSanitizerOptions {
 
 export const useInputSanitizer = (
     fieldType?: string,
+    currentValue?: string | number,
     options?: UseInputSanitizerOptions
 ) => {
     const [isShaking, setIsShaking] = useState(false);
@@ -18,6 +19,14 @@ export const useInputSanitizer = (
 
     // Retrieve active rule config
     const rule = fieldType ? FIELD_RULES[fieldType] : null;
+
+    const strValue = currentValue !== undefined ? String(currentValue) : "";
+    const isValueInvalid = !!(
+        rule &&
+        strValue !== "" &&
+        rule.allowed &&
+        !rule.allowed.test(strValue)
+    );
 
     const triggerWarning = useCallback(() => {
         if (shakeTimeoutRef.current) clearTimeout(shakeTimeoutRef.current);
@@ -62,7 +71,7 @@ export const useInputSanitizer = (
                 triggerWarning();
             }
         },
-        [fieldType, options, rule, triggerWarning]
+        [fieldType, options?.allowSpecial, options?.textareaFree, rule, triggerWarning]
     );
 
     // 2. Paste handler: sanitizes pasted content in real-time
@@ -84,11 +93,11 @@ export const useInputSanitizer = (
                 const target = e.target as HTMLInputElement | HTMLTextAreaElement;
                 const start = target.selectionStart ?? 0;
                 const end = target.selectionEnd ?? 0;
-                const currentValue = target.value;
+                const currentValueVal = target.value;
                 const newValue =
-                    currentValue.substring(0, start) +
+                    currentValueVal.substring(0, start) +
                     sanitizedText +
-                    currentValue.substring(end);
+                    currentValueVal.substring(end);
 
                 target.value = newValue;
 
@@ -103,7 +112,7 @@ export const useInputSanitizer = (
                 }, 0);
             }
         },
-        [fieldType, options, rule, triggerWarning]
+        [fieldType, options?.allowSpecial, options?.textareaFree, rule, triggerWarning]
     );
 
     // 3. Change handler: final safeguard for autocomplete / virtual keyboards
@@ -139,15 +148,18 @@ export const useInputSanitizer = (
                     target.setSelectionRange(newCursorPos, newCursorPos);
                 }, 0);
             } else {
+                if (sanitizedValue !== "" && rule.allowed && !rule.allowed.test(sanitizedValue)) {
+                    triggerWarning();
+                }
                 if (onChangeCallback) onChangeCallback(e);
             }
         },
-        [fieldType, options, rule, triggerWarning]
+        [fieldType, options?.allowSpecial, options?.textareaFree, rule, triggerWarning]
     );
 
     return {
         isShaking,
-        showWarning,
+        showWarning: showWarning || isValueInvalid,
         errorMsg: rule?.errorMsg || "Caracteres no permitidos detectados.",
         handleKeyDown,
         handlePaste,

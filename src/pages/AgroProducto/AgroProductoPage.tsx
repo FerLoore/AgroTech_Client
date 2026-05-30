@@ -90,8 +90,8 @@ const CAMPOS: CampoFormulario[] = [
         key:         "produ_stock_minimo",
         label:       "Stock Mínimo (Alerta)",
         tipo:        "number",
-        placeholder: "0",
-        rule:        "numero"
+        placeholder: "1",
+        rule:        "numero_mayor_cero"
     },
 ];
 

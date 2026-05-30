@@ -164,13 +164,12 @@ const CrudTabla = <T extends Record<string, unknown>>({
 
              if (campo.rule && valor) {
                  const ruleConfig = FIELD_RULES[campo.rule];
-                 if (ruleConfig) {
-                     const testRegex = new RegExp(ruleConfig.allowed);
-                     if (!testRegex.test(valor)) {
-                         setLocalFormError(`El campo "${campo.label}" es inválido. ${ruleConfig.errorMsg}`);
-                         return;
-                     }
-                 }
+                  if (ruleConfig) {
+                      if (!ruleConfig.allowed.test(valor)) {
+                          setLocalFormError(`El campo "${campo.label}" es inválido. ${ruleConfig.errorMsg}`);
+                          return;
+                      }
+                  }
              }
          }
 

@@ -29,7 +29,7 @@ const AgroFincaPage: React.FC = () => {
     const campos = useMemo<CampoFormulario[]>(() => [
         { key: 'fin_nombre', label: 'Nombre de la Finca', tipo: 'text', placeholder: 'Ej. Finca La Esperanza', rule: 'texto_descriptivo' },
         { key: 'fin_ubicacion', label: 'Ubicación', tipo: 'text', placeholder: 'Ej. Zona Norte', rule: 'direccion' },
-        { key: 'fin_hectarea', label: 'Hectáreas', tipo: 'number', placeholder: 'Ej. 50.5', rule: 'numero' },
+        { key: 'fin_hectarea', label: 'Hectáreas', tipo: 'number', placeholder: 'Ej. 50.5', rule: 'numero_mayor_cero' },
         {
             key: 'usu_usuario',
             label: 'Dueño',

@@ -16,6 +16,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
         // Feed the rule name (or type as fallback) to the sanitizer hook
         const activeRule = rule || (type === "textarea" ? undefined : type);
 
+        const sanitizedValForHook = (Array.isArray(props.value) ? props.value.join("") : props.value) as string | number | undefined;
         const {
             isShaking,
             showWarning,
@@ -23,7 +24,7 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
             handleKeyDown,
             handlePaste,
             handleChange,
-        } = useInputSanitizer(activeRule, { allowSpecial, textareaFree });
+        } = useInputSanitizer(activeRule, sanitizedValForHook, { allowSpecial, textareaFree });
 
         const onKeyDownHandler = (e: React.KeyboardEvent<any>) => {
             handleKeyDown(e);

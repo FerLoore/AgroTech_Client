@@ -1223,7 +1223,7 @@ const AgroMapaPage = () => {
     onChange={e => setClimaForm({ ...climaForm, clim_temperatura: e.target.value })}
     placeholder='Ej: 24.5'
     style={{ ...inputStyle, width: "100%" }}
-    rule="numero"
+    rule="numero_no_cero"
 />
                             <label style={labelStyle}>Humedad relativa (%)</label>
 <Input
@@ -1232,7 +1232,7 @@ const AgroMapaPage = () => {
     onChange={e => setClimaForm({ ...climaForm, clim_humedad_relativa: e.target.value })}
     placeholder='Ej: 72'
     style={{ ...inputStyle, width: "100%" }}
-    rule="numero"
+    rule="numero_no_cero"
 />
                             <label style={labelStyle}>Precipitación (mm)</label>
 <Input
@@ -1241,7 +1241,7 @@ const AgroMapaPage = () => {
     onChange={e => setClimaForm({ ...climaForm, clim_precipitacion: e.target.value })}
     placeholder='Ej: 5.0'
     style={{ ...inputStyle, width: "100%" }}
-    rule="numero"
+    rule="numero_no_cero"
 />
                         </div>
                     </div>
